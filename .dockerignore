@@ -1,0 +1,34 @@
+# Ignore node modules and package manager stores
+node_modules
+**/node_modules
+.pnpm-store
+.pnp.*
+
+# Ignore build outputs and dist directories
+web/dist
+dist
+build
+out
+
+# Ignore Git and VCS
+.git
+.gitignore
+
+# Ignore environment and secrets
+.env
+.env.local
+
+# Ignore editor and system files
+.vscode
+.idea
+*.log
+.DS_Store
+Thumbs.db
+
+# Ignore local dev and data directories
+homelab-docker-linux
+homelab-data
+tools
+
+# Keep web/public/img so static assets are copied by the build
+!web/public/img

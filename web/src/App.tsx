@@ -3,8 +3,10 @@ import { Layout, Button, Typography } from 'antd'
 import { GithubOutlined } from '@ant-design/icons'
 import RigsPage from './pages/RigsPage'
 import PeoplePage from './pages/PeoplePage'
-import logo from '../../img/logo1.jpg'
-import bg from '../../img/background.jpg'
+
+// Static assets are served from /img (web/public/img)
+const logo = '/img/logo1.jpg'
+const bg = '/img/background.jpg'
 
 const { Header, Content } = Layout
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Button, Modal, Form, Input, DatePicker, Space, message } from 'antd'
+import { Table, Button, Modal, Form, Input, DatePicker, Space, Select, message } from 'antd'
 import dayjs from 'dayjs'
 
 type Rig = any
@@ -9,6 +9,7 @@ const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).e
 export default function RigsPage() {
   const [rigs, setRigs] = useState<Rig[]>([])
   const [people, setPeople] = useState<Record<string,string>>({})
+  const [peopleList, setPeopleList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [visible, setVisible] = useState(false)
   const [editing, setEditing] = useState<Rig | null>(null)
@@ -22,8 +23,16 @@ export default function RigsPage() {
       const rJson = await rRes.json()
       const pJson = await pRes.json()
       const pMap: Record<string,string> = {}
-      pJson.forEach((p: any) => { pMap[p._id || p.id] = `${p.firstName||''} ${p.lastName||''}`.trim() })
+      const pList: any[] = []
+      pJson.forEach((p: any) => {
+        const id = p._id || p.id
+        const parts = [p.firstName, p.middleName, p.lastName].filter(Boolean).map((s: string) => String(s).trim())
+        const name = parts.join(' ').trim()
+        pMap[id] = name
+        pList.push({ id, name })
+      })
       setPeople(pMap)
+      setPeopleList(pList)
       setRigs(rJson)
     } catch (err) {
       console.error(err)
@@ -46,7 +55,7 @@ export default function RigsPage() {
 
   async function remove(id: string) {
     if (!confirm('Delete rig?')) return
-    await fetch(`/api/rigs/${id}`, { method: 'DELETE' })
+    await fetch(`${API_BASE}/api/rigs/${id}`, { method: 'DELETE' })
     load()
   }
 
@@ -57,9 +66,9 @@ export default function RigsPage() {
     if (payload.repackDue) payload.repackDue = payload.repackDue.toISOString()
     try {
       if (editing && editing._id) {
-        await fetch(`/api/rigs/${editing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        await fetch(`${API_BASE}/api/rigs/${editing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       } else {
-        await fetch('/api/rigs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        await fetch(`${API_BASE}/api/rigs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       }
       setVisible(false)
       load()
@@ -73,8 +82,12 @@ export default function RigsPage() {
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Number', dataIndex: 'number', key: 'number' },
     { title: 'Container', dataIndex: 'container', key: 'container' },
+    { title: 'Container Serial', dataIndex: 'containerSerialNumber', key: 'containerSerialNumber' },
     { title: 'Assigned', key: 'assigned', render: (_: any, r: any) => people[r.primaryUserId] || '' },
     { title: 'Last Packed', dataIndex: 'lastPacked', key: 'lastPacked', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
+    { title: 'Repack Due', dataIndex: 'repackDue', key: 'repackDue', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
+    { title: 'AAD Type', dataIndex: 'aadType', key: 'aadType' },
+    { title: 'Notes', dataIndex: 'notes', key: 'notes', render: (t: any) => t ? String(t).slice(0, 80) + (String(t).length > 80 ? '…' : '') : '' },
     { title: 'Actions', key: 'actions', render: (_: any, r: any) => (
       <Space>
         <Button onClick={() => openEdit(r)}>Edit</Button>
@@ -97,6 +110,15 @@ export default function RigsPage() {
           <Form.Item name="number" label="Number"><Input /></Form.Item>
           <Form.Item name="container" label="Container"><Input /></Form.Item>
           <Form.Item name="containerSerialNumber" label="Container Serial"><Input /></Form.Item>
+          <Form.Item name="primaryUserId" label="Assigned">
+            <Select showSearch allowClear placeholder="Select person" optionFilterProp="children" filterOption={(input, option) => {
+              return String(option?.children).toLowerCase().includes(String(input).toLowerCase())
+            }}>
+              {peopleList.map(p => (
+                <Select.Option key={p.id} value={p.id}>{String(p.name).trim()}</Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item name="lastPacked" label="Last Packed"><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="repackDue" label="Repack Due"><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="aadType" label="AAD Type"><Input /></Form.Item>

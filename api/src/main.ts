@@ -36,7 +36,10 @@ async function bootstrap() {
           if (m.test(origin)) return callback(null, true);
         }
       }
-      return callback(new Error('CORS blocked by policy'), false);
+      // Do not throw an error here — deny the origin without causing a 500.
+      // Returning `callback(null, false)` will cause CORS to not set allow headers
+      // for the request but won't raise an exception handled as a server error.
+      return callback(null, false);
     };
 
     app.enableCors({ origin: originValidator, credentials: true });

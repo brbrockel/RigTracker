@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Button, Modal, Form, Input, message } from 'antd'
+import { Table, Button, Modal, Form, Input, Select, message } from 'antd'
+import { parsePhoneNumberFromString } from 'libphonenumber-js'
+import isEmail from 'validator/lib/isEmail'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 
 export default function PeoplePage() {
   const [people, setPeople] = useState<any[]>([])
+  const [country] = useState('US')
   const [loading, setLoading] = useState(true)
   const [visible, setVisible] = useState(false)
   const [editing, setEditing] = useState<any | null>(null)
@@ -27,19 +30,36 @@ export default function PeoplePage() {
   function openCreate() { setEditing(null); form.resetFields(); setVisible(true) }
   function openEdit(p: any) { setEditing(p); form.setFieldsValue(p); setVisible(true) }
 
+  function formatPhoneForDisplay(phone?: string) {
+    if (!phone) return ''
+    try {
+      const pn = parsePhoneNumberFromString(String(phone))
+      return pn ? pn.formatInternational() : String(phone)
+    } catch (err) {
+      return String(phone)
+    }
+  }
+
   async function remove(id: string) {
     if (!confirm('Delete person?')) return
-    await fetch(`/api/people/${id}`, { method: 'DELETE' })
+    await fetch(`${API_BASE}/api/people/${id}`, { method: 'DELETE' })
     load()
   }
 
   async function save() {
     try {
       const vals = await form.validateFields()
+      // normalize email and phone before sending
+      if (vals.email) vals.email = String(vals.email).trim().toLowerCase()
+      if (vals.phone) {
+        const pn = parsePhoneNumberFromString(String(vals.phone), vals.country || country)
+        if (!pn || !pn.isValid()) throw new Error('Invalid phone')
+        vals.phone = pn.format('E.164')
+      }
       if (editing && editing._id) {
-        await fetch(`/api/people/${editing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
+        await fetch(`${API_BASE}/api/people/${editing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
       } else {
-        await fetch('/api/people', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
+        await fetch(`${API_BASE}/api/people`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
       }
       setVisible(false)
       load()
@@ -51,9 +71,10 @@ export default function PeoplePage() {
 
   const columns = [
     { title: 'First', dataIndex: 'firstName', key: 'firstName' },
+    { title: 'Middle', dataIndex: 'middleName', key: 'middleName' },
     { title: 'Last', dataIndex: 'lastName', key: 'lastName' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Phone', dataIndex: 'phone', key: 'phone' },
+    { title: 'Phone', dataIndex: 'phone', key: 'phone', render: (v: any) => formatPhoneForDisplay(v) },
     { title: 'Actions', key: 'actions', render: (_: any, p: any) => (
       <span>
         <Button onClick={() => openEdit(p)} style={{ marginRight: 8 }}>Edit</Button>
@@ -75,8 +96,28 @@ export default function PeoplePage() {
           <Form.Item name="firstName" label="First name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="middleName" label="Middle name"><Input /></Form.Item>
           <Form.Item name="lastName" label="Last name" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="email" label="Email"><Input /></Form.Item>
-          <Form.Item name="phone" label="Phone"><Input /></Form.Item>
+          <Form.Item name="email" label="Email" rules={[{ validator: (_: any, val: string) => !val || isEmail(String(val)) ? Promise.resolve() : Promise.reject('Enter a valid email') }]}><Input /></Form.Item>
+          <Form.Item name="phone" label="Phone" rules={[{ validator: (_: any, val: string) => {
+            if (!val) return Promise.resolve()
+            try {
+              const pn = parsePhoneNumberFromString(String(val))
+              return pn && pn.isValid() ? Promise.resolve() : Promise.reject('Enter a valid phone number')
+            } catch (err) {
+              return Promise.reject('Enter a valid phone number')
+            }
+          } }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="country" label="Country" initialValue={country}>
+            <Select showSearch optionFilterProp="children" defaultValue={country} filterOption={(input, option) => String(option?.children).toLowerCase().includes(String(input).toLowerCase())}>
+              <Select.Option value="US">United States</Select.Option>
+              <Select.Option value="CA">Canada</Select.Option>
+              <Select.Option value="GB">United Kingdom</Select.Option>
+              <Select.Option value="AU">Australia</Select.Option>
+              <Select.Option value="DE">Germany</Select.Option>
+              <Select.Option value="FR">France</Select.Option>
+            </Select>
+          </Form.Item>
         </Form>
       </Modal>
     </div>

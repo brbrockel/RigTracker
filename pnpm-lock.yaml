@@ -31,12 +31,18 @@ importers:
       express:
         specifier: ^4.18.2
         version: 4.22.1
+      libphonenumber-js:
+        specifier: ^1.10.26
+        version: 1.12.40
       mongoose:
         specifier: ^7.0.0
         version: 7.8.9
       reflect-metadata:
         specifier: ^0.1.13
         version: 0.1.14
+      validator:
+        specifier: ^13.9.0
+        version: 13.15.26
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5
@@ -47,6 +53,9 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.37
+      '@types/validator':
+        specifier: ^13.7.0
+        version: 13.15.10
       prisma:
         specifier: ^5.0.0
         version: 5.22.0
@@ -73,12 +82,18 @@ importers:
       dayjs:
         specifier: ^1.11.8
         version: 1.11.20
+      libphonenumber-js:
+        specifier: ^1.10.26
+        version: 1.12.40
       react:
         specifier: ^18.0.0
         version: 18.3.1
       react-dom:
         specifier: ^18.0.0
         version: 18.3.1(react@18.3.1)
+      validator:
+        specifier: ^13.9.0
+        version: 13.15.26
     devDependencies:
       '@types/react':
         specifier: ^18.0.0
@@ -86,6 +101,12 @@ importers:
       '@types/react-dom':
         specifier: ^18.0.0
         version: 18.3.7(@types/react@18.3.28)
+      '@types/validator':
+        specifier: ^13.7.0
+        version: 13.15.10
+      source-map:
+        specifier: 0.6.1
+        version: 0.6.1
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -645,6 +666,9 @@ packages:
   '@types/strip-json-comments@0.0.30':
     resolution: {integrity: sha512-7NQmHra/JILCd1QqpSzl8+mJRc8ZHz3uDm8YV1Ks9IhK0epEiTw8aIErbvH9PI+6XbqhyIQy3462nEsn7UVzjQ==}
 
+  '@types/validator@13.15.10':
+    resolution: {integrity: sha512-T8L6i7wCuyoK8A/ZeLYt1+q0ty3Zb9+qbSSvrIVitzT3YjZqkTZ40IbRsPanlB4h1QB3JVL1SYCdR6ngtFYcuA==}
+
   '@types/webidl-conversions@7.0.3':
     resolution: {integrity: sha512-CiJJvcRtIgzadHCYXw7dqEnMNRjhGZlYK05Mj9OyktqV8uVT8fD2BFOB7S1uwBE3Kj2Z+4UyPmFw/Ixgw/LAlA==}
 
@@ -1014,6 +1038,9 @@ packages:
   kareem@2.5.1:
     resolution: {integrity: sha512-7jFxRVm+jD+rkq3kY0iZDJfsO2/t4BBPeEb2qKn2lR/9KhuksYk5hxzfRYWMPV8P/x2d0kHD306YyWLzjjH+uA==}
     engines: {node: '>=12.0.0'}
+
+  libphonenumber-js@1.12.40:
+    resolution: {integrity: sha512-HKGs7GowShNls3Zh+7DTr6wYpPk5jC78l508yQQY3e8ZgJChM3A9JZghmMJZuK+5bogSfuTafpjksGSR3aMIEg==}
 
   loose-envify@1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
@@ -1682,6 +1709,10 @@ packages:
   v8-compile-cache-lib@3.0.1:
     resolution: {integrity: sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg==}
 
+  validator@13.15.26:
+    resolution: {integrity: sha512-spH26xU080ydGggxRyR1Yhcbgx+j3y5jbNXk/8L+iRvdIEQ4uTRH2Sgf2dokud6Q4oAtsbNvJ1Ft+9xmm6IZcA==}
+    engines: {node: '>= 0.10'}
+
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
@@ -2214,6 +2245,8 @@ snapshots:
 
   '@types/strip-json-comments@0.0.30': {}
 
+  '@types/validator@13.15.10': {}
+
   '@types/webidl-conversions@7.0.3': {}
 
   '@types/whatwg-url@8.2.2':
@@ -2666,6 +2699,8 @@ snapshots:
       string-convert: 0.2.1
 
   kareem@2.5.1: {}
+
+  libphonenumber-js@1.12.40: {}
 
   loose-envify@1.4.0:
     dependencies:
@@ -3432,6 +3467,8 @@ snapshots:
   utils-merge@1.0.1: {}
 
   v8-compile-cache-lib@3.0.1: {}
+
+  validator@13.15.26: {}
 
   vary@1.1.2: {}
 
