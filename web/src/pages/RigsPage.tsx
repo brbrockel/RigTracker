@@ -84,7 +84,7 @@ export default function RigsPage() {
     { title: 'Container', dataIndex: 'container', key: 'container' },
     { title: 'Container Serial', dataIndex: 'containerSerialNumber', key: 'containerSerialNumber' },
     { title: 'Assigned', key: 'assigned', render: (_: any, r: any) => people[r.primaryUserId] || '' },
-    { title: 'Reserve Repacked', dataIndex: 'lastPacked', key: 'lastPacked', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
+    { title: 'Last Packed', dataIndex: 'lastPacked', key: 'lastPacked', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
     { title: 'Repack Due', dataIndex: 'repackDue', key: 'repackDue', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
     { title: 'AAD Type', dataIndex: 'aadType', key: 'aadType' },
     { title: 'Notes', dataIndex: 'notes', key: 'notes', render: (t: any) => t ? String(t).slice(0, 80) + (String(t).length > 80 ? '…' : '') : '' },
@@ -119,7 +119,7 @@ export default function RigsPage() {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="lastPacked" label="Reserve Repacked"><DatePicker style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="lastPacked" label="Last Packed"><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="repackDue" label="Repack Due"><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="aadType" label="AAD Type"><Input /></Form.Item>
           <Form.Item name="notes" label="Notes"><Input.TextArea /></Form.Item>
