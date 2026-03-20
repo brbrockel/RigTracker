@@ -1,0 +1,31 @@
+FROM node:18 AS builder
+WORKDIR /app
+
+# copy only package manifests to leverage caching
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY api/package.json ./api/
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+# Hoist dependencies so runtime `node_modules` contains regular package symlinks
+RUN pnpm install --no-frozen-lockfile --shamefully-hoist --filter ./api...
+
+COPY . .
+
+WORKDIR /app
+RUN pnpm --filter ./api run prisma:generate
+RUN pnpm --filter ./api run build
+
+FROM node:18-slim AS runtime
+WORKDIR /app
+# Ensure required OpenSSL system library is present for Prisma query engine
+RUN apt-get update -y \
+	&& apt-get install -y --no-install-recommends openssl libssl3 ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
+# Copy compiled output from builder
+COPY --from=builder /app/api/dist ./dist
+# Copy workspace node_modules (pnpm places deps at workspace root)
+COPY --from=builder /app/node_modules ./node_modules
+ENV NODE_ENV=production
+EXPOSE 4000
+WORKDIR /app
+CMD ["node", "dist/src/main.js"]

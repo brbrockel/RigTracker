@@ -1,0 +1,18 @@
+-- AlterTable
+ALTER TABLE "Pack" ADD COLUMN     "aadDom" TIMESTAMP(3),
+ADD COLUMN     "aadSerialNumber" TEXT,
+ADD COLUMN     "aadType" TEXT,
+ADD COLUMN     "containerDom" TIMESTAMP(3),
+ADD COLUMN     "containerSerialNumber" TEXT,
+ADD COLUMN     "lastPacked" TIMESTAMP(3),
+ADD COLUMN     "mainDom" TIMESTAMP(3),
+ADD COLUMN     "mainSerialNumber" TEXT,
+ADD COLUMN     "mainSize" TEXT,
+ADD COLUMN     "number" TEXT,
+ADD COLUMN     "pastNaming" TEXT,
+ADD COLUMN     "primaryUser" TEXT,
+ADD COLUMN     "repackDue" TIMESTAMP(3),
+ADD COLUMN     "reserveDom" TIMESTAMP(3),
+ADD COLUMN     "reserveSerialNumber" TEXT,
+ADD COLUMN     "reserveSize" TEXT,
+ADD COLUMN     "riggerInt" TEXT;

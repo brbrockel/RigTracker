@@ -1,0 +1,20 @@
+FROM node:18 AS builder
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY web/package.json ./web/
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install --frozen-lockfile --filter ./web...
+
+COPY . .
+
+WORKDIR /app
+RUN pnpm --filter ./web run build
+
+FROM nginx:stable-alpine AS runtime
+COPY --from=builder /app/web/dist /usr/share/nginx/html
+COPY web/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+EXPOSE 80
+CMD ["/docker-entrypoint.sh"]

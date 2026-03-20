@@ -1,0 +1,14 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../homelab-docker-linux"
+    },
+    {
+      "path": "../../../../srv/homelab-data"
+    }
+  ],
+  "settings": {}
+}

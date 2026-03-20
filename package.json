@@ -1,0 +1,14 @@
+{
+  "name": "rigtracker-monorepo",
+  "private": true,
+  "workspaces": [
+    "web",
+    "api",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "build": "pnpm -w -r build"
+  }
+}

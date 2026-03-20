@@ -1,0 +1,79 @@
+generator client {
+  provider      = "prisma-client-js"
+  // Include common binary targets to support different container runtimes (Debian/Alpine)
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    String @id @default(uuid())
+  name  String
+  email String @unique
+  role  String
+  allocations Allocation[]
+}
+
+model Pack {
+  id            String      @id @default(uuid())
+  serialNumber  String      @unique
+  name          String
+  containerType String?
+  notes         String?
+  primaryUser   String?
+  number        String?
+  pastNaming    String?
+  containerSerialNumber String?
+  containerDom  DateTime?
+  mainSize      String?
+  mainDom       DateTime?
+  mainSerialNumber String?
+  reserveSize   String?
+  reserveDom    DateTime?
+  reserveSerialNumber String?
+  lastPacked    DateTime?
+  riggerInt     String?
+  repackDue     DateTime?
+  aadType       String?
+  aadDom        DateTime?
+  aadSerialNumber String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  options       Option[]
+  specs         Spec?
+  allocations   Allocation[]
+}
+
+model Option {
+  id       String @id @default(uuid())
+  pack     Pack   @relation(fields: [packId], references: [id])
+  packId   String
+  slot     String
+  makeModel String
+  size     String?
+  installDate DateTime?
+}
+
+model Spec {
+  id       String @id @default(uuid())
+  pack     Pack   @relation(fields: [packId], references: [id])
+  packId   String @unique
+  weight   Float?
+  maxLoad  Float?
+  lineLength Int?
+}
+
+model Allocation {
+  id       String @id @default(uuid())
+  pack     Pack   @relation(fields: [packId], references: [id])
+  packId   String
+  user     User   @relation(fields: [userId], references: [id])
+  userId   String
+  type     String
+  startDate DateTime
+  endDate  DateTime?
+  notes    String?
+}
