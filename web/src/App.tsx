@@ -29,7 +29,7 @@ export default function App() {
       </Header>
       <Content style={{ padding: 24 }}>
         {page === 'home' && <div style={{ padding: 24, background: 'rgba(255,255,255,0.9)', borderRadius: 8 }}>
-          <Typography.Title level={4}>Welcome to RigTracker</Typography.Title>
+          <Typography.Title level={4}>Welcome to Rig test Tracker</Typography.Title>
           <p>Use the Rigs and People pages to manage equipment and allocations.</p>
         </div>}
         {page === 'rigs' && <RigsPage />}
