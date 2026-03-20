@@ -24,8 +24,8 @@ WORKDIR /app
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends nginx curl openssl libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-# Remove Debian default site to avoid duplicate default_server conflicts at runtime
-RUN rm -f /etc/nginx/sites-available/default || true
+# Remove Debian default site and broken symlink to avoid duplicate default_server conflicts and runtime errors
+RUN rm -f /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default || true
 
 # Copy compiled server
 COPY --from=builder /app/api/dist ./dist
