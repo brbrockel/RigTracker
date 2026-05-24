@@ -7,8 +7,15 @@ cat > /usr/share/nginx/html/env-config.js <<EOF
 window.__RIGTRACKER_API_BASE = "${API_BASE_VAL}";
 EOF
 
-# Start the Node server in background
-node dist/src/main.js &
+# Start the Node server in background.
+# Build output may be at dist/main.js or dist/src/main.js depending on TS config.
+if [ -f dist/main.js ]; then
+	NODE_ENTRYPOINT="dist/main.js"
+else
+	NODE_ENTRYPOINT="dist/src/main.js"
+fi
+
+node "$NODE_ENTRYPOINT" &
 NODE_PID=$!
 
 # Wait for Node server to accept HTTP connections (timeout 60s)

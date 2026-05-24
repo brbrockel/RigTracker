@@ -1,21 +1,34 @@
-import { Injectable } from '@nestjs/common'
-import { prisma } from '../prisma.client'
+import { Injectable, NotFoundException } from '@nestjs/common'
+import { InjectModel } from '@nestjs/mongoose'
+import { Model } from 'mongoose'
+import { Pack, PackDocument } from './pack.schema'
 
 @Injectable()
 export class PacksService {
+  constructor(@InjectModel(Pack.name) private packModel: Model<PackDocument>) {}
+
   async findAll() {
-    return prisma.pack.findMany({ include: { options: true, specs: true, allocations: true } })
+    return this.packModel.find().lean()
   }
 
   async findOne(id: string) {
-    return prisma.pack.findUnique({ where: { id }, include: { options: true, specs: true, allocations: true } })
+    const pack = await this.packModel.findById(id).lean()
+    if (!pack) throw new NotFoundException('Pack not found')
+    return pack
   }
 
   async create(dto: any) {
-    return prisma.pack.create({ data: dto })
+    const created = new this.packModel(this.mapDto(dto))
+    return created.save()
   }
 
   async update(id: string, dto: any) {
+    const updated = await this.packModel.findByIdAndUpdate(id, this.mapDto(dto), { new: true }).lean()
+    if (!updated) throw new NotFoundException('Pack not found')
+    return updated
+  }
+
+  private mapDto(dto: any) {
     const data: any = {}
     if (dto.name !== undefined) data.name = dto.name
     if (dto.serial_number !== undefined) data.serialNumber = dto.serial_number
@@ -56,7 +69,6 @@ export class PacksService {
     if (dto.aad_dom !== undefined) data.aadDom = dto.aad_dom
     if (dto.aadSerialNumber !== undefined) data.aadSerialNumber = dto.aadSerialNumber
     if (dto.aad_serial_number !== undefined) data.aadSerialNumber = dto.aad_serial_number
-
-    return prisma.pack.update({ where: { id }, data })
+    return data
   }
 }

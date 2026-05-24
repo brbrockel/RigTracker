@@ -6,14 +6,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY api/package.json ./api/
 COPY web/package.json ./web/
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 # Install workspace deps required for both api and web
 RUN pnpm install --no-frozen-lockfile --shamefully-hoist --filter ./api... --filter ./web...
 
 COPY . .
 
 WORKDIR /app
-RUN pnpm --filter ./api run prisma:generate
 RUN pnpm --filter ./api run build
 RUN pnpm --filter ./web run build
 
