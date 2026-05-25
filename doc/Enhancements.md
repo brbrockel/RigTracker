@@ -9,6 +9,7 @@ This page tracks planned enhancements in a consistent, reviewable format.
 3. [EH-002: Audit Trail and Change History](#eh-002-audit-trail-and-change-history)
 4. [EH-003: Reporting Dashboard](#eh-003-reporting-dashboard)
 5. [EH-004: Bulk Import UX](#eh-004-bulk-import-ux)
+6. [EH-005: Photo Albums and Multi-Source Uploads](#eh-005-photo-albums-and-multi-source-uploads)
 
 ## How To Document An Enhancement
 
@@ -238,3 +239,108 @@ Add staged import endpoint and UI wizard with row-level validation feedback.
 ### Acceptance Criteria
 - [ ] Users can preview and validate imports before save.
 - [ ] Import summary reports successes and failures by row.
+
+## EH-005: Photo Albums and Multi-Source Uploads
+
+**Status**: Proposed  
+**Owner**: TBD
+
+### Problem
+Operators and users need a simple way to organize rig/event photos into albums and upload photos directly from phones or cloud photo libraries.
+
+### Scope
+In:
+- Create new photo albums.
+- Add photos to existing albums.
+- Upload photos directly from mobile devices (camera roll/file picker).
+- Import photos from Google Photos.
+- Import photos from iCloud Photos.
+- Album visibility model (private/team/public) and ownership metadata.
+Out:
+- AI auto-tagging, face recognition, or duplicate-photo detection in phase 1.
+
+### Proposed Solution
+Add an Albums feature across API and web UI with a unified upload/import workflow:
+- Album management: create, rename, archive, and list albums.
+- Media ingestion:
+	- Direct upload from device (desktop/mobile web).
+	- Google Photos connector using OAuth-based import flow.
+	- iCloud Photos connector using a supported provider integration path or user-export/import fallback when direct API access is constrained.
+- Storage abstraction layer so images can be stored in local volume first, with optional object storage support later.
+- Async import jobs for cloud providers to handle large libraries and background processing.
+
+### Data/Schema Impact
+Add MongoDB collections:
+- albums:
+	- _id, name, description, ownerUserId, visibility, coverPhotoId
+	- createdAt, updatedAt, archivedAt
+- photos:
+	- _id, albumId, uploaderUserId, sourceType (device/google_photos/icloud)
+	- storagePath, mimeType, width, height, sizeBytes
+	- capturedAt, uploadedAt, checksum
+- importJobs:
+	- _id, userId, provider (google_photos/icloud), status, progress
+	- startedAt, completedAt, errorSummary
+
+Indexes:
+- albums.ownerUserId + createdAt
+- photos.albumId + uploadedAt
+- importJobs.userId + startedAt
+
+### API Impact
+New endpoints (illustrative):
+- POST /api/albums
+- GET /api/albums
+- PATCH /api/albums/:id
+- POST /api/albums/:id/photos (multipart upload)
+- GET /api/albums/:id/photos
+- POST /api/import/google-photos/start
+- POST /api/import/icloud/start
+- GET /api/import/:jobId/status
+
+Behavioral notes:
+- Upload and import endpoints require authenticated users.
+- File type and max size validation enforced server-side.
+- Import jobs expose progress and error details.
+
+### UI Impact
+- New Albums page with:
+	- Album grid/list view.
+	- Create album action.
+	- Album details page showing photos.
+	- Add to existing album action in uploader/import flow.
+- Mobile-friendly upload UX:
+	- Camera roll/file picker support.
+	- Progress UI for large uploads and provider imports.
+
+### External Setup (Non-Code)
+Required integrations and operations setup:
+
+1. Google Cloud project and OAuth credentials for Google Photos import scopes.
+2. Apple/iCloud integration setup (or documented fallback upload path where direct API scopes are restricted).
+3. Secure secrets management for provider client IDs/secrets.
+4. Storage configuration:
+- Local filesystem path and retention policy, or
+- Object storage bucket and lifecycle policy.
+5. Upload size limits and reverse-proxy/body-size settings.
+6. Privacy and consent policy updates for user photo data processing.
+
+### Risks
+- Provider API limitations or policy restrictions (especially iCloud) may limit direct import behavior.
+- Large media uploads can increase storage and bandwidth costs quickly.
+- Background import retries and partial failures can complicate user experience.
+- Privacy and retention requirements must be explicit for personal photos.
+
+### Rollout Plan
+1. Phase 1: Albums + direct device uploads + add-to-existing-album flow.
+2. Phase 2: Google Photos import with async jobs and status tracking.
+3. Phase 3: iCloud import path (direct if feasible, fallback workflow if not).
+4. Phase 4: Hardening (quotas, lifecycle rules, admin reporting).
+
+### Acceptance Criteria
+- [ ] Users can create a new album from web and mobile layouts.
+- [ ] Users can add photos to an existing album.
+- [ ] Users can upload photos from phone browsers.
+- [ ] Users can initiate and complete Google Photos imports.
+- [ ] Users can initiate iCloud Photos ingestion via supported integration path.
+- [ ] Users can view import progress and completion/failure states.

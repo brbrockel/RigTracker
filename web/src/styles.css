@@ -117,14 +117,15 @@ a:hover {
   background-position: center 36%;
   background-repeat: no-repeat;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   padding: 20px;
   overflow: hidden;
   box-shadow: 0 14px 30px rgba(27, 42, 65, 0.18);
 }
 
 .rt-home-card-overlay {
-  width: min(92%, 680px);
+  width: 100%;
+  max-width: none;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(2px);
 }
