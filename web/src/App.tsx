@@ -24,14 +24,16 @@ const { useBreakpoint } = Grid
 
 function HomePage() {
   return (
-    <div className="rt-home-card">
-      <Typography.Title level={3} style={{ marginTop: 0 }}>Welcome to RigTracker</Typography.Title>
-      <Typography.Paragraph style={{ marginBottom: 8 }}>
-        Use the sidebar to manage rigs and people records.
-      </Typography.Paragraph>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-        This layout uses route-based navigation so pages can be bookmarked and shared.
-      </Typography.Paragraph>
+    <div className="rt-home-hero" style={{ backgroundImage: `url(${skydiver})` }}>
+      <div className="rt-home-card rt-home-card-overlay">
+        <Typography.Title level={3} style={{ marginTop: 0 }}>Welcome to RigTracker</Typography.Title>
+        <Typography.Paragraph style={{ marginBottom: 8 }}>
+          Use the sidebar to manage rigs and people records.
+        </Typography.Paragraph>
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+          This layout uses route-based navigation so pages can be bookmarked and shared.
+        </Typography.Paragraph>
+      </div>
     </div>
   )
 }
@@ -86,14 +88,6 @@ export default function App() {
           onClick={({ key }) => navigate(key)}
           style={{ borderRight: 0 }}
         />
-        <div className="rt-sider-footer-image-wrap">
-          <div
-            className="rt-sider-footer-image"
-            role="img"
-            aria-label="Skydiver"
-            style={{ backgroundImage: `url(${skydiver})` }}
-          />
-        </div>
       </Sider>
 
       <Layout>
