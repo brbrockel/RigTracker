@@ -107,27 +107,23 @@ a:hover {
   max-width: 980px;
 }
 
-.rt-home-hero {
+.rt-home-dashboard-card {
   width: 100%;
   max-width: 1400px;
-  height: clamp(340px, 62vh, 760px);
-  border-radius: 14px;
-  border: 1px solid rgba(27, 42, 65, 0.14);
-  background-size: cover;
-  background-position: center 36%;
-  background-repeat: no-repeat;
-  display: flex;
-  align-items: flex-start;
   padding: 20px;
-  overflow: hidden;
-  box-shadow: 0 14px 30px rgba(27, 42, 65, 0.18);
 }
 
-.rt-home-card-overlay {
+.rt-home-inline-image {
   width: 100%;
-  max-width: none;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(2px);
+  height: clamp(260px, 55vh, 680px);
+  object-fit: contain;
+  object-position: center center;
+  background: #76a6d7;
+  padding: clamp(12px, 2vw, 24px);
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid rgba(27, 42, 65, 0.12);
+  box-shadow: 0 14px 30px rgba(27, 42, 65, 0.18);
 }
 
 @media (max-width: 600px) {
@@ -157,15 +153,14 @@ a:hover {
     padding: 16px;
   }
 
-  .rt-home-hero {
-    height: clamp(280px, 52vh, 520px);
-    padding: 12px;
-    border-radius: 12px;
-    background-position: center 30%;
+  .rt-home-dashboard-card {
+    padding: 14px;
   }
 
-  .rt-home-card-overlay {
+  .rt-home-inline-image {
     width: 100%;
-    padding: 14px;
+    height: clamp(220px, 42vh, 420px);
+    object-position: center center;
+    padding: 10px;
   }
 }
