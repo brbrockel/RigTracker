@@ -69,15 +69,24 @@ docker service update --force rigtracker_rigtracker
 
 ## Environment Variables
 
-Common runtime variables:
+Environment variable reference:
 
-- `MONGO_URI`
-- `RIGTRACKER_CORS_ORIGIN`
-- `RIGTRACKER_API_BASE`
+| Variable | Required | Used By | Purpose | Example |
+| --- | --- | --- | --- | --- |
+| `MONGO_URI` | Yes | API | MongoDB connection string for runtime data. | `mongodb://mongo:27017/rigtracker` |
+| `RIGTRACKER_CORS_ORIGIN` | Recommended | API | Allowed browser origins (supports wildcard patterns like `*.example.com`). | `*.bhbslp.org` |
+| `RIGTRACKER_API_BASE` | Optional | Web | API base URL override; keep empty for same-origin deployments behind nginx. | `` |
+| `GITHUB_GHCR_TOKEN` | Yes for deploy script | Build/deploy script | Auth token used by `./build.sh --deploy` to push to GHCR. | `ghp_xxx` |
 
-Deploy helper variable:
+Planned for EH-001 (Google auth and app sessions):
 
-- `GITHUB_GHCR_TOKEN` (required for `./build.sh --deploy`)
+| Variable | Required | Used By | Purpose | Example |
+| --- | --- | --- | --- | --- |
+| `GOOGLE_CLIENT_ID` | Yes (EH-001) | API auth module | Google OAuth client identifier for login redirects and token validation. | `1234567890-abc123.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Yes (EH-001) | API auth module | Google OAuth client secret used during callback token exchange. | `GOCSPX-...` |
+| `SESSION_SECRET` | Yes (EH-001) | API auth module | Secret used to sign/encrypt session cookies or session tokens. | `long-random-value` |
+| `AUTH_ALLOWED_EMAIL_DOMAIN` | Optional (EH-001) | API auth module | Restrict logins to a single domain (or use allowlist strategy). | `bhbslp.org` |
+| `AUTH_ALLOWED_EMAILS` | Optional (EH-001) | API auth module | Comma-separated explicit allowlist for login access. | `user1@bhbslp.org,user2@gmail.com` |
 
 ## Troubleshooting
 

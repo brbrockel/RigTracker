@@ -77,13 +77,99 @@ Current application access is not role-scoped at runtime for critical operations
 In:
 - Authentication flow
 - Role-based access controls for write operations
+- Google OAuth 2.0 login for first-party web app users
+- User activity tracking (last login, login counts)
 Out:
-- External SSO federation in first phase
+- Non-Google identity providers in first phase
 
 ### Proposed Solution
-Introduce application auth middleware and role guards on API endpoints.
+Use Google OAuth 2.0 as the identity provider and establish an app-managed session after callback.
+
+High-level flow:
+- User clicks Sign in with Google in web UI.
+- API redirects user to Google consent screen.
+- Google callback is handled by API, which validates identity and upserts a local user record in MongoDB.
+- API issues a secure, httpOnly session cookie.
+- Role guards enforce route-level authorization for write operations.
+
+### Data/Schema Impact
+Add a users collection in MongoDB with fields similar to:
+- provider: google
+- googleId: stable provider user ID (indexed, unique)
+- email: normalized email address (indexed, unique)
+- displayName
+- pictureUrl
+- roles: array (for example admin, editor, viewer)
+- isActive: boolean
+- createdAt, updatedAt
+- lastLoginAt
+- loginCount
+- lastLoginIp (optional)
+- lastUserAgent (optional)
+
+Add a sessions collection if server-side session persistence is selected:
+- sessionId (indexed, unique)
+- userId (indexed)
+- createdAt, expiresAt, revokedAt
+- ip, userAgent (optional)
+
+### API Impact
+New endpoints (names illustrative):
+- GET /api/auth/google
+- GET /api/auth/google/callback
+- POST /api/auth/logout
+- GET /api/auth/me
+
+Behavioral changes:
+- Protected routes require authenticated session and appropriate role.
+- Unauthorized requests return 401.
+- Authenticated but insufficient-role requests return 403.
+
+### UI Impact
+- Add Sign in with Google entry point.
+- Add signed-in user menu (profile, logout).
+- Add unauthenticated and unauthorized states for protected pages/actions.
+
+### External Setup (Non-Code)
+Google Cloud and platform setup required before enabling auth:
+
+1. Create or select a Google Cloud project.
+2. Configure OAuth consent screen:
+- App name, support email, and authorized domain(s).
+- Privacy Policy URL and Terms URL (recommended for production).
+- Add required scopes (openid, email, profile).
+3. Create OAuth client credentials (Web application type).
+4. Add authorized JavaScript origins:
+- Production origin (for example https://rigtracker.bhbslp.org).
+- Local dev origin(s) as needed.
+5. Add authorized redirect URI(s):
+- Production callback URI (for example https://rigtracker.bhbslp.org/api/auth/google/callback).
+- Local dev callback URI(s) as needed.
+6. Configure secrets in deployment environment:
+- GOOGLE_CLIENT_ID
+- GOOGLE_CLIENT_SECRET
+- SESSION_SECRET
+- Optional: AUTH_ALLOWED_EMAIL_DOMAIN or explicit allowlist.
+7. Ensure HTTPS is enabled end-to-end so secure cookies can be enforced.
+8. Confirm reverse proxy forwards protocol headers correctly so callback URL and cookie security behave as expected.
+9. Validate DNS and external URL stability before go-live (callback URLs must match exactly).
+
+### Risks
+- Misconfigured callback URLs or proxy headers can break login flow.
+- Cookie SameSite and domain settings may block session behavior if set incorrectly.
+- Role mapping mistakes can over-permit access.
+
+### Rollout Plan
+1. Implement auth endpoints and user persistence behind a feature flag.
+2. Enable read-only user identification first (me endpoint and UI login state).
+3. Gradually enforce auth on write routes.
+4. Enable role checks on critical write routes.
+5. Roll back by disabling enforcement flag while keeping auth endpoints available.
 
 ### Acceptance Criteria
+- [ ] Users can authenticate with Google in dev and production environments.
+- [ ] User records are created/updated in MongoDB on successful login.
+- [ ] lastLoginAt and loginCount are updated on each successful login.
 - [ ] Read/write routes enforce role checks.
 - [ ] Unauthorized requests return explicit 401/403 responses.
 
