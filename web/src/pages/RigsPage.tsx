@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Button, Modal, Form, Input, DatePicker, Space, Select, message } from 'antd'
+import { Table, Button, Modal, Form, Input, DatePicker, Space, Select, message, Grid } from 'antd'
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 type Rig = any
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
+const { useBreakpoint } = Grid
 
 export default function RigsPage() {
   const [rigs, setRigs] = useState<Rig[]>([])
@@ -13,6 +15,9 @@ export default function RigsPage() {
   const [loading, setLoading] = useState(true)
   const [visible, setVisible] = useState(false)
   const [editing, setEditing] = useState<Rig | null>(null)
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const isVerySmall = screens.xs === false
 
   const [form] = Form.useForm()
 
@@ -78,7 +83,7 @@ export default function RigsPage() {
     }
   }
 
-  const columns = [
+  const desktopColumns = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Number', dataIndex: 'number', key: 'number' },
     { title: 'Container', dataIndex: 'container', key: 'container' },
@@ -88,21 +93,61 @@ export default function RigsPage() {
     { title: 'Repack Due', dataIndex: 'repackDue', key: 'repackDue', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
     { title: 'AAD Type', dataIndex: 'aadType', key: 'aadType' },
     { title: 'Notes', dataIndex: 'notes', key: 'notes', render: (t: any) => t ? String(t).slice(0, 80) + (String(t).length > 80 ? '…' : '') : '' },
-    { title: 'Actions', key: 'actions', render: (_: any, r: any) => (
+    { title: 'Actions', key: 'actions', width: 170, render: (_: any, r: any) => (
       <Space>
-        <Button onClick={() => openEdit(r)}>Edit</Button>
-        <Button danger onClick={() => remove(r._id)}>Delete</Button>
+        <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(r)}>Edit</Button>
+        <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(r._id)}>Delete</Button>
       </Space>
     ) }
   ]
 
+  const mobileColumns = [
+    { title: 'Rig', dataIndex: 'name', key: 'name', width: 110, ellipsis: true },
+    { title: 'Assigned', key: 'assigned', width: 110, ellipsis: true, render: (_: any, r: any) => people[r.primaryUserId] || 'Unassigned' },
+    { title: 'Due', dataIndex: 'repackDue', key: 'repackDue', width: 96, render: (v: any) => v ? dayjs(v).format('MM-DD-YY') : 'N/A' },
+    { title: 'Actions', key: 'actions', width: 80, render: (_: any, r: any) => (
+      <Space size={0}>
+        <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>{isVerySmall ? null : 'Edit'}</Button>
+        <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>{isVerySmall ? null : 'Del'}</Button>
+      </Space>
+    ) }
+  ]
+
+  const columns = isMobile ? mobileColumns : desktopColumns
+
   return (
-    <div style={{ background: 'rgba(255,255,255,0.95)', padding: 16, borderRadius: 8 }}>
-      <div style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
-        <Button type="primary" onClick={openCreate}>New Rig</Button>
-        <Button onClick={load}>Refresh</Button>
+    <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
+      <div style={{ marginBottom: isMobile ? 8 : 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Rig</Button>
+        <Button size={isMobile ? 'small' : 'middle'} onClick={load}>Refresh</Button>
       </div>
-      <Table dataSource={rigs} rowKey={(r:any) => r._id || r.id} loading={loading} columns={columns} />
+      {isMobile ? (
+        <div className="rt-mobile-card-list">
+          {rigs.map((r: any) => (
+            <div key={r._id || r.id} className="rt-mobile-card-item">
+              <div className="rt-mobile-card-title">{r.name || 'Unnamed Rig'}</div>
+              <div className="rt-mobile-card-meta">Assigned: {people[r.primaryUserId] || 'Unassigned'}</div>
+              <div className="rt-mobile-card-meta">Repack Due: {r.repackDue ? dayjs(r.repackDue).format('YYYY-MM-DD') : 'N/A'}</div>
+              <div className="rt-mobile-card-actions">
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Edit</Button>
+                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>Delete</Button>
+              </div>
+            </div>
+          ))}
+          {!loading && rigs.length === 0 && <div className="rt-mobile-empty">No rigs found.</div>}
+        </div>
+      ) : (
+        <Table
+          className={isVerySmall ? 'rt-compact-table rt-ultra-compact-table' : 'rt-compact-table'}
+          dataSource={rigs}
+          rowKey={(r:any) => r._id || r.id}
+          loading={loading}
+          columns={columns}
+          size={isMobile ? 'small' : 'middle'}
+          scroll={{ x: 'max-content' }}
+          pagination={{ pageSize: 10, showSizeChanger: false, size: 'default' }}
+        />
+      )}
 
       <Modal open={visible} title={editing ? 'Edit Rig' : 'New Rig'} onCancel={() => setVisible(false)} onOk={save}>
         <Form form={form} layout="vertical">

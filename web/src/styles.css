@@ -126,6 +126,42 @@ a:hover {
   box-shadow: 0 14px 30px rgba(27, 42, 65, 0.18);
 }
 
+.rt-mobile-card-list {
+  display: grid;
+  gap: 8px;
+}
+
+.rt-mobile-card-item {
+  border: 1px solid rgba(27, 42, 65, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.rt-mobile-card-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.rt-mobile-card-meta {
+  font-size: 12px;
+  line-height: 1.25;
+  margin-bottom: 3px;
+  color: #334155;
+}
+
+.rt-mobile-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.rt-mobile-empty {
+  padding: 12px 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
 @media (max-width: 600px) {
   body {
     font-size: 15px;
@@ -162,5 +198,67 @@ a:hover {
     height: clamp(220px, 42vh, 420px);
     object-position: center center;
     padding: 10px;
+  }
+
+  .rt-compact-table .ant-table-cell {
+    padding: 6px 8px !important;
+  }
+
+  .rt-compact-table .ant-table-thead > tr > th {
+    padding: 7px 8px !important;
+    font-size: 12px;
+  }
+
+  .rt-compact-table .ant-table-tbody > tr > td {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .rt-compact-table .ant-btn {
+    margin: 0;
+    min-height: 30px;
+    padding-inline: 8px;
+  }
+
+  .rt-compact-table .ant-space {
+    gap: 4px !important;
+  }
+
+  .rt-compact-table .ant-pagination {
+    margin: 8px 0 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .rt-ultra-compact-table .ant-table-cell {
+    padding: 4px 4px !important;
+  }
+
+  .rt-ultra-compact-table .ant-table-thead > tr > th {
+    padding: 5px 4px !important;
+    font-size: 11px;
+  }
+
+  .rt-ultra-compact-table .ant-table-tbody > tr > td {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .rt-ultra-compact-table .ant-btn {
+    min-height: 26px;
+    padding-inline: 4px;
+  }
+
+  .rt-ultra-compact-table .ant-btn .anticon {
+    font-size: 12px;
+  }
+
+  .rt-ultra-compact-table .ant-space {
+    gap: 0 !important;
+  }
+
+  .rt-ultra-compact-table .ant-table-cell:last-child {
+    padding-right: 2px !important;
+    padding-left: 2px !important;
   }
 }

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Button, Modal, Form, Input, Select, message } from 'antd'
+import { Table, Button, Modal, Form, Input, Select, message, Grid, Space } from 'antd'
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import isEmail from 'validator/lib/isEmail'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
+const { useBreakpoint } = Grid
 
 export default function PeoplePage() {
   const [people, setPeople] = useState<any[]>([])
@@ -12,6 +14,9 @@ export default function PeoplePage() {
   const [visible, setVisible] = useState(false)
   const [editing, setEditing] = useState<any | null>(null)
   const [form] = Form.useForm()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const isVerySmall = screens.xs === false
 
   async function load() {
     setLoading(true)
@@ -69,27 +74,71 @@ export default function PeoplePage() {
     }
   }
 
-  const columns = [
+  const desktopColumns = [
     { title: 'First', dataIndex: 'firstName', key: 'firstName' },
     { title: 'Middle', dataIndex: 'middleName', key: 'middleName' },
     { title: 'Last', dataIndex: 'lastName', key: 'lastName' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
     { title: 'Phone', dataIndex: 'phone', key: 'phone', render: (v: any) => formatPhoneForDisplay(v) },
-    { title: 'Actions', key: 'actions', render: (_: any, p: any) => (
-      <span>
-        <Button onClick={() => openEdit(p)} style={{ marginRight: 8 }}>Edit</Button>
-        <Button danger onClick={() => remove(p._id)}>Delete</Button>
-      </span>
+    { title: 'Actions', key: 'actions', width: 170, render: (_: any, p: any) => (
+      <Space>
+        <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(p)}>Edit</Button>
+        <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(p._id)}>Delete</Button>
+      </Space>
     ) }
   ]
 
+  const mobileColumns = [
+    {
+      title: 'Name',
+      key: 'name',
+      width: 130,
+      render: (_: any, p: any) => [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ').trim() || 'Unnamed'
+    },
+    { title: 'Phone', dataIndex: 'phone', key: 'phone', width: 122, ellipsis: true, render: (v: any) => formatPhoneForDisplay(v) || 'N/A' },
+    { title: 'Actions', key: 'actions', width: 80, render: (_: any, p: any) => (
+      <Space size={0}>
+        <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>{isVerySmall ? null : 'Edit'}</Button>
+        <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(p._id)}>{isVerySmall ? null : 'Del'}</Button>
+      </Space>
+    ) }
+  ]
+
+  const columns = isMobile ? mobileColumns : desktopColumns
+
   return (
-    <div style={{ background: 'rgba(255,255,255,0.95)', padding: 16, borderRadius: 8 }}>
-      <div style={{ marginBottom: 12 }}>
-        <Button type="primary" onClick={openCreate} style={{ marginRight: 8 }}>New Person</Button>
-        <Button onClick={load}>Refresh</Button>
+    <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
+      <div style={{ marginBottom: isMobile ? 8 : 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Person</Button>
+        <Button size={isMobile ? 'small' : 'middle'} onClick={load}>Refresh</Button>
       </div>
-      <Table dataSource={people} rowKey={(p:any) => p._id || p.id} columns={columns} loading={loading} />
+      {isMobile ? (
+        <div className="rt-mobile-card-list">
+          {people.map((p: any) => (
+            <div key={p._id || p.id} className="rt-mobile-card-item">
+              <div className="rt-mobile-card-title">{[p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ').trim() || 'Unnamed'}</div>
+              <div className="rt-mobile-card-meta">Phone: {formatPhoneForDisplay(p.phone) || 'N/A'}</div>
+              <div className="rt-mobile-card-meta">Email: {p.email || 'N/A'}</div>
+              <div className="rt-mobile-card-actions">
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>Edit</Button>
+                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(p._id)}>Delete</Button>
+              </div>
+            </div>
+          ))}
+          {!loading && people.length === 0 && <div className="rt-mobile-empty">No people found.</div>}
+        </div>
+      ) : (
+        <Table
+          className={isVerySmall ? 'rt-compact-table rt-ultra-compact-table' : 'rt-compact-table'}
+          dataSource={people}
+          rowKey={(p:any) => p._id || p.id}
+          columns={columns}
+          loading={loading}
+          size={isMobile ? 'small' : 'middle'}
+          scroll={{ x: 'max-content' }}
+          pagination={{ pageSize: 10, showSizeChanger: false, size: 'default' }}
+        />
+      )}
 
       <Modal open={visible} onCancel={() => setVisible(false)} onOk={save} title={editing ? 'Edit Person' : 'New Person'}>
         <Form form={form} layout="vertical">
