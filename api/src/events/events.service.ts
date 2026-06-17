@@ -2,6 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { Event, EventDocument } from './event.schema'
+import * as fs from 'fs'
+import * as path from 'path'
+
+const baseUploadDir = path.resolve(process.cwd(), 'uploads')
 
 @Injectable()
 export class EventsService {
@@ -28,10 +32,52 @@ export class EventsService {
     return updated
   }
 
-  async remove(id: string) {
+  async remove(id: string, purgeMedia = false) {
     const deleted = await this.eventModel.findByIdAndDelete(id).lean()
     if (!deleted) throw new NotFoundException('Event not found')
+    if (purgeMedia) {
+      this.deleteEventMediaFiles(deleted)
+    }
     return { deleted: true }
+  }
+
+  private deleteEventMediaFiles(event: any) {
+    const urls = new Set<string>()
+    if (Array.isArray(event.photoUrls)) {
+      event.photoUrls.forEach((url: any) => {
+        if (url) urls.add(String(url))
+      })
+    }
+    if (event.eventPhotoUrl) urls.add(String(event.eventPhotoUrl))
+
+    urls.forEach((url) => {
+      if (!url.startsWith('/uploads/')) return
+      const relativePath = url.slice('/uploads/'.length)
+      const absolutePath = path.resolve(baseUploadDir, relativePath)
+      if (!absolutePath.startsWith(baseUploadDir + path.sep)) return
+      try {
+        if (fs.existsSync(absolutePath)) {
+          fs.unlinkSync(absolutePath)
+          this.cleanupEmptyUploadDirs(path.dirname(absolutePath))
+        }
+      } catch (err) {
+        // keep delete-event operation resilient even if file cleanup fails
+      }
+    })
+  }
+
+  private cleanupEmptyUploadDirs(startDir: string) {
+    let currentDir = startDir
+    while (currentDir.startsWith(baseUploadDir + path.sep) && currentDir !== baseUploadDir) {
+      try {
+        const entries = fs.readdirSync(currentDir)
+        if (entries.length > 0) break
+        fs.rmdirSync(currentDir)
+        currentDir = path.dirname(currentDir)
+      } catch (err) {
+        break
+      }
+    }
   }
 
   private mapDto(dto: any) {

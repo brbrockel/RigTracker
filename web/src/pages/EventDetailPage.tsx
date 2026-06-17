@@ -171,6 +171,23 @@ export default function EventDetailPage() {
     }
   }
 
+  async function removeEvent() {
+    if (isNew) return
+    const confirmed = confirm(`Delete event "${form.getFieldValue('name') || eventData?.name || 'Untitled event'}"?`)
+    if (!confirmed) return
+    const purgeMedia = confirm('Also delete associated media files from storage? Click OK to delete files, Cancel to keep files.')
+    try {
+      const query = purgeMedia ? '?purgeMedia=true' : ''
+      const res = await fetch(`${API_BASE}/api/events/${id}${query}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Delete failed')
+      message.success(purgeMedia ? 'Event and media deleted' : 'Event deleted (media kept)')
+      navigate('/events')
+    } catch (err) {
+      console.error(err)
+      message.error('Failed to delete event')
+    }
+  }
+
   const heroUrl = eventPhotoUrl || photoUrls[0] || eventData?.eventPhotoUrl || ''
   const heroIsVideo = isVideoUrl(heroUrl)
 
@@ -179,6 +196,7 @@ export default function EventDetailPage() {
       <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <Button icon={<LeftOutlined />} onClick={() => navigate('/events')}>Back to Events</Button>
         <Space wrap>
+          {!isNew ? <Button danger onClick={removeEvent}>Delete Event</Button> : null}
           <Button type="primary" onClick={save} loading={saving}>{isNew ? 'Create Event' : 'Save Event'}</Button>
         </Space>
       </div>

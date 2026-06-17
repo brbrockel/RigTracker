@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Button, Calendar, Grid, Image, Segmented, Space, Table, Typography } from 'antd'
+import { Button, Calendar, Grid, Image, Segmented, Space, Table, Typography, message } from 'antd'
 import type { CalendarProps } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import dayjs, { Dayjs } from 'dayjs'
@@ -44,6 +44,25 @@ export default function EventsPage() {
     load()
   }, [])
 
+  async function removeEvent(event: EventItem, e?: React.MouseEvent) {
+    if (e) e.stopPropagation()
+    const eventId = event._id || event.id
+    if (!eventId) return
+    const confirmed = confirm(`Delete event "${event.name || 'Untitled event'}"?`)
+    if (!confirmed) return
+    const purgeMedia = confirm('Also delete associated media files from storage? Click OK to delete files, Cancel to keep files.')
+    try {
+      const query = purgeMedia ? '?purgeMedia=true' : ''
+      const res = await fetch(`${API_BASE}/api/events/${eventId}${query}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Delete failed')
+      message.success(purgeMedia ? 'Event and media deleted' : 'Event deleted (media kept)')
+      load()
+    } catch (err) {
+      console.error(err)
+      message.error('Failed to delete event')
+    }
+  }
+
   const eventsByDate = useMemo(() => {
     const map = new Map<string, EventItem[]>()
     events.forEach((event) => {
@@ -76,6 +95,20 @@ export default function EventsPage() {
       dataIndex: 'description',
       key: 'description',
       render: (value: any) => value ? String(value).slice(0, 100) + (String(value).length > 100 ? '...' : '') : ''
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 120,
+      render: (_: any, record: any) => (
+        <Button
+          size="small"
+          danger
+          onClick={(e) => removeEvent(record, e)}
+        >
+          Delete
+        </Button>
+      )
     }
   ]
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, Put, Delete } from '@nestjs/common'
+import { Controller, Get, Param, Post, Body, Put, Delete, Query } from '@nestjs/common'
 import { EventsService } from './events.service'
 
 @Controller('events')
@@ -26,7 +26,8 @@ export class EventsController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.eventsService.remove(id)
+  remove(@Param('id') id: string, @Query('purgeMedia') purgeMedia?: string) {
+    const shouldPurgeMedia = String(purgeMedia).toLowerCase() === 'true'
+    return this.eventsService.remove(id, shouldPurgeMedia)
   }
 }
