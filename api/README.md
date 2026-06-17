@@ -23,12 +23,13 @@ All routes are served under `/api`.
 
 ## Routes
 
-Packs:
+Gear:
 
-- `GET /api/packs`
-- `GET /api/packs/:id`
-- `POST /api/packs`
-- `PUT /api/packs/:id`
+- `GET /api/gear`
+- `GET /api/gear/:id`
+- `POST /api/gear`
+- `PUT /api/gear/:id`
+- `DELETE /api/gear/:id`
 
 Rigs:
 

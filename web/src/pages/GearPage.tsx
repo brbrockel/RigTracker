@@ -1,0 +1,203 @@
+import React, { useEffect, useState } from 'react'
+import { Table, Button, Modal, Form, Input, Space, message, Grid, Image, DatePicker } from 'antd'
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
+
+const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
+const { useBreakpoint } = Grid
+
+type Gear = any
+
+export default function GearPage() {
+  const [gear, setGear] = useState<Gear[]>([])
+  const [loading, setLoading] = useState(true)
+  const [visible, setVisible] = useState(false)
+  const [editing, setEditing] = useState<Gear | null>(null)
+  const [form] = Form.useForm()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const isVerySmall = screens.xs === false
+
+  async function load() {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/gear`)
+      const j = await res.json()
+      setGear(j)
+    } catch (err) {
+      console.error(err)
+      message.error('Failed to load gear')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  function openCreate() {
+    setEditing(null)
+    form.resetFields()
+    setVisible(true)
+  }
+
+  function openEdit(item: Gear) {
+    setEditing(item)
+    const copy = { ...item }
+    if (copy.dateOfManufacture) copy.dateOfManufacture = dayjs(copy.dateOfManufacture)
+    form.setFieldsValue(copy)
+    setVisible(true)
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Delete gear item?')) return
+    await fetch(`${API_BASE}/api/gear/${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  async function save() {
+    try {
+      const vals = await form.validateFields()
+      const payload = { ...vals }
+      if (payload.dateOfManufacture) payload.dateOfManufacture = payload.dateOfManufacture.toISOString()
+      if (editing && editing._id) {
+        await fetch(`${API_BASE}/api/gear/${editing._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+      } else {
+        await fetch(`${API_BASE}/api/gear`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+      }
+      setVisible(false)
+      load()
+    } catch (err) {
+      console.error(err)
+      message.error('Save failed')
+    }
+  }
+
+  const desktopColumns = [
+    {
+      title: 'Image',
+      dataIndex: 'imageUrl',
+      key: 'imageUrl',
+      width: 90,
+      render: (v: any) => v ? <Image src={v} alt="Gear" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8 }} /> : 'N/A'
+    },
+    { title: 'Name', dataIndex: 'name', key: 'name' },
+    { title: 'Serial Number', dataIndex: 'serialNumber', key: 'serialNumber' },
+    { title: 'Type', dataIndex: 'type', key: 'type' },
+    {
+      title: 'Date of Manufacture',
+      dataIndex: 'dateOfManufacture',
+      key: 'dateOfManufacture',
+      render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : ''
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      key: 'notes',
+      render: (t: any) => t ? String(t).slice(0, 120) + (String(t).length > 120 ? '...' : '') : ''
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 170,
+      render: (_: any, r: any) => (
+        <Space>
+          <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(r)}>Edit</Button>
+          <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(r._id)}>Delete</Button>
+        </Space>
+      )
+    }
+  ]
+
+  const mobileColumns = [
+    {
+      title: 'Gear',
+      key: 'gear',
+      render: (_: any, r: any) => (
+        <Space>
+          {r.imageUrl ? <Image src={r.imageUrl} alt="Gear" width={36} height={36} style={{ objectFit: 'cover', borderRadius: 6 }} /> : null}
+          <span>{r.name || 'Unnamed'}</span>
+        </Space>
+      )
+    },
+    { title: 'Type', dataIndex: 'type', key: 'type', width: 100, ellipsis: true },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 80,
+      render: (_: any, r: any) => (
+        <Space size={0}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>{isVerySmall ? null : 'Edit'}</Button>
+          <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>{isVerySmall ? null : 'Del'}</Button>
+        </Space>
+      )
+    }
+  ]
+
+  const columns = isMobile ? mobileColumns : desktopColumns
+
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
+      <div style={{ marginBottom: isMobile ? 8 : 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Gear</Button>
+        <Button size={isMobile ? 'small' : 'middle'} onClick={load}>Refresh</Button>
+      </div>
+      {isMobile ? (
+        <div className="rt-mobile-card-list">
+          {gear.map((g: any) => (
+            <div key={g._id || g.id} className="rt-mobile-card-item">
+              <div className="rt-mobile-card-title">{g.name || 'Unnamed Gear'}</div>
+              <div className="rt-mobile-card-meta">Serial Number: {g.serialNumber || 'N/A'}</div>
+              <div className="rt-mobile-card-meta">Type: {g.type || 'N/A'}</div>
+              <div className="rt-mobile-card-meta">Date of Manufacture: {g.dateOfManufacture ? dayjs(g.dateOfManufacture).format('YYYY-MM-DD') : 'N/A'}</div>
+              <div className="rt-mobile-card-meta">Notes: {g.notes ? String(g.notes).slice(0, 80) : 'N/A'}</div>
+              {g.imageUrl ? (
+                <div style={{ marginTop: 8 }}>
+                  <Image src={g.imageUrl} alt="Gear" width={96} height={96} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                </div>
+              ) : null}
+              <div className="rt-mobile-card-actions">
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(g)}>Edit</Button>
+                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(g._id)}>Delete</Button>
+              </div>
+            </div>
+          ))}
+          {!loading && gear.length === 0 && <div className="rt-mobile-empty">No gear found.</div>}
+        </div>
+      ) : (
+        <Table
+          className={isVerySmall ? 'rt-compact-table rt-ultra-compact-table' : 'rt-compact-table'}
+          dataSource={gear}
+          rowKey={(g: any) => g._id || g.id}
+          columns={columns}
+          loading={loading}
+          size={isMobile ? 'small' : 'middle'}
+          scroll={{ x: 'max-content' }}
+          pagination={{ pageSize: 10, showSizeChanger: false, size: 'default' }}
+        />
+      )}
+
+      <Modal open={visible} onCancel={() => setVisible(false)} onOk={save} title={editing ? 'Edit Gear' : 'New Gear'}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="serialNumber" label="Serial Number"><Input /></Form.Item>
+          <Form.Item name="type" label="Type" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="dateOfManufacture" label="Date of Manufacture"><DatePicker style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="notes" label="Notes" rules={[{ max: 1000, message: 'Notes can be up to 1000 characters' }]}>
+            <Input.TextArea rows={4} maxLength={1000} showCount />
+          </Form.Item>
+          <Form.Item name="imageUrl" label="Image URL"><Input placeholder="https://example.com/image.jpg" /></Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  )
+}

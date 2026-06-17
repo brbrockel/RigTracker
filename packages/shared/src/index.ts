@@ -1,6 +1,9 @@
-export type Pack = {
+export type Gear = {
   id: string
   serial_number: string
   name: string
-  container_type?: string
+  type?: string
+  date_of_manufacture?: string
+  notes?: string
+  image_url?: string
 }

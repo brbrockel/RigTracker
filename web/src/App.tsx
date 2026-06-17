@@ -14,6 +14,7 @@ import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-
 
 const RigsPage = lazy(() => import('./pages/RigsPage'))
 const PeoplePage = lazy(() => import('./pages/PeoplePage'))
+const GearPage = lazy(() => import('./pages/GearPage'))
 
 // Static assets are served from /img (web/public/img)
 const logo = '/img/logo1.jpg'
@@ -57,7 +58,7 @@ export default function App() {
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/rigs', icon: <ToolOutlined />, label: 'Rigs' },
     { key: '/people', icon: <TeamOutlined />, label: 'People' },
-    { key: '/packs', icon: <InboxOutlined />, label: 'Packs' },
+    { key: '/gear', icon: <InboxOutlined />, label: 'Gear' },
     { key: '/settings', icon: <SettingOutlined />, label: 'Settings' }
   ], [])
 
@@ -130,7 +131,7 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/rigs" element={<RigsPage />} />
               <Route path="/people" element={<PeoplePage />} />
-              <Route path="/packs" element={<PlaceholderPage title="Packs" summary="Packs navigation is ready. Add the dedicated page when the UI spec is finalized." />} />
+              <Route path="/gear" element={<GearPage />} />
               <Route path="/settings" element={<PlaceholderPage title="Settings" summary="Settings is staged as a placeholder for system-level configuration workflows." />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

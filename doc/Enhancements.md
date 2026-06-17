@@ -184,7 +184,7 @@ No first-class audit trail exists for updates/deletes.
 
 ### Scope
 In:
-- Change log entries for packs, rigs, people
+- Change log entries for gear, rigs, people
 - Read endpoint to view history
 Out:
 - Full event sourcing

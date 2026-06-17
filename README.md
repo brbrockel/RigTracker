@@ -1,6 +1,6 @@
 # RigTracker
 
-RigTracker is a monorepo application for managing skydiving rigs, packs, and people.
+RigTracker is a monorepo application for managing skydiving rigs, gear, and people.
 
 It provides a web UI and API for equipment records, assignment tracking, and operational data quality workflows.
 

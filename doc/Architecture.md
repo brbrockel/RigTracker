@@ -20,7 +20,7 @@ In production, the frontend and API run in a combined container:
 
 2. API (`api/`)
 - NestJS + Mongoose
-- Resource groups: packs, rigs, people
+- Resource groups: gear, rigs, people
 - Routes are globally prefixed with `/api`
 
 3. Database
