@@ -5,11 +5,15 @@ import dayjs from 'dayjs'
 import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 type Rig = any
+type RigsPageProps = {
+  canWrite: boolean
+  canDelete: boolean
+}
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 const { useBreakpoint } = Grid
 
-export default function RigsPage() {
+export default function RigsPage({ canWrite, canDelete }: RigsPageProps) {
   const [rigs, setRigs] = useState<Rig[]>([])
   const [people, setPeople] = useState<Record<string,string>>({})
   const [peopleList, setPeopleList] = useState<any[]>([])
@@ -153,24 +157,24 @@ export default function RigsPage() {
     { title: 'Repack Due', dataIndex: 'repackDue', key: 'repackDue', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
     { title: 'AAD Type', dataIndex: 'aadType', key: 'aadType' },
     { title: 'Notes', dataIndex: 'notes', key: 'notes', render: (t: any) => t ? String(t).slice(0, 80) + (String(t).length > 80 ? '…' : '') : '' },
-    { title: 'Actions', key: 'actions', width: 170, render: (_: any, r: any) => (
+    ...(canWrite || canDelete ? [{ title: 'Actions', key: 'actions', width: 170, render: (_: any, r: any) => (
       <Space>
-        <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(r)}>Edit</Button>
-        <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(r._id)}>Delete</Button>
+        {canWrite ? <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(r)}>Edit</Button> : null}
+        {canDelete ? <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(r._id)}>Delete</Button> : null}
       </Space>
-    ) }
+    ) }] : [])
   ]
 
   const mobileColumns = [
     { title: 'Rig', dataIndex: 'name', key: 'name', width: 110, ellipsis: true },
     { title: 'Assigned', key: 'assigned', width: 110, ellipsis: true, render: (_: any, r: any) => people[r.primaryUserId] || 'Unassigned' },
     { title: 'Due', dataIndex: 'repackDue', key: 'repackDue', width: 96, render: (v: any) => v ? dayjs(v).format('MM-DD-YY') : 'N/A' },
-    { title: 'Actions', key: 'actions', width: 80, render: (_: any, r: any) => (
+    ...(canWrite || canDelete ? [{ title: 'Actions', key: 'actions', width: 80, render: (_: any, r: any) => (
       <Space size={0}>
-        <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>{isVerySmall ? null : 'Edit'}</Button>
-        <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>{isVerySmall ? null : 'Del'}</Button>
+        {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>{isVerySmall ? null : 'Edit'}</Button> : null}
+        {canDelete ? <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>{isVerySmall ? null : 'Del'}</Button> : null}
       </Space>
-    ) }
+    ) }] : [])
   ]
 
   const columns = isMobile ? mobileColumns : desktopColumns
@@ -178,7 +182,7 @@ export default function RigsPage() {
   return (
     <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
       <div style={{ marginBottom: isMobile ? 8 : 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Rig</Button>
+        {canWrite ? <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Rig</Button> : null}
         <Button size={isMobile ? 'small' : 'middle'} onClick={load}>Refresh</Button>
       </div>
       {isMobile ? (
@@ -194,8 +198,8 @@ export default function RigsPage() {
               <div className="rt-mobile-card-meta">Assigned: {people[r.primaryUserId] || 'Unassigned'}</div>
               <div className="rt-mobile-card-meta">Repack Due: {r.repackDue ? dayjs(r.repackDue).format('YYYY-MM-DD') : 'N/A'}</div>
               <div className="rt-mobile-card-actions">
-                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Edit</Button>
-                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>Delete</Button>
+                {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Edit</Button> : null}
+                {canDelete ? <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>Delete</Button> : null}
               </div>
             </div>
           ))}
@@ -214,8 +218,8 @@ export default function RigsPage() {
         />
       )}
 
-      <Modal open={visible} title={editing ? 'Edit Rig' : 'New Rig'} onCancel={() => setVisible(false)} onOk={save}>
-        <Form form={form} layout="vertical">
+      <Modal open={visible} title={editing ? 'Edit Rig' : 'New Rig'} onCancel={() => setVisible(false)} onOk={save} okButtonProps={{ disabled: !canWrite }}>
+        <Form form={form} layout="vertical" disabled={!canWrite}>
           <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="number" label="Number"><Input /></Form.Item>
           <Form.Item name="container" label="Container"><Input /></Form.Item>

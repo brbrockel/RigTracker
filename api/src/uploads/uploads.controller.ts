@@ -33,7 +33,7 @@ function resolveUploadDir(folder?: string): string {
 @Controller('uploads')
 export class UploadsController {
   @Post('image')
-  @RequireRoles('editor', 'admin')
+  @RequireRoles('user', 'admin')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
       destination: (req: any, _file, cb) => {

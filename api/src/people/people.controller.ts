@@ -1,10 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common'
+import { Controller, Get, Post, Put, Delete, Param, Body, Req } from '@nestjs/common'
 import { PeopleService } from './people.service'
 import { RequireRoles } from '../auth/roles.decorator'
+import { AuditService } from '../audit/audit.service'
 
 @Controller('people')
 export class PeopleController {
-  constructor(private readonly peopleService: PeopleService) {}
+  constructor(
+    private readonly peopleService: PeopleService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get()
   getAll() {
@@ -17,20 +21,28 @@ export class PeopleController {
   }
 
   @Post()
-  @RequireRoles('editor', 'admin')
-  create(@Body() dto: any) {
-    return this.peopleService.create(dto)
+  @RequireRoles('user', 'admin')
+  async create(@Body() dto: any, @Req() req: any) {
+    const result = await this.peopleService.create(dto)
+    const name = [dto.firstName, dto.lastName].filter(Boolean).join(' ')
+    await this.auditService.log({ action: 'CREATE', resource: 'people', resourceId: String(result._id || result.id), resourceName: name, actor: req.authUser })
+    return result
   }
 
   @Put(':id')
-  @RequireRoles('editor', 'admin')
-  update(@Param('id') id: string, @Body() dto: any) {
-    return this.peopleService.update(id, dto)
+  @RequireRoles('user', 'admin')
+  async update(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
+    const result = await this.peopleService.update(id, dto)
+    const name = [dto.firstName, dto.lastName].filter(Boolean).join(' ')
+    await this.auditService.log({ action: 'UPDATE', resource: 'people', resourceId: id, resourceName: name, actor: req.authUser })
+    return result
   }
 
   @Delete(':id')
   @RequireRoles('admin')
-  remove(@Param('id') id: string) {
-    return this.peopleService.remove(id)
+  async remove(@Param('id') id: string, @Req() req: any) {
+    const result = await this.peopleService.remove(id)
+    await this.auditService.log({ action: 'DELETE', resource: 'people', resourceId: id, actor: req.authUser })
+    return result
   }
 }

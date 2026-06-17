@@ -8,8 +8,12 @@ const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).e
 const { useBreakpoint } = Grid
 
 type Gear = any
+type GearPageProps = {
+  canWrite: boolean
+  canDelete: boolean
+}
 
-export default function GearPage() {
+export default function GearPage({ canWrite, canDelete }: GearPageProps) {
   const [gear, setGear] = useState<Gear[]>([])
   const [loading, setLoading] = useState(true)
   const [visible, setVisible] = useState(false)
@@ -168,8 +172,8 @@ export default function GearPage() {
       width: 170,
       render: (_: any, r: any) => (
         <Space>
-          <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(r)}>Edit</Button>
-          <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(r._id)}>Delete</Button>
+          {canWrite ? <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(r)}>Edit</Button> : null}
+          {canDelete ? <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(r._id)}>Delete</Button> : null}
         </Space>
       )
     }
@@ -193,8 +197,8 @@ export default function GearPage() {
       width: 80,
       render: (_: any, r: any) => (
         <Space size={0}>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>{isVerySmall ? null : 'Edit'}</Button>
-          <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>{isVerySmall ? null : 'Del'}</Button>
+          {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>{isVerySmall ? null : 'Edit'}</Button> : null}
+          {canDelete ? <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>{isVerySmall ? null : 'Del'}</Button> : null}
         </Space>
       )
     }
@@ -205,7 +209,7 @@ export default function GearPage() {
   return (
     <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
       <div style={{ marginBottom: isMobile ? 8 : 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Gear</Button>
+        {canWrite ? <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Gear</Button> : null}
         <Button size={isMobile ? 'small' : 'middle'} onClick={load}>Refresh</Button>
       </div>
       {isMobile ? (
@@ -223,8 +227,8 @@ export default function GearPage() {
                 </div>
               ) : null}
               <div className="rt-mobile-card-actions">
-                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(g)}>Edit</Button>
-                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(g._id)}>Delete</Button>
+                {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(g)}>Edit</Button> : null}
+                {canDelete ? <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(g._id)}>Delete</Button> : null}
               </div>
             </div>
           ))}
@@ -243,8 +247,8 @@ export default function GearPage() {
         />
       )}
 
-      <Modal open={visible} onCancel={() => setVisible(false)} onOk={save} title={editing ? 'Edit Gear' : 'New Gear'}>
-        <Form form={form} layout="vertical">
+      <Modal open={visible} onCancel={() => setVisible(false)} onOk={save} title={editing ? 'Edit Gear' : 'New Gear'} okButtonProps={{ disabled: !canWrite }}>
+        <Form form={form} layout="vertical" disabled={!canWrite}>
           <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="serialNumber" label="Serial Number"><Input /></Form.Item>
           <Form.Item name="type" label="Type" rules={[{ required: true }]}><Input /></Form.Item>

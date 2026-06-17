@@ -9,6 +9,10 @@ const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).e
 const { useBreakpoint } = Grid
 
 type EventItem = any
+type EventDetailPageProps = {
+  canWrite: boolean
+  canDelete: boolean
+}
 
 function resolveImageUrl(url?: string) {
   if (!url) return ''
@@ -34,7 +38,7 @@ async function uploadImageFile(file: File, folder: string) {
   return data.url as string
 }
 
-export default function EventDetailPage() {
+export default function EventDetailPage({ canWrite, canDelete }: EventDetailPageProps) {
   const { id = 'new' } = useParams()
   const navigate = useNavigate()
   const screens = useBreakpoint()
@@ -146,7 +150,7 @@ export default function EventDetailPage() {
         photoUrls,
         eventPhotoUrl: eventPhotoUrl || photoUrls[0] || ''
       }
-      if (saving) return
+      if (!canWrite || saving) return
       setSaving(true)
       if (isNew) {
         const res = await fetch(`${API_BASE}/api/events`, {
@@ -178,7 +182,7 @@ export default function EventDetailPage() {
   }
 
   async function removeEvent() {
-    if (isNew) return
+    if (!canDelete || isNew) return
     const confirmed = confirm(`Delete event "${form.getFieldValue('name') || eventData?.name || 'Untitled event'}"?`)
     if (!confirmed) return
     const purgeMedia = confirm('Also delete associated media files from storage? Click OK to delete files, Cancel to keep files.')
@@ -202,8 +206,8 @@ export default function EventDetailPage() {
       <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <Button icon={<LeftOutlined />} onClick={() => navigate('/events')}>Back to Events</Button>
         <Space wrap>
-          {!isNew ? <Button danger onClick={removeEvent}>Delete Event</Button> : null}
-          <Button type="primary" onClick={save} loading={saving}>{isNew ? 'Create Event' : 'Save Event'}</Button>
+          {!isNew && canDelete ? <Button danger onClick={removeEvent}>Delete Event</Button> : null}
+          {canWrite ? <Button type="primary" onClick={save} loading={saving}>{isNew ? 'Create Event' : 'Save Event'}</Button> : null}
         </Space>
       </div>
 
@@ -223,7 +227,7 @@ export default function EventDetailPage() {
               )}
             </div>
           ) : null}
-          <Form form={form} layout="vertical" initialValues={{ eventDate: dayjs() }}>
+          <Form form={form} layout="vertical" initialValues={{ eventDate: dayjs() }} disabled={!canWrite}>
             <Form.Item name="name" label="Event Name" rules={[{ required: true, message: 'Event name is required' }]}>
               <Input />
             </Form.Item>
@@ -255,10 +259,12 @@ export default function EventDetailPage() {
               onChange={handleCameraPick}
               style={{ display: 'none' }}
             />
-            <Space wrap>
-              <Button icon={<UploadOutlined />} onClick={() => galleryInputRef.current?.click()} loading={uploadingPhotos}>Upload Media</Button>
-              <Button icon={<CameraOutlined />} onClick={() => cameraInputRef.current?.click()} loading={uploadingPhotos}>Capture Media</Button>
-            </Space>
+            {canWrite ? (
+              <Space wrap>
+                <Button icon={<UploadOutlined />} onClick={() => galleryInputRef.current?.click()} loading={uploadingPhotos}>Upload Media</Button>
+                <Button icon={<CameraOutlined />} onClick={() => cameraInputRef.current?.click()} loading={uploadingPhotos}>Capture Media</Button>
+              </Space>
+            ) : null}
           </div>
 
           <div style={{ display: 'grid', gap: 12 }}>
@@ -279,12 +285,14 @@ export default function EventDetailPage() {
                     )}
                     <div style={{ flex: 1 }}>
                       <Typography.Text strong>{selected ? 'Selected as event media' : (mediaIsVideo ? 'Album video' : 'Album image')}</Typography.Text>
-                      <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <Button size="small" type={selected ? 'primary' : 'default'} icon={<StarFilled />} onClick={() => setPrimaryPhoto(url)}>
-                          {selected ? 'Primary Media' : 'Set as Primary'}
-                        </Button>
-                        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removePhoto(url)}>Remove</Button>
-                      </div>
+                      {canWrite ? (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <Button size="small" type={selected ? 'primary' : 'default'} icon={<StarFilled />} onClick={() => setPrimaryPhoto(url)}>
+                            {selected ? 'Primary Media' : 'Set as Primary'}
+                          </Button>
+                          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removePhoto(url)}>Remove</Button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

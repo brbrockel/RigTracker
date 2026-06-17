@@ -6,6 +6,10 @@ import dayjs, { Dayjs } from 'dayjs'
 import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 type EventItem = any
+type EventsPageProps = {
+  canWrite: boolean
+  canDelete: boolean
+}
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 const { useBreakpoint } = Grid
@@ -20,7 +24,7 @@ function formatDateKey(value: string | Date | Dayjs) {
   return dayjs(value).format('YYYY-MM-DD')
 }
 
-export default function EventsPage() {
+export default function EventsPage({ canWrite, canDelete }: EventsPageProps) {
   const [events, setEvents] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
@@ -97,20 +101,14 @@ export default function EventsPage() {
       key: 'description',
       render: (value: any) => value ? String(value).slice(0, 100) + (String(value).length > 100 ? '...' : '') : ''
     },
-    {
+    ...(canDelete ? [{
       title: 'Actions',
       key: 'actions',
       width: 120,
       render: (_: any, record: any) => (
-        <Button
-          size="small"
-          danger
-          onClick={(e) => removeEvent(record, e)}
-        >
-          Delete
-        </Button>
+        <Button size="small" danger onClick={(e) => removeEvent(record, e)}>Delete</Button>
       )
-    }
+    }] : [])
   ]
 
   const dateCellRender: CalendarProps<Dayjs>['cellRender'] = (current, info) => {
@@ -145,7 +143,7 @@ export default function EventsPage() {
     <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
       <div style={{ marginBottom: isMobile ? 8 : 12, display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <Space wrap>
-          <Button type="primary" onClick={() => navigate('/events/new')}>New Event</Button>
+          {canWrite ? <Button type="primary" onClick={() => navigate('/events/new')}>New Event</Button> : null}
           <Button onClick={load}>Refresh</Button>
         </Space>
         {isMobile ? (

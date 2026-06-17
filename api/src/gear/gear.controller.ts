@@ -1,10 +1,14 @@
-import { Controller, Get, Param, Post, Body, Put, Delete } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { GearService } from './gear.service';
 import { RequireRoles } from '../auth/roles.decorator';
+import { AuditService } from '../audit/audit.service';
 
 @Controller('gear')
 export class GearController {
-  constructor(private readonly gearService: GearService) {}
+  constructor(
+    private readonly gearService: GearService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get()
   getAll() {
@@ -17,20 +21,26 @@ export class GearController {
   }
 
   @Post()
-  @RequireRoles('editor', 'admin')
-  create(@Body() dto: any) {
-    return this.gearService.create(dto);
+  @RequireRoles('user', 'admin')
+  async create(@Body() dto: any, @Req() req: any) {
+    const result = await this.gearService.create(dto);
+    await this.auditService.log({ action: 'CREATE', resource: 'gear', resourceId: String(result._id || result.id), resourceName: result.name, actor: req.authUser });
+    return result;
   }
 
   @Put(':id')
-  @RequireRoles('editor', 'admin')
-  update(@Param('id') id: string, @Body() dto: any) {
-    return this.gearService.update(id, dto);
+  @RequireRoles('user', 'admin')
+  async update(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
+    const result = await this.gearService.update(id, dto);
+    await this.auditService.log({ action: 'UPDATE', resource: 'gear', resourceId: id, resourceName: result?.name ?? dto?.name, actor: req.authUser });
+    return result;
   }
 
   @Delete(':id')
   @RequireRoles('admin')
-  remove(@Param('id') id: string) {
-    return this.gearService.remove(id);
+  async remove(@Param('id') id: string, @Req() req: any) {
+    const result = await this.gearService.remove(id);
+    await this.auditService.log({ action: 'DELETE', resource: 'gear', resourceId: id, actor: req.authUser });
+    return result;
   }
 }

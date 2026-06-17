@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Req, Res } from '@nestjs/common'
+import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { AuthService } from './auth.service'
 
@@ -78,6 +78,40 @@ export class AuthController {
     await this.authService.logout(sessionId)
     res.clearCookie(this.authService.getSessionCookieName(), { path: '/' })
     return { ok: true }
+  }
+
+  // ── Admin-only user management ────────────────────────────────────────────
+
+  private async requireAdmin(req: Request) {
+    const sessionId = this.authService.extractCookie(req.headers.cookie, this.authService.getSessionCookieName())
+    const auth = await this.authService.getAuthenticatedUser(sessionId)
+    if (!auth) throw new UnauthorizedException('Not authenticated')
+    if (!auth.user.roles.includes('admin')) throw new ForbiddenException('Admin only')
+    return auth.user
+  }
+
+  @Get('users')
+  async listUsers(@Req() req: Request) {
+    await this.requireAdmin(req)
+    return this.authService.listUsers()
+  }
+
+  @Patch('users/:id/role')
+  async updateUserRole(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: { role: string },
+  ) {
+    const caller = await this.requireAdmin(req)
+    const role = body?.role
+    if (role !== 'user' && role !== 'admin') {
+      throw new ForbiddenException('Role must be "user" or "admin"')
+    }
+    // Prevent an admin from demoting themselves
+    if (caller.id === id && role !== 'admin') {
+      throw new ForbiddenException('You cannot remove your own admin role')
+    }
+    return this.authService.setUserRole(id, role)
   }
 
   private extractIp(req: Request): string | undefined {

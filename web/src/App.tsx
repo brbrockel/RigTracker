@@ -8,6 +8,7 @@ import {
   InboxOutlined,
   CalendarOutlined,
   SettingOutlined,
+  AuditOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons'
@@ -18,6 +19,8 @@ const PeoplePage = lazy(() => import('./pages/PeoplePage'))
 const GearPage = lazy(() => import('./pages/GearPage'))
 const EventsPage = lazy(() => import('./pages/EventsPage'))
 const EventDetailPage = lazy(() => import('./pages/EventDetailPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const AuditPage = lazy(() => import('./pages/AuditPage'))
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 
 // Static assets are served from /img (web/public/img)
@@ -58,6 +61,18 @@ type AuthUser = {
   roles: string[]
 }
 
+function canWrite(user: AuthUser | null) {
+  return !!user && user.roles.some((role) => role === 'user' || role === 'admin')
+}
+
+function canDelete(user: AuthUser | null) {
+  return !!user && user.roles.includes('admin')
+}
+
+function isAdmin(user: AuthUser | null) {
+  return !!user && user.roles.includes('admin')
+}
+
 export default function App() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -67,20 +82,27 @@ export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [loadingAuth, setLoadingAuth] = useState(true)
 
+  const adminEnabled = isAdmin(authUser)
+
   const menuItems = useMemo(() => [
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/people', icon: <TeamOutlined />, label: 'People' },
     { key: '/rigs', icon: <ToolOutlined />, label: 'Rigs' },
     { key: '/gear', icon: <InboxOutlined />, label: 'Gear' },
     { key: '/events', icon: <CalendarOutlined />, label: 'Events' },
-    { key: '/settings', icon: <SettingOutlined />, label: 'Settings' }
-  ], [])
+    ...(adminEnabled ? [
+      { key: '/audit', icon: <AuditOutlined />, label: 'Audit Log' },
+      { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
+    ] : [])
+  ], [adminEnabled])
 
   const selectedMenuKey =
     menuItems.find((item) => location.pathname === item.key || location.pathname.startsWith(`${item.key}/`))?.key || '/'
 
   const isMobile = !screens.lg
   const siderCollapsed = isMobile ? !mobileOpen : desktopCollapsed
+  const writeEnabled = canWrite(authUser)
+  const deleteEnabled = canDelete(authUser)
 
   async function loadAuthState() {
     setLoadingAuth(true)
@@ -192,12 +214,13 @@ export default function App() {
           <Suspense fallback={<div className="rt-home-card"><Typography.Text>Loading page...</Typography.Text></div>}>
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/rigs" element={<RigsPage />} />
-              <Route path="/people" element={<PeoplePage />} />
-              <Route path="/gear" element={<GearPage />} />
-              <Route path="/events" element={<EventsPage />} />
-              <Route path="/events/:id" element={<EventDetailPage />} />
-              <Route path="/settings" element={<PlaceholderPage title="Settings" summary="Settings is staged as a placeholder for system-level configuration workflows." />} />
+              <Route path="/rigs" element={<RigsPage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
+              <Route path="/people" element={<PeoplePage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
+              <Route path="/gear" element={<GearPage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
+              <Route path="/events" element={<EventsPage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
+              <Route path="/events/:id" element={<EventDetailPage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
+              <Route path="/settings" element={adminEnabled ? <SettingsPage /> : <Navigate to="/" replace />} />
+              <Route path="/audit" element={adminEnabled ? <AuditPage /> : <Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

@@ -8,7 +8,12 @@ import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 const { useBreakpoint } = Grid
 
-export default function PeoplePage() {
+type PeoplePageProps = {
+  canWrite: boolean
+  canDelete: boolean
+}
+
+export default function PeoplePage({ canWrite, canDelete }: PeoplePageProps) {
   const [people, setPeople] = useState<any[]>([])
   const [country] = useState('US')
   const [loading, setLoading] = useState(true)
@@ -89,12 +94,13 @@ export default function PeoplePage() {
     { title: 'Last', dataIndex: 'lastName', key: 'lastName' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
     { title: 'Phone', dataIndex: 'phone', key: 'phone', render: (v: any) => formatPhoneForDisplay(v) },
-    { title: 'Actions', key: 'actions', width: 170, render: (_: any, p: any) => (
+    ...(canWrite || canDelete ? [{
+      title: 'Actions', key: 'actions', width: 170, render: (_: any, p: any) => (
       <Space>
-        <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(p)}>Edit</Button>
-        <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(p._id)}>Delete</Button>
+        {canWrite ? <Button size={isMobile ? 'small' : 'middle'} onClick={() => openEdit(p)}>Edit</Button> : null}
+        {canDelete ? <Button size={isMobile ? 'small' : 'middle'} danger onClick={() => remove(p._id)}>Delete</Button> : null}
       </Space>
-    ) }
+    ) }] : [])
   ]
 
   const mobileColumns = [
@@ -105,12 +111,12 @@ export default function PeoplePage() {
       render: (_: any, p: any) => [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ').trim() || 'Unnamed'
     },
     { title: 'Phone', dataIndex: 'phone', key: 'phone', width: 122, ellipsis: true, render: (v: any) => formatPhoneForDisplay(v) || 'N/A' },
-    { title: 'Actions', key: 'actions', width: 80, render: (_: any, p: any) => (
+    ...(canWrite || canDelete ? [{ title: 'Actions', key: 'actions', width: 80, render: (_: any, p: any) => (
       <Space size={0}>
-        <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>{isVerySmall ? null : 'Edit'}</Button>
-        <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(p._id)}>{isVerySmall ? null : 'Del'}</Button>
+        {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>{isVerySmall ? null : 'Edit'}</Button> : null}
+        {canDelete ? <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(p._id)}>{isVerySmall ? null : 'Del'}</Button> : null}
       </Space>
-    ) }
+    ) }] : [])
   ]
 
   const columns = isMobile ? mobileColumns : desktopColumns
@@ -118,7 +124,7 @@ export default function PeoplePage() {
   return (
     <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
       <div style={{ marginBottom: isMobile ? 8 : 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Person</Button>
+        {canWrite ? <Button size={isMobile ? 'small' : 'middle'} type="primary" onClick={openCreate}>New Person</Button> : null}
         <Button size={isMobile ? 'small' : 'middle'} onClick={load}>Refresh</Button>
       </div>
       {isMobile ? (
@@ -129,8 +135,8 @@ export default function PeoplePage() {
               <div className="rt-mobile-card-meta">Phone: {formatPhoneForDisplay(p.phone) || 'N/A'}</div>
               <div className="rt-mobile-card-meta">Email: {p.email || 'N/A'}</div>
               <div className="rt-mobile-card-actions">
-                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>Edit</Button>
-                <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(p._id)}>Delete</Button>
+                {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>Edit</Button> : null}
+                {canDelete ? <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(p._id)}>Delete</Button> : null}
               </div>
             </div>
           ))}
@@ -149,8 +155,8 @@ export default function PeoplePage() {
         />
       )}
 
-      <Modal open={visible} onCancel={() => setVisible(false)} onOk={save} title={editing ? 'Edit Person' : 'New Person'}>
-        <Form form={form} layout="vertical">
+      <Modal open={visible} onCancel={() => setVisible(false)} onOk={save} title={editing ? 'Edit Person' : 'New Person'} okButtonProps={{ disabled: !canWrite }}>
+        <Form form={form} layout="vertical" disabled={!canWrite}>
           <Form.Item name="firstName" label="First name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="middleName" label="Middle name"><Input /></Form.Item>
           <Form.Item name="lastName" label="Last name" rules={[{ required: true }]}><Input /></Form.Item>

@@ -1,10 +1,14 @@
-import { Controller, Get, Param, Post, Body, Put, Delete, Query } from '@nestjs/common'
+import { Controller, Get, Param, Post, Body, Put, Delete, Query, Req } from '@nestjs/common'
 import { EventsService } from './events.service'
 import { RequireRoles } from '../auth/roles.decorator'
+import { AuditService } from '../audit/audit.service'
 
 @Controller('events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get()
   getAll() {
@@ -17,21 +21,27 @@ export class EventsController {
   }
 
   @Post()
-  @RequireRoles('editor', 'admin')
-  create(@Body() dto: any) {
-    return this.eventsService.create(dto)
+  @RequireRoles('user', 'admin')
+  async create(@Body() dto: any, @Req() req: any) {
+    const result = await this.eventsService.create(dto)
+    await this.auditService.log({ action: 'CREATE', resource: 'events', resourceId: String(result._id || result.id), resourceName: result.name, actor: req.authUser })
+    return result
   }
 
   @Put(':id')
-  @RequireRoles('editor', 'admin')
-  update(@Param('id') id: string, @Body() dto: any) {
-    return this.eventsService.update(id, dto)
+  @RequireRoles('user', 'admin')
+  async update(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
+    const result = await this.eventsService.update(id, dto)
+    await this.auditService.log({ action: 'UPDATE', resource: 'events', resourceId: id, resourceName: result?.name ?? dto?.name, actor: req.authUser })
+    return result
   }
 
   @Delete(':id')
   @RequireRoles('admin')
-  remove(@Param('id') id: string, @Query('purgeMedia') purgeMedia?: string) {
+  async remove(@Param('id') id: string, @Query('purgeMedia') purgeMedia?: string, @Req() req?: any) {
     const shouldPurgeMedia = String(purgeMedia).toLowerCase() === 'true'
-    return this.eventsService.remove(id, shouldPurgeMedia)
+    const result = await this.eventsService.remove(id, shouldPurgeMedia)
+    await this.auditService.log({ action: 'DELETE', resource: 'events', resourceId: id, details: { purgeMedia: shouldPurgeMedia }, actor: req?.authUser })
+    return result
   }
 }

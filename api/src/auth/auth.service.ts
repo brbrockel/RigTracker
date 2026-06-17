@@ -155,6 +155,21 @@ export class AuthService {
     return { ok: true }
   }
 
+  async listUsers() {
+    const users = await this.userModel.find({}).lean()
+    return users.map((u) => this.mapUser(u))
+  }
+
+  async setUserRole(userId: string, role: string) {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $set: { roles: [role] } },
+      { new: true },
+    ).lean()
+    if (!user) throw new Error('User not found')
+    return this.mapUser(user)
+  }
+
   extractCookie(cookieHeader: string | undefined, name: string): string | undefined {
     if (!cookieHeader || !name) return undefined
     const parts = cookieHeader.split(';')
@@ -240,12 +255,12 @@ export class AuthService {
       existing.lastLoginIp = params.ip
       existing.lastUserAgent = params.userAgent
       if (existing.isActive === undefined) existing.isActive = true
-      if (!existing.roles || !existing.roles.length) existing.roles = ['viewer']
+      if (!existing.roles || !existing.roles.length) existing.roles = ['user']
       return existing.save()
     }
 
     const existingUsers = await this.userModel.countDocuments({})
-    const roles = existingUsers === 0 ? ['admin'] : ['viewer']
+    const roles = existingUsers === 0 ? ['admin'] : ['user']
 
     return this.userModel.create({
       provider: 'google',

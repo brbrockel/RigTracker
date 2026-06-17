@@ -1,8 +1,9 @@
-import { CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common'
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AuthService } from './auth.service'
 import { REQUIRED_ROLES_KEY } from './roles.decorator'
 
+@Injectable()
 export class AuthSessionGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
