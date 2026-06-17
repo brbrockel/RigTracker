@@ -35,6 +35,14 @@ Uploads:
 
 - `POST /api/uploads/image` (multipart form-data with `file`)
 
+Events:
+
+- `GET /api/events`
+- `GET /api/events/:id`
+- `POST /api/events`
+- `PUT /api/events/:id`
+- `DELETE /api/events/:id`
+
 Rigs:
 
 - `GET /api/rigs`
