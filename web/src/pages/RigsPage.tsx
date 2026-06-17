@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Table, Button, Modal, Form, Input, DatePicker, Space, Select, message, Grid } from 'antd'
+import React, { useEffect, useRef, useState } from 'react'
+import { Table, Button, Modal, Form, Input, DatePicker, Space, Select, message, Grid, Image } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -18,8 +18,46 @@ export default function RigsPage() {
   const screens = useBreakpoint()
   const isMobile = !screens.md
   const isVerySmall = screens.xs === false
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const galleryInputRef = useRef<HTMLInputElement | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement | null>(null)
 
   const [form] = Form.useForm()
+
+  function resolveImageUrl(url?: string) {
+    if (!url) return ''
+    if (/^https?:\/\//i.test(url)) return url
+    return `${API_BASE}${url}`
+  }
+
+  async function uploadImageFile(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`${API_BASE}/api/uploads/image`, {
+      method: 'POST',
+      body: formData
+    })
+    if (!res.ok) throw new Error('Upload failed')
+    const data = await res.json()
+    return data.url as string
+  }
+
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingImage(true)
+    try {
+      const imageUrl = await uploadImageFile(file)
+      form.setFieldValue('imageUrl', imageUrl)
+      message.success('Image uploaded')
+    } catch (err) {
+      console.error(err)
+      message.error('Image upload failed')
+    } finally {
+      e.target.value = ''
+      setUploadingImage(false)
+    }
+  }
 
   async function load() {
     setLoading(true)
@@ -84,6 +122,13 @@ export default function RigsPage() {
   }
 
   const desktopColumns = [
+    {
+      title: 'Image',
+      dataIndex: 'imageUrl',
+      key: 'imageUrl',
+      width: 90,
+      render: (v: any) => v ? <Image src={resolveImageUrl(v)} alt="Rig" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8 }} /> : 'N/A'
+    },
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Number', dataIndex: 'number', key: 'number' },
     { title: 'Container', dataIndex: 'container', key: 'container' },
@@ -126,6 +171,11 @@ export default function RigsPage() {
           {rigs.map((r: any) => (
             <div key={r._id || r.id} className="rt-mobile-card-item">
               <div className="rt-mobile-card-title">{r.name || 'Unnamed Rig'}</div>
+              {r.imageUrl ? (
+                <div style={{ marginTop: 8 }}>
+                  <Image src={resolveImageUrl(r.imageUrl)} alt="Rig" width={96} height={96} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                </div>
+              ) : null}
               <div className="rt-mobile-card-meta">Assigned: {people[r.primaryUserId] || 'Unassigned'}</div>
               <div className="rt-mobile-card-meta">Repack Due: {r.repackDue ? dayjs(r.repackDue).format('YYYY-MM-DD') : 'N/A'}</div>
               <div className="rt-mobile-card-actions">
@@ -168,6 +218,45 @@ export default function RigsPage() {
           <Form.Item name="repackDue" label="Repack Due"><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="aadType" label="AAD Type"><Input /></Form.Item>
           <Form.Item name="notes" label="Notes"><Input.TextArea /></Form.Item>
+          <Form.Item noStyle shouldUpdate>
+            {() => {
+              const currentImage = form.getFieldValue('imageUrl')
+              return (
+                <Form.Item label="Image">
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImagePick}
+                    style={{ display: 'none' }}
+                  />
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleImagePick}
+                    style={{ display: 'none' }}
+                  />
+                  <Space wrap>
+                    <Button onClick={() => galleryInputRef.current?.click()} loading={uploadingImage}>Upload From Device</Button>
+                    <Button onClick={() => cameraInputRef.current?.click()} loading={uploadingImage}>Take Photo</Button>
+                    <Button
+                      onClick={() => form.setFieldValue('imageUrl', undefined)}
+                      disabled={!currentImage || uploadingImage}
+                    >
+                      Remove Image
+                    </Button>
+                  </Space>
+                  {currentImage ? (
+                    <div style={{ marginTop: 10 }}>
+                      <Image src={resolveImageUrl(currentImage)} alt="Rig preview" width={120} height={120} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                    </div>
+                  ) : null}
+                </Form.Item>
+              )
+            }}
+          </Form.Item>
         </Form>
       </Modal>
     </div>

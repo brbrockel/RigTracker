@@ -23,6 +23,7 @@ export class Rig {
   @Prop({ type: Object, default: {} }) customFields?: Record<string, any>
   @Prop() primaryUserId?: string
   @Prop() notes?: string
+  @Prop() imageUrl?: string
 }
 
 export type RigDocument = Rig & Document

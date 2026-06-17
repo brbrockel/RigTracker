@@ -52,6 +52,13 @@ async function bootstrap() {
   // Serve built frontend from ./public inside the compiled api folder (if present)
   const server = app.getHttpAdapter().getInstance() as express.Express
   const staticPath = path.join(__dirname, 'public')
+  const uploadsPath = path.resolve(process.cwd(), 'uploads')
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true })
+  }
+
+  server.use('/uploads', express.static(uploadsPath))
+
   if (fs.existsSync(staticPath)) {
     server.use(express.static(staticPath))
 

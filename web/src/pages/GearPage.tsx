@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Table, Button, Modal, Form, Input, Space, message, Grid, Image, DatePicker } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -17,6 +17,44 @@ export default function GearPage() {
   const screens = useBreakpoint()
   const isMobile = !screens.md
   const isVerySmall = screens.xs === false
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const galleryInputRef = useRef<HTMLInputElement | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement | null>(null)
+
+  function resolveImageUrl(url?: string) {
+    if (!url) return ''
+    if (/^https?:\/\//i.test(url)) return url
+    return `${API_BASE}${url}`
+  }
+
+  async function uploadImageFile(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`${API_BASE}/api/uploads/image`, {
+      method: 'POST',
+      body: formData
+    })
+    if (!res.ok) throw new Error('Upload failed')
+    const data = await res.json()
+    return data.url as string
+  }
+
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingImage(true)
+    try {
+      const imageUrl = await uploadImageFile(file)
+      form.setFieldValue('imageUrl', imageUrl)
+      message.success('Image uploaded')
+    } catch (err) {
+      console.error(err)
+      message.error('Image upload failed')
+    } finally {
+      e.target.value = ''
+      setUploadingImage(false)
+    }
+  }
 
   async function load() {
     setLoading(true)
@@ -88,7 +126,7 @@ export default function GearPage() {
       dataIndex: 'imageUrl',
       key: 'imageUrl',
       width: 90,
-      render: (v: any) => v ? <Image src={v} alt="Gear" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8 }} /> : 'N/A'
+      render: (v: any) => v ? <Image src={resolveImageUrl(v)} alt="Gear" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8 }} /> : 'N/A'
     },
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Serial Number', dataIndex: 'serialNumber', key: 'serialNumber' },
@@ -124,7 +162,7 @@ export default function GearPage() {
       key: 'gear',
       render: (_: any, r: any) => (
         <Space>
-          {r.imageUrl ? <Image src={r.imageUrl} alt="Gear" width={36} height={36} style={{ objectFit: 'cover', borderRadius: 6 }} /> : null}
+          {r.imageUrl ? <Image src={resolveImageUrl(r.imageUrl)} alt="Gear" width={36} height={36} style={{ objectFit: 'cover', borderRadius: 6 }} /> : null}
           <span>{r.name || 'Unnamed'}</span>
         </Space>
       )
@@ -162,7 +200,7 @@ export default function GearPage() {
               <div className="rt-mobile-card-meta">Notes: {g.notes ? String(g.notes).slice(0, 80) : 'N/A'}</div>
               {g.imageUrl ? (
                 <div style={{ marginTop: 8 }}>
-                  <Image src={g.imageUrl} alt="Gear" width={96} height={96} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                  <Image src={resolveImageUrl(g.imageUrl)} alt="Gear" width={96} height={96} style={{ objectFit: 'cover', borderRadius: 8 }} />
                 </div>
               ) : null}
               <div className="rt-mobile-card-actions">
@@ -195,7 +233,45 @@ export default function GearPage() {
           <Form.Item name="notes" label="Notes" rules={[{ max: 1000, message: 'Notes can be up to 1000 characters' }]}>
             <Input.TextArea rows={4} maxLength={1000} showCount />
           </Form.Item>
-          <Form.Item name="imageUrl" label="Image URL"><Input placeholder="https://example.com/image.jpg" /></Form.Item>
+          <Form.Item noStyle shouldUpdate>
+            {() => {
+              const currentImage = form.getFieldValue('imageUrl')
+              return (
+                <Form.Item label="Image">
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImagePick}
+                    style={{ display: 'none' }}
+                  />
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleImagePick}
+                    style={{ display: 'none' }}
+                  />
+                  <Space wrap>
+                    <Button onClick={() => galleryInputRef.current?.click()} loading={uploadingImage}>Upload From Device</Button>
+                    <Button onClick={() => cameraInputRef.current?.click()} loading={uploadingImage}>Take Photo</Button>
+                    <Button
+                      onClick={() => form.setFieldValue('imageUrl', undefined)}
+                      disabled={!currentImage || uploadingImage}
+                    >
+                      Remove Image
+                    </Button>
+                  </Space>
+                  {currentImage ? (
+                    <div style={{ marginTop: 10 }}>
+                      <Image src={resolveImageUrl(currentImage)} alt="Gear preview" width={120} height={120} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                    </div>
+                  ) : null}
+                </Form.Item>
+              )
+            }}
+          </Form.Item>
         </Form>
       </Modal>
     </div>

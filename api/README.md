@@ -31,6 +31,10 @@ Gear:
 - `PUT /api/gear/:id`
 - `DELETE /api/gear/:id`
 
+Uploads:
+
+- `POST /api/uploads/image` (multipart form-data with `file`)
+
 Rigs:
 
 - `GET /api/rigs`
