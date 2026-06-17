@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { diskStorage } from 'multer'
 import * as fs from 'fs'
 import * as path from 'path'
+import { RequireRoles } from '../auth/roles.decorator'
 
 const baseUploadDir = path.resolve(process.cwd(), 'uploads')
 
@@ -32,6 +33,7 @@ function resolveUploadDir(folder?: string): string {
 @Controller('uploads')
 export class UploadsController {
   @Post('image')
+  @RequireRoles('editor', 'admin')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
       destination: (req: any, _file, cb) => {

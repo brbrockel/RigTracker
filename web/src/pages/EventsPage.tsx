@@ -3,6 +3,7 @@ import { Button, Calendar, Grid, Image, Segmented, Space, Table, Typography, mes
 import type { CalendarProps } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import dayjs, { Dayjs } from 'dayjs'
+import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 type EventItem = any
 
@@ -53,13 +54,13 @@ export default function EventsPage() {
     const purgeMedia = confirm('Also delete associated media files from storage? Click OK to delete files, Cancel to keep files.')
     try {
       const query = purgeMedia ? '?purgeMedia=true' : ''
-      const res = await fetch(`${API_BASE}/api/events/${eventId}${query}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Delete failed')
+      const res = await fetch(`${API_BASE}/api/events/${eventId}${query}`, { method: 'DELETE', credentials: 'include' })
+      await ensureOk(res, 'Delete failed')
       message.success(purgeMedia ? 'Event and media deleted' : 'Event deleted (media kept)')
       load()
     } catch (err) {
       console.error(err)
-      message.error('Failed to delete event')
+      message.error(actionErrorMessage(err, 'Failed to delete event'))
     }
   }
 

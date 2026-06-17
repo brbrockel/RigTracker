@@ -3,6 +3,7 @@ import { Button, Form, Grid, Image, Input, DatePicker, message, Space, Typograph
 import { DeleteOutlined, LeftOutlined, StarFilled, UploadOutlined, CameraOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
+import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 const { useBreakpoint } = Grid
@@ -25,9 +26,10 @@ async function uploadImageFile(file: File, folder: string) {
   formData.append('file', file)
   const res = await fetch(`${API_BASE}/api/uploads/image?folder=${encodeURIComponent(folder)}`, {
     method: 'POST',
+    credentials: 'include',
     body: formData
   })
-  if (!res.ok) throw new Error('Upload failed')
+  await ensureOk(res, 'Upload failed')
   const data = await res.json()
   return data.url as string
 }
@@ -105,7 +107,7 @@ export default function EventDetailPage() {
       message.success(files.length > 1 ? 'Media uploaded' : 'Media item uploaded')
     } catch (err) {
       console.error(err)
-      message.error('Media upload failed')
+      message.error(actionErrorMessage(err, 'Media upload failed'))
     } finally {
       setUploadingPhotos(false)
     }
@@ -149,23 +151,27 @@ export default function EventDetailPage() {
       if (isNew) {
         const res = await fetch(`${API_BASE}/api/events`, {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
+        await ensureOk(res, 'Save failed')
         const created = await res.json()
         navigate(`/events/${created._id || created.id}`)
       } else {
-        await fetch(`${API_BASE}/api/events/${id}`, {
+        const res = await fetch(`${API_BASE}/api/events/${id}`, {
           method: 'PUT',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
+        await ensureOk(res, 'Save failed')
         await load()
         message.success('Event saved')
       }
     } catch (err) {
       console.error(err)
-      message.error('Save failed')
+      message.error(actionErrorMessage(err, 'Save failed'))
     } finally {
       setSaving(false)
     }
@@ -178,13 +184,13 @@ export default function EventDetailPage() {
     const purgeMedia = confirm('Also delete associated media files from storage? Click OK to delete files, Cancel to keep files.')
     try {
       const query = purgeMedia ? '?purgeMedia=true' : ''
-      const res = await fetch(`${API_BASE}/api/events/${id}${query}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Delete failed')
+      const res = await fetch(`${API_BASE}/api/events/${id}${query}`, { method: 'DELETE', credentials: 'include' })
+      await ensureOk(res, 'Delete failed')
       message.success(purgeMedia ? 'Event and media deleted' : 'Event deleted (media kept)')
       navigate('/events')
     } catch (err) {
       console.error(err)
-      message.error('Failed to delete event')
+      message.error(actionErrorMessage(err, 'Failed to delete event'))
     }
   }
 

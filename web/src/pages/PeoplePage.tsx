@@ -3,6 +3,7 @@ import { Table, Button, Modal, Form, Input, Select, message, Grid, Space } from 
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import isEmail from 'validator/lib/isEmail'
+import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 const { useBreakpoint } = Grid
@@ -47,8 +48,14 @@ export default function PeoplePage() {
 
   async function remove(id: string) {
     if (!confirm('Delete person?')) return
-    await fetch(`${API_BASE}/api/people/${id}`, { method: 'DELETE' })
-    load()
+    try {
+      const res = await fetch(`${API_BASE}/api/people/${id}`, { method: 'DELETE', credentials: 'include' })
+      await ensureOk(res, 'Delete failed')
+      load()
+    } catch (err) {
+      console.error(err)
+      message.error(actionErrorMessage(err, 'Delete failed'))
+    }
   }
 
   async function save() {
@@ -62,15 +69,17 @@ export default function PeoplePage() {
         vals.phone = pn.format('E.164')
       }
       if (editing && editing._id) {
-        await fetch(`${API_BASE}/api/people/${editing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
+        const res = await fetch(`${API_BASE}/api/people/${editing._id}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
+        await ensureOk(res, 'Save failed')
       } else {
-        await fetch(`${API_BASE}/api/people`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
+        const res = await fetch(`${API_BASE}/api/people`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
+        await ensureOk(res, 'Save failed')
       }
       setVisible(false)
       load()
     } catch (err) {
       console.error(err)
-      message.error('Save failed')
+      message.error(actionErrorMessage(err, 'Save failed'))
     }
   }
 

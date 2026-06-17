@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Table, Button, Modal, Form, Input, DatePicker, Space, Select, message, Grid, Image } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 type Rig = any
 
@@ -40,9 +41,10 @@ export default function RigsPage() {
     formData.append('file', file)
     const res = await fetch(`${API_BASE}/api/uploads/image?folder=${encodeURIComponent(folder)}`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
     })
-    if (!res.ok) throw new Error('Upload failed')
+    await ensureOk(res, 'Upload failed')
     const data = await res.json()
     return data.url as string
   }
@@ -57,7 +59,7 @@ export default function RigsPage() {
       message.success('Image uploaded')
     } catch (err) {
       console.error(err)
-      message.error('Image upload failed')
+      message.error(actionErrorMessage(err, 'Image upload failed'))
     } finally {
       e.target.value = ''
       setUploadingImage(false)
@@ -103,8 +105,14 @@ export default function RigsPage() {
 
   async function remove(id: string) {
     if (!confirm('Delete rig?')) return
-    await fetch(`${API_BASE}/api/rigs/${id}`, { method: 'DELETE' })
-    load()
+    try {
+      const res = await fetch(`${API_BASE}/api/rigs/${id}`, { method: 'DELETE', credentials: 'include' })
+      await ensureOk(res, 'Delete failed')
+      load()
+    } catch (err) {
+      console.error(err)
+      message.error(actionErrorMessage(err, 'Delete failed'))
+    }
   }
 
   async function save() {
@@ -114,15 +122,17 @@ export default function RigsPage() {
     if (payload.repackDue) payload.repackDue = payload.repackDue.toISOString()
     try {
       if (editing && editing._id) {
-        await fetch(`${API_BASE}/api/rigs/${editing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        const res = await fetch(`${API_BASE}/api/rigs/${editing._id}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        await ensureOk(res, 'Save failed')
       } else {
-        await fetch(`${API_BASE}/api/rigs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        const res = await fetch(`${API_BASE}/api/rigs`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        await ensureOk(res, 'Save failed')
       }
       setVisible(false)
       load()
     } catch (err) {
       console.error(err)
-      message.error('Save failed')
+      message.error(actionErrorMessage(err, 'Save failed'))
     }
   }
 

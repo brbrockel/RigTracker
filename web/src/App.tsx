@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, useMemo, useState } from 'react'
-import { Layout, Button, Typography, Menu, Grid } from 'antd'
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Layout, Button, Typography, Menu, Grid, Space, message } from 'antd'
 import {
   GithubOutlined,
   DashboardOutlined,
@@ -18,6 +18,7 @@ const PeoplePage = lazy(() => import('./pages/PeoplePage'))
 const GearPage = lazy(() => import('./pages/GearPage'))
 const EventsPage = lazy(() => import('./pages/EventsPage'))
 const EventDetailPage = lazy(() => import('./pages/EventDetailPage'))
+const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 
 // Static assets are served from /img (web/public/img)
 const logo = '/img/logo1.jpg'
@@ -50,12 +51,21 @@ function PlaceholderPage({ title, summary }: { title: string; summary: string })
   )
 }
 
+type AuthUser = {
+  id: string
+  email: string
+  displayName: string
+  roles: string[]
+}
+
 export default function App() {
   const location = useLocation()
   const navigate = useNavigate()
   const screens = useBreakpoint()
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [loadingAuth, setLoadingAuth] = useState(true)
 
   const menuItems = useMemo(() => [
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
@@ -71,6 +81,43 @@ export default function App() {
 
   const isMobile = !screens.lg
   const siderCollapsed = isMobile ? !mobileOpen : desktopCollapsed
+
+  async function loadAuthState() {
+    setLoadingAuth(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })
+      if (!res.ok) {
+        setAuthUser(null)
+        return
+      }
+      const data = await res.json()
+      setAuthUser(data?.authenticated ? data.user : null)
+    } catch (err) {
+      setAuthUser(null)
+    } finally {
+      setLoadingAuth(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAuthState()
+  }, [])
+
+  async function logout() {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' })
+      if (!res.ok) throw new Error('Logout failed')
+      setAuthUser(null)
+      message.success('Signed out')
+    } catch (err) {
+      console.error(err)
+      message.error('Failed to sign out')
+    }
+  }
+
+  function startGoogleLogin() {
+    window.location.href = `${API_BASE}/api/auth/google`
+  }
 
   return (
     <Layout className="rt-app-shell" style={{ minHeight: '100vh' }}>
@@ -124,9 +171,21 @@ export default function App() {
             />
             <Typography.Text className="rt-header-title">Operations Console</Typography.Text>
           </div>
-          <Button href="https://github.com/brbrockel/RigTracker" target="_blank" rel="noopener noreferrer" icon={<GithubOutlined />}>
-            GitHub
-          </Button>
+          <Space>
+            {!loadingAuth ? (
+              <Typography.Text type="secondary">
+                {authUser ? `Signed in: ${authUser.displayName || authUser.email}` : 'Guest mode'}
+              </Typography.Text>
+            ) : null}
+            {authUser ? (
+              <Button onClick={logout}>Sign Out</Button>
+            ) : (
+              <Button type="primary" onClick={startGoogleLogin}>Sign In with Google</Button>
+            )}
+            <Button href="https://github.com/brbrockel/RigTracker" target="_blank" rel="noopener noreferrer" icon={<GithubOutlined />}>
+              GitHub
+            </Button>
+          </Space>
         </Header>
 
         <Content style={{ padding: 20 }}>

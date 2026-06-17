@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Table, Button, Modal, Form, Input, Space, message, Grid, Image, DatePicker } from 'antd'
 import { EditOutlined, DeleteOutlined, PictureOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 const { useBreakpoint } = Grid
@@ -37,9 +38,10 @@ export default function GearPage() {
     formData.append('file', file)
     const res = await fetch(`${API_BASE}/api/uploads/image?folder=${encodeURIComponent(folder)}`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
     })
-    if (!res.ok) throw new Error('Upload failed')
+    await ensureOk(res, 'Upload failed')
     const data = await res.json()
     return data.url as string
   }
@@ -54,7 +56,7 @@ export default function GearPage() {
       message.success('Image uploaded')
     } catch (err) {
       console.error(err)
-      message.error('Image upload failed')
+      message.error(actionErrorMessage(err, 'Image upload failed'))
     } finally {
       e.target.value = ''
       setUploadingImage(false)
@@ -95,8 +97,14 @@ export default function GearPage() {
 
   async function remove(id: string) {
     if (!confirm('Delete gear item?')) return
-    await fetch(`${API_BASE}/api/gear/${id}`, { method: 'DELETE' })
-    load()
+    try {
+      const res = await fetch(`${API_BASE}/api/gear/${id}`, { method: 'DELETE', credentials: 'include' })
+      await ensureOk(res, 'Delete failed')
+      load()
+    } catch (err) {
+      console.error(err)
+      message.error(actionErrorMessage(err, 'Delete failed'))
+    }
   }
 
   async function save() {
@@ -105,23 +113,27 @@ export default function GearPage() {
       const payload = { ...vals }
       if (payload.dateOfManufacture) payload.dateOfManufacture = payload.dateOfManufacture.toISOString()
       if (editing && editing._id) {
-        await fetch(`${API_BASE}/api/gear/${editing._id}`, {
+        const res = await fetch(`${API_BASE}/api/gear/${editing._id}`, {
           method: 'PUT',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
+        await ensureOk(res, 'Save failed')
       } else {
-        await fetch(`${API_BASE}/api/gear`, {
+        const res = await fetch(`${API_BASE}/api/gear`, {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
+        await ensureOk(res, 'Save failed')
       }
       setVisible(false)
       load()
     } catch (err) {
       console.error(err)
-      message.error('Save failed')
+      message.error(actionErrorMessage(err, 'Save failed'))
     }
   }
 

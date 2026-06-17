@@ -78,15 +78,21 @@ Environment variable reference:
 | `RIGTRACKER_API_BASE` | Optional | Web | API base URL override; keep empty for same-origin deployments behind nginx. | `` |
 | `GITHUB_GHCR_TOKEN` | Yes for deploy script | Build/deploy script | Auth token used by `./build.sh --deploy` to push to GHCR. | `ghp_xxx` |
 
-Planned for EH-001 (Google auth and app sessions):
+Implemented now for EH-001 starter (Google auth API + persisted sessions):
 
 | Variable | Required | Used By | Purpose | Example |
 | --- | --- | --- | --- | --- |
 | `GOOGLE_CLIENT_ID` | Yes (EH-001) | API auth module | Google OAuth client identifier for login redirects and token validation. | `1234567890-abc123.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | Yes (EH-001) | API auth module | Google OAuth client secret used during callback token exchange. | `GOCSPX-...` |
-| `SESSION_SECRET` | Yes (EH-001) | API auth module | Secret used to sign/encrypt session cookies or session tokens. | `long-random-value` |
-| `AUTH_ALLOWED_EMAIL_DOMAIN` | Optional (EH-001) | API auth module | Restrict logins to a single domain (or use allowlist strategy). | `bhbslp.org` |
-| `AUTH_ALLOWED_EMAILS` | Optional (EH-001) | API auth module | Comma-separated explicit allowlist for login access. | `user1@bhbslp.org,user2@gmail.com` |
+| `AUTH_GOOGLE_CALLBACK_URL` | Yes (EH-001) | API auth module | Exact callback URL registered in Google OAuth client config. | `https://rigtracker.bhbslp.org/api/auth/google/callback` |
+| `AUTH_SUCCESS_REDIRECT` | Optional | API auth module | Redirect target after successful Google login. | `/` |
+| `AUTH_FAILURE_REDIRECT` | Optional | API auth module | Redirect target after failed Google login. | `/?auth=failed` |
+
+Planned next in EH-001:
+
+- Add route guards for authenticated write operations.
+- Add role enforcement (`admin`/`editor`/`viewer`) across protected endpoints.
+- Add optional domain/email allowlist controls (`AUTH_ALLOWED_EMAIL_DOMAIN`, `AUTH_ALLOWED_EMAILS`).
 
 ## Troubleshooting
 
