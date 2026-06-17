@@ -15,10 +15,10 @@ function resolveImageUrl(url?: string) {
   return `${API_BASE}${url}`
 }
 
-async function uploadImageFile(file: File) {
+async function uploadImageFile(file: File, folder: string) {
   const formData = new FormData()
   formData.append('file', file)
-  const res = await fetch(`${API_BASE}/api/uploads/image`, {
+  const res = await fetch(`${API_BASE}/api/uploads/image?folder=${encodeURIComponent(folder)}`, {
     method: 'POST',
     body: formData
   })
@@ -84,7 +84,9 @@ export default function EventDetailPage() {
     if (!files.length) return
     setUploadingPhotos(true)
     try {
-      const uploaded = await Promise.all(files.map((file) => uploadImageFile(file)))
+      const eventName = (form.getFieldValue('name') || 'uncategorized').toString().trim()
+      const folder = `events/${eventName}`
+      const uploaded = await Promise.all(files.map((file) => uploadImageFile(file, folder)))
       setPhotoUrls((current) => {
         const next = [...current]
         uploaded.forEach((url) => {

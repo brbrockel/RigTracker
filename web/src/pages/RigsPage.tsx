@@ -30,10 +30,15 @@ export default function RigsPage() {
     return `${API_BASE}${url}`
   }
 
-  async function uploadImageFile(file: File) {
+  function uploadFolder() {
+    const name = (form.getFieldValue('name') || 'uncategorized').toString().trim()
+    return `rigs/${name}`
+  }
+
+  async function uploadImageFile(file: File, folder: string) {
     const formData = new FormData()
     formData.append('file', file)
-    const res = await fetch(`${API_BASE}/api/uploads/image`, {
+    const res = await fetch(`${API_BASE}/api/uploads/image?folder=${encodeURIComponent(folder)}`, {
       method: 'POST',
       body: formData
     })
@@ -47,7 +52,7 @@ export default function RigsPage() {
     if (!file) return
     setUploadingImage(true)
     try {
-      const imageUrl = await uploadImageFile(file)
+      const imageUrl = await uploadImageFile(file, uploadFolder())
       form.setFieldValue('imageUrl', imageUrl)
       message.success('Image uploaded')
     } catch (err) {
