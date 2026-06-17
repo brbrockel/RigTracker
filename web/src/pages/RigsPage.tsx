@@ -218,6 +218,7 @@ export default function RigsPage() {
           <Form.Item name="repackDue" label="Repack Due"><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="aadType" label="AAD Type"><Input /></Form.Item>
           <Form.Item name="notes" label="Notes"><Input.TextArea /></Form.Item>
+          <Form.Item name="imageUrl" hidden><Input /></Form.Item>
           <Form.Item noStyle shouldUpdate>
             {() => {
               const currentImage = form.getFieldValue('imageUrl')

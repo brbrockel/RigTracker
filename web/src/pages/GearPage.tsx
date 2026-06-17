@@ -235,6 +235,7 @@ export default function GearPage() {
           <Form.Item name="notes" label="Notes" rules={[{ max: 1000, message: 'Notes can be up to 1000 characters' }]}>
             <Input.TextArea rows={4} maxLength={1000} showCount />
           </Form.Item>
+          <Form.Item name="imageUrl" hidden><Input /></Form.Item>
           <Form.Item noStyle shouldUpdate>
             {() => {
               const currentImage = form.getFieldValue('imageUrl')
