@@ -265,7 +265,7 @@ export default function GearPage() {
                     <Button onClick={() => galleryInputRef.current?.click()} loading={uploadingImage}>Upload From Device</Button>
                     <Button onClick={() => cameraInputRef.current?.click()} loading={uploadingImage}>Take Photo</Button>
                     <Button
-                      onClick={() => form.setFieldValue('imageUrl', undefined)}
+                      onClick={() => form.setFieldValue('imageUrl', null)}
                       disabled={!currentImage || uploadingImage}
                     >
                       Remove Image

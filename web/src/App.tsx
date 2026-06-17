@@ -59,8 +59,8 @@ export default function App() {
 
   const menuItems = useMemo(() => [
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
-    { key: '/rigs', icon: <ToolOutlined />, label: 'Rigs' },
     { key: '/people', icon: <TeamOutlined />, label: 'People' },
+    { key: '/rigs', icon: <ToolOutlined />, label: 'Rigs' },
     { key: '/gear', icon: <InboxOutlined />, label: 'Gear' },
     { key: '/events', icon: <CalendarOutlined />, label: 'Events' },
     { key: '/settings', icon: <SettingOutlined />, label: 'Settings' }

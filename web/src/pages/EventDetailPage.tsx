@@ -15,6 +15,11 @@ function resolveImageUrl(url?: string) {
   return `${API_BASE}${url}`
 }
 
+function isVideoUrl(url?: string) {
+  if (!url) return false
+  return /\.(mp4|mov|webm|m4v|avi|mkv|mpeg|mpg|3gp)$/i.test(url)
+}
+
 async function uploadImageFile(file: File, folder: string) {
   const formData = new FormData()
   formData.append('file', file)
@@ -97,10 +102,10 @@ export default function EventDetailPage() {
         }
         return next
       })
-      message.success('Photo uploaded')
+      message.success(files.length > 1 ? 'Media uploaded' : 'Media item uploaded')
     } catch (err) {
       console.error(err)
-      message.error('Photo upload failed')
+      message.error('Media upload failed')
     } finally {
       setUploadingPhotos(false)
     }
@@ -167,6 +172,7 @@ export default function EventDetailPage() {
   }
 
   const heroUrl = eventPhotoUrl || photoUrls[0] || eventData?.eventPhotoUrl || ''
+  const heroIsVideo = isVideoUrl(heroUrl)
 
   return (
     <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
@@ -182,7 +188,15 @@ export default function EventDetailPage() {
           <Typography.Title level={4} style={{ marginTop: 0 }}>{isNew ? 'New Event' : 'Event Details'}</Typography.Title>
           {heroUrl ? (
             <div style={{ marginBottom: 16 }}>
-              <Image src={resolveImageUrl(heroUrl)} alt="Event hero" style={{ width: '100%', maxHeight: 360, objectFit: 'cover', borderRadius: 12 }} />
+              {heroIsVideo ? (
+                <video
+                  src={resolveImageUrl(heroUrl)}
+                  controls
+                  style={{ width: '100%', maxHeight: 360, borderRadius: 12, background: '#000' }}
+                />
+              ) : (
+                <Image src={resolveImageUrl(heroUrl)} alt="Event hero" style={{ width: '100%', maxHeight: 360, objectFit: 'cover', borderRadius: 12 }} />
+              )}
             </div>
           ) : null}
           <Form form={form} layout="vertical" initialValues={{ eventDate: dayjs() }}>
@@ -199,12 +213,12 @@ export default function EventDetailPage() {
         </div>
 
         <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-          <Typography.Title level={4} style={{ marginTop: 0 }}>Photo Album</Typography.Title>
+          <Typography.Title level={4} style={{ marginTop: 0 }}>Media Album</Typography.Title>
           <div style={{ marginBottom: 12 }}>
             <input
               ref={galleryInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
               onChange={handleGalleryPick}
               style={{ display: 'none' }}
@@ -212,29 +226,38 @@ export default function EventDetailPage() {
             <input
               ref={cameraInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               capture="environment"
               onChange={handleCameraPick}
               style={{ display: 'none' }}
             />
             <Space wrap>
-              <Button icon={<UploadOutlined />} onClick={() => galleryInputRef.current?.click()} loading={uploadingPhotos}>Upload Photos</Button>
-              <Button icon={<CameraOutlined />} onClick={() => cameraInputRef.current?.click()} loading={uploadingPhotos}>Take Photo</Button>
+              <Button icon={<UploadOutlined />} onClick={() => galleryInputRef.current?.click()} loading={uploadingPhotos}>Upload Media</Button>
+              <Button icon={<CameraOutlined />} onClick={() => cameraInputRef.current?.click()} loading={uploadingPhotos}>Capture Media</Button>
             </Space>
           </div>
 
           <div style={{ display: 'grid', gap: 12 }}>
             {photoUrls.length ? photoUrls.map((url) => {
               const selected = url === eventPhotoUrl
+              const mediaIsVideo = isVideoUrl(url)
               return (
                 <div key={url} style={{ border: selected ? '2px solid #1d4ed8' : '1px solid #d9d9d9', borderRadius: 12, padding: 10 }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'start' }}>
-                    <Image src={resolveImageUrl(url)} alt="Album item" width={92} height={92} style={{ objectFit: 'cover', borderRadius: 10 }} />
+                    {mediaIsVideo ? (
+                      <video
+                        src={resolveImageUrl(url)}
+                        controls
+                        style={{ width: 92, height: 92, objectFit: 'cover', borderRadius: 10, background: '#000' }}
+                      />
+                    ) : (
+                      <Image src={resolveImageUrl(url)} alt="Album item" width={92} height={92} style={{ objectFit: 'cover', borderRadius: 10 }} />
+                    )}
                     <div style={{ flex: 1 }}>
-                      <Typography.Text strong>{selected ? 'Selected as event photo' : 'Album image'}</Typography.Text>
+                      <Typography.Text strong>{selected ? 'Selected as event media' : (mediaIsVideo ? 'Album video' : 'Album image')}</Typography.Text>
                       <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <Button size="small" type={selected ? 'primary' : 'default'} icon={<StarFilled />} onClick={() => setPrimaryPhoto(url)}>
-                          {selected ? 'Primary Photo' : 'Set as Primary'}
+                          {selected ? 'Primary Media' : 'Set as Primary'}
                         </Button>
                         <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removePhoto(url)}>Remove</Button>
                       </div>
@@ -242,7 +265,7 @@ export default function EventDetailPage() {
                   </div>
                 </div>
               )
-            }) : <Typography.Text type="secondary">No photos uploaded yet.</Typography.Text>}
+            }) : <Typography.Text type="secondary">No media uploaded yet.</Typography.Text>}
           </div>
         </div>
       </div>

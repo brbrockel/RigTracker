@@ -45,10 +45,12 @@ export class UploadsController {
         cb(null, `${unique}${safeExt}`)
       }
     }),
-    limits: { fileSize: 25 * 1024 * 1024 },
+    limits: { fileSize: 200 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
-      if (!file.mimetype || !file.mimetype.startsWith('image/')) {
-        cb(new BadRequestException('Only image uploads are allowed'), false)
+      const isImage = !!file.mimetype && file.mimetype.startsWith('image/')
+      const isVideo = !!file.mimetype && file.mimetype.startsWith('video/')
+      if (!isImage && !isVideo) {
+        cb(new BadRequestException('Only image and video uploads are allowed'), false)
         return
       }
       cb(null, true)
@@ -56,7 +58,7 @@ export class UploadsController {
   }))
   uploadImage(@UploadedFile() file: any, @Query('folder') folder?: string) {
     if (!file || !file.filename) {
-      throw new BadRequestException('Image file is required')
+      throw new BadRequestException('Media file is required')
     }
     const safe = folder ? sanitizeFolder(folder) : ''
     const urlPath = safe ? `/uploads/${safe}/${file.filename}` : `/uploads/${file.filename}`
