@@ -99,7 +99,7 @@ Out:
 
 ## EH-001: Authentication and Roles
 
-**Status**: Proposed  
+**Status**: Done — 2026-06-17  
 **Owner**: TBD
 
 ### Problem
@@ -207,7 +207,7 @@ Google Cloud and platform setup required before enabling auth:
 
 ## EH-002: Audit Trail and Change History
 
-**Status**: Proposed  
+**Status**: Done — 2026-06-17  
 **Owner**: TBD
 
 ### Problem
