@@ -5,11 +5,12 @@ This page tracks planned enhancements in a consistent, reviewable format.
 ## Table of Contents
 
 1. [How To Document An Enhancement](#how-to-document-an-enhancement)
-2. [EH-001: Authentication and Roles](#eh-001-authentication-and-roles)
-3. [EH-002: Audit Trail and Change History](#eh-002-audit-trail-and-change-history)
-4. [EH-003: Reporting Dashboard](#eh-003-reporting-dashboard)
-5. [EH-004: Bulk Import UX](#eh-004-bulk-import-ux)
-6. [EH-005: Photo Albums and Multi-Source Uploads](#eh-005-photo-albums-and-multi-source-uploads)
+2. [Enhancement Review Snapshot (2026-06-17)](#enhancement-review-snapshot-2026-06-17)
+3. [EH-001: Authentication and Roles](#eh-001-authentication-and-roles)
+4. [EH-002: Audit Trail and Change History](#eh-002-audit-trail-and-change-history)
+5. [EH-003: Reporting Dashboard](#eh-003-reporting-dashboard)
+6. [EH-004: Bulk Import UX](#eh-004-bulk-import-ux)
+7. [EH-005: Photo Albums and Multi-Source Uploads](#eh-005-photo-albums-and-multi-source-uploads)
 
 ## How To Document An Enhancement
 
@@ -65,6 +66,36 @@ Out:
 - [ ] ...
 - [ ] ...
 ```
+
+## Enhancement Review Snapshot (2026-06-17)
+
+### Status Summary
+
+- EH-001 Authentication and Roles: Proposed
+- EH-002 Audit Trail and Change History: Proposed
+- EH-003 Reporting Dashboard: Proposed
+- EH-004 Bulk Import UX: Proposed
+- EH-005 Photo Albums and Multi-Source Uploads: In Progress
+
+### What Can Be Marked Complete Now
+
+- Event-level media album workflow exists (create/edit event, attach multiple media URLs, set primary event media).
+- Device uploads are implemented for desktop and mobile-friendly flows (file picker and camera capture).
+- Upload storage is organized under resource folders and supports host-mounted persistence.
+- Delete-event workflow is implemented with safe default behavior: keep media by default, optional purge when explicitly selected.
+
+### What Is Partially Complete
+
+- EH-005 is partially complete via Events media album support, but not yet a general Albums feature across resources.
+- Video upload support exists at API/UI/proxy level, but the enhancement text still focuses on photo-only wording and cloud providers not yet delivered.
+
+### Recommended Next Priority Order
+
+1. EH-001 Authentication and Roles (security foundation for uploads/imports and administrative actions).
+2. EH-002 Audit Trail and Change History (track who changed/deleted records and when).
+3. EH-005 Phase 1 hardening (quotas, retention policy, orphan-media cleanup tooling, explicit media limits by type).
+4. EH-003 Reporting Dashboard (operational visibility once auth/audit are in place).
+5. EH-004 Bulk Import UX (operator efficiency after core governance is in place).
 
 ## EH-001: Authentication and Roles
 
@@ -242,7 +273,7 @@ Add staged import endpoint and UI wizard with row-level validation feedback.
 
 ## EH-005: Photo Albums and Multi-Source Uploads
 
-**Status**: Proposed  
+**Status**: In Progress  
 **Owner**: TBD
 
 ### Problem
@@ -268,6 +299,17 @@ Add an Albums feature across API and web UI with a unified upload/import workflo
 	- iCloud Photos connector using a supported provider integration path or user-export/import fallback when direct API access is constrained.
 - Storage abstraction layer so images can be stored in local volume first, with optional object storage support later.
 - Async import jobs for cloud providers to handle large libraries and background processing.
+
+### Current Implementation Notes
+- Implemented now:
+  - Events include media album behavior (`photoUrls` + `eventPhotoUrl`) with primary selection in UI.
+  - Upload from device/camera works in mobile and desktop web flows.
+  - API upload endpoint currently allows image and video media types with server-side validation.
+  - Proxy/body-size settings were increased to support larger media uploads.
+- Not implemented yet:
+  - First-class generic Albums collection/pages across all resources.
+  - Google Photos and iCloud import connectors and async import jobs.
+  - Visibility/ownership model for albums (private/team/public).
 
 ### Data/Schema Impact
 Add MongoDB collections:
@@ -340,7 +382,7 @@ Required integrations and operations setup:
 ### Acceptance Criteria
 - [ ] Users can create a new album from web and mobile layouts.
 - [ ] Users can add photos to an existing album.
-- [ ] Users can upload photos from phone browsers.
+- [x] Users can upload photos from phone browsers.
 - [ ] Users can initiate and complete Google Photos imports.
 - [ ] Users can initiate iCloud Photos ingestion via supported integration path.
 - [ ] Users can view import progress and completion/failure states.
