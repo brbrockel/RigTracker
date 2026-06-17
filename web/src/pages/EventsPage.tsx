@@ -85,7 +85,6 @@ export default function EventsPage() {
     const dayEvents = eventsByDate.get(key) || []
     return (
       <div style={{ minHeight: 76, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <div style={{ fontSize: 12, opacity: 0.75 }}>{current.date()}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {dayEvents.slice(0, 2).map((event) => (
             <Button

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Table, Button, Modal, Form, Input, Space, message, Grid, Image, DatePicker } from 'antd'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, PictureOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
@@ -125,8 +125,10 @@ export default function GearPage() {
       title: 'Image',
       dataIndex: 'imageUrl',
       key: 'imageUrl',
-      width: 90,
-      render: (v: any) => v ? <Image src={resolveImageUrl(v)} alt="Gear" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8 }} /> : 'N/A'
+      width: 72,
+      render: (v: any) => v
+        ? <Image src={resolveImageUrl(v)} alt="Gear" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8, display: 'block' }} />
+        : <div style={{ width: 56, height: 56, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bfbfbf' }}><PictureOutlined style={{ fontSize: 24 }} /></div>
     },
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Serial Number', dataIndex: 'serialNumber', key: 'serialNumber' },

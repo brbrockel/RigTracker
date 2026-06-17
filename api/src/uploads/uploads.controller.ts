@@ -28,7 +28,7 @@ export class UploadsController {
         cb(null, `${unique}${safeExt}`)
       }
     }),
-    limits: { fileSize: 10 * 1024 * 1024 },
+    limits: { fileSize: 25 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       if (!file.mimetype || !file.mimetype.startsWith('image/')) {
         cb(new BadRequestException('Only image uploads are allowed'), false)
