@@ -9,6 +9,8 @@ export class Gear {
   @Prop() dateOfManufacture?: Date
   @Prop({ maxlength: 1000 }) notes?: string
   @Prop() imageUrl?: string
+  @Prop() assignedRigId?: string
+  @Prop() assignedPersonId?: string
 }
 
 export type GearDocument = Gear & Document

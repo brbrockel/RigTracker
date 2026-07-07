@@ -7,7 +7,8 @@
     "build": "rm -rf dist && tsc -p tsconfig.json",
     "fix:rig-names": "ts-node scripts/fix_rig_names.ts",
     "normalize:people-names": "ts-node scripts/normalize_people_names.ts",
-    "migrate:primary-user": "ts-node scripts/migrate_primary_user.ts"
+    "migrate:primary-user": "ts-node scripts/migrate_primary_user.ts",
+    "migrate:gear-assignment-defaults": "ts-node scripts/migrate_gear_assignment_defaults.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

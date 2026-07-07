@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body, Put, Delete, Req, Query } from '@nestjs/common';
 import { GearService } from './gear.service';
 import { RequireRoles } from '../auth/roles.decorator';
 import { AuditService } from '../audit/audit.service';
@@ -11,8 +11,8 @@ export class GearController {
   ) {}
 
   @Get()
-  getAll() {
-    return this.gearService.findAll();
+  getAll(@Query('rigId') rigId?: string, @Query('personId') personId?: string, @Query('unassigned') unassigned?: string) {
+    return this.gearService.findAll({ rigId, personId, unassigned });
   }
 
   @Get(':id')

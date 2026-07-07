@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Table, Select, Typography, message, Grid, Tag } from 'antd'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
@@ -38,6 +38,11 @@ export default function SettingsPage() {
 
   useEffect(() => { load() }, [])
 
+  const statusFilters = useMemo(() => ([
+    { text: 'Active', value: 'active' },
+    { text: 'Inactive', value: 'inactive' },
+  ]), [])
+
   async function changeRole(userId: string, role: string) {
     setUpdatingId(userId)
     try {
@@ -69,8 +74,14 @@ export default function SettingsPage() {
       render: (_: any, u: AppUser) => (
         <span>{u.displayName || u.email}</span>
       ),
+      sorter: (a: AppUser, b: AppUser) => String(a.displayName || a.email || '').localeCompare(String(b.displayName || b.email || '')),
     },
-    { title: 'Email', dataIndex: 'email', key: 'email' },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      sorter: (a: AppUser, b: AppUser) => String(a.email || '').localeCompare(String(b.email || '')),
+    },
     {
       title: 'Role',
       key: 'role',
@@ -99,18 +110,26 @@ export default function SettingsPage() {
       width: 90,
       render: (_: any, u: AppUser) =>
         u.isActive ? <Tag color="green">Active</Tag> : <Tag color="red">Inactive</Tag>,
+      filters: statusFilters,
+      onFilter: (value: any, record: AppUser) => String(value) === (record.isActive ? 'active' : 'inactive'),
     },
     {
       title: 'Last Login',
       dataIndex: 'lastLoginAt',
       key: 'lastLoginAt',
       render: (v: string | null) => v ? new Date(v).toLocaleString() : 'Never',
+      sorter: (a: AppUser, b: AppUser) => {
+        const av = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0
+        const bv = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0
+        return av - bv
+      },
     },
     {
       title: 'Logins',
       dataIndex: 'loginCount',
       key: 'loginCount',
       width: 80,
+      sorter: (a: AppUser, b: AppUser) => Number(a.loginCount || 0) - Number(b.loginCount || 0),
     },
   ]
 

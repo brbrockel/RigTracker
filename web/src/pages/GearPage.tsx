@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { Table, Button, Modal, Form, Input, Space, message, Grid, Image, DatePicker } from 'antd'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Table, Button, Modal, Form, Input, Space, message, Grid, Image, DatePicker, Select, Typography } from 'antd'
 import { EditOutlined, DeleteOutlined, PictureOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { actionErrorMessage, ensureOk } from '../lib/apiClient'
@@ -15,6 +15,10 @@ type GearPageProps = {
 
 export default function GearPage({ canWrite, canDelete }: GearPageProps) {
   const [gear, setGear] = useState<Gear[]>([])
+  const [rigs, setRigs] = useState<any[]>([])
+  const [people, setPeople] = useState<any[]>([])
+  const [rigNameById, setRigNameById] = useState<Record<string, string>>({})
+  const [personNameById, setPersonNameById] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [visible, setVisible] = useState(false)
   const [editing, setEditing] = useState<Gear | null>(null)
@@ -70,9 +74,36 @@ export default function GearPage({ canWrite, canDelete }: GearPageProps) {
   async function load() {
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/gear`)
-      const j = await res.json()
-      setGear(j)
+      const [gearRes, rigsRes, peopleRes] = await Promise.all([
+        fetch(`${API_BASE}/api/gear`),
+        fetch(`${API_BASE}/api/rigs`),
+        fetch(`${API_BASE}/api/people`),
+      ])
+      await ensureOk(gearRes, 'Failed to load gear')
+      await ensureOk(rigsRes, 'Failed to load rigs')
+      await ensureOk(peopleRes, 'Failed to load people')
+
+      const [gearJson, rigsJson, peopleJson] = await Promise.all([
+        gearRes.json(),
+        rigsRes.json(),
+        peopleRes.json(),
+      ])
+
+      const nextRigNameById: Record<string, string> = {}
+      rigsJson.forEach((r: any) => {
+        nextRigNameById[String(r._id || r.id)] = String(r.name || '').trim() || 'Unnamed Rig'
+      })
+
+      const nextPersonNameById: Record<string, string> = {}
+      peopleJson.forEach((p: any) => {
+        nextPersonNameById[String(p._id || p.id)] = personName(p)
+      })
+
+      setGear(gearJson)
+      setRigs(rigsJson)
+      setPeople(peopleJson)
+      setRigNameById(nextRigNameById)
+      setPersonNameById(nextPersonNameById)
     } catch (err) {
       console.error(err)
       message.error('Failed to load gear')
@@ -88,6 +119,7 @@ export default function GearPage({ canWrite, canDelete }: GearPageProps) {
   function openCreate() {
     setEditing(null)
     form.resetFields()
+    form.setFieldsValue({ assignedRigId: null, assignedPersonId: null })
     setVisible(true)
   }
 
@@ -114,8 +146,35 @@ export default function GearPage({ canWrite, canDelete }: GearPageProps) {
   async function save() {
     try {
       const vals = await form.validateFields()
-      const payload = { ...vals }
+      const payload: any = { ...vals }
       if (payload.dateOfManufacture) payload.dateOfManufacture = payload.dateOfManufacture.toISOString()
+
+      const normalizedRigId = normalizeId(payload.assignedRigId)
+      const normalizedPersonId = normalizeId(payload.assignedPersonId)
+
+      payload.assignedRigId = normalizedRigId
+      payload.assignedPersonId = normalizedPersonId
+
+      if (editing && editing._id && normalizedRigId && normalizeId(editing.assignedRigId) !== normalizedRigId) {
+        const previousPerson = normalizeId(editing.assignedPersonId)
+        const nextRig = rigs.find((r: any) => String(r._id || r.id) === normalizedRigId)
+        const nextRigPerson = normalizeId(nextRig?.primaryUserId)
+        if (previousPerson !== nextRigPerson) {
+          const warningOk = confirm('Changing rig will automatically reassign the person to the rig primary user. Continue?')
+          if (!warningOk) return
+        }
+      }
+
+      if (normalizedRigId) {
+        // Backend derives person from rig; person field is ignored when rig is selected.
+        payload.assignedPersonId = null
+      } else if (normalizedPersonId) {
+        payload.assignedRigId = null
+      } else {
+        payload.assignedRigId = null
+        payload.assignedPersonId = null
+      }
+
       if (editing && editing._id) {
         const res = await fetch(`${API_BASE}/api/gear/${editing._id}`, {
           method: 'PUT',
@@ -141,6 +200,16 @@ export default function GearPage({ canWrite, canDelete }: GearPageProps) {
     }
   }
 
+  const typeFilters = useMemo(() => {
+    const values = Array.from(new Set(gear.map((g: any) => String(g.type || '').trim()).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [gear])
+
+  const assignedFilters = useMemo(() => {
+    const values = Array.from(new Set(gear.map((g: any) => assignmentDisplay(g, rigNameById, personNameById)).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [gear, rigNameById, personNameById])
+
   const desktopColumns = [
     {
       title: 'Image',
@@ -151,14 +220,40 @@ export default function GearPage({ canWrite, canDelete }: GearPageProps) {
         ? <Image src={resolveImageUrl(v)} alt="Gear" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8, display: 'block' }} />
         : <div style={{ width: 56, height: 56, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bfbfbf' }}><PictureOutlined style={{ fontSize: 24 }} /></div>
     },
-    { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Serial Number', dataIndex: 'serialNumber', key: 'serialNumber' },
-    { title: 'Type', dataIndex: 'type', key: 'type' },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      sorter: (a: any, b: any) => String(a.name || '').localeCompare(String(b.name || '')),
+    },
+    {
+      title: 'Serial Number',
+      dataIndex: 'serialNumber',
+      key: 'serialNumber',
+      sorter: (a: any, b: any) => String(a.serialNumber || '').localeCompare(String(b.serialNumber || '')),
+    },
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      sorter: (a: any, b: any) => String(a.type || '').localeCompare(String(b.type || '')),
+      filters: typeFilters,
+      onFilter: (value: any, record: any) => String(record.type || '') === String(value),
+    },
+    {
+      title: 'Assigned To',
+      key: 'assignedTo',
+      render: (_: any, r: any) => assignmentDisplay(r, rigNameById, personNameById),
+      sorter: (a: any, b: any) => assignmentDisplay(a, rigNameById, personNameById).localeCompare(assignmentDisplay(b, rigNameById, personNameById)),
+      filters: assignedFilters,
+      onFilter: (value: any, record: any) => assignmentDisplay(record, rigNameById, personNameById) === String(value),
+    },
     {
       title: 'Date of Manufacture',
       dataIndex: 'dateOfManufacture',
       key: 'dateOfManufacture',
-      render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : ''
+      render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '',
+      sorter: (a: any, b: any) => dayjs(a.dateOfManufacture || 0).valueOf() - dayjs(b.dateOfManufacture || 0).valueOf(),
     },
     {
       title: 'Notes',
@@ -219,6 +314,7 @@ export default function GearPage({ canWrite, canDelete }: GearPageProps) {
               <div className="rt-mobile-card-title">{g.name || 'Unnamed Gear'}</div>
               <div className="rt-mobile-card-meta">Serial Number: {g.serialNumber || 'N/A'}</div>
               <div className="rt-mobile-card-meta">Type: {g.type || 'N/A'}</div>
+              <div className="rt-mobile-card-meta">Assigned: {assignmentDisplay(g, rigNameById, personNameById)}</div>
               <div className="rt-mobile-card-meta">Date of Manufacture: {g.dateOfManufacture ? dayjs(g.dateOfManufacture).format('YYYY-MM-DD') : 'N/A'}</div>
               <div className="rt-mobile-card-meta">Notes: {g.notes ? String(g.notes).slice(0, 80) : 'N/A'}</div>
               {g.imageUrl ? (
@@ -252,8 +348,47 @@ export default function GearPage({ canWrite, canDelete }: GearPageProps) {
           <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="serialNumber" label="Serial Number"><Input /></Form.Item>
           <Form.Item name="type" label="Type" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item noStyle shouldUpdate>
+            {() => {
+              const selectedRigId = normalizeId(form.getFieldValue('assignedRigId'))
+              return (
+                <>
+                  <Form.Item name="assignedRigId" label="Assigned Rig">
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="Assign to rig"
+                      optionFilterProp="label"
+                      options={rigs.map((r: any) => ({
+                        value: String(r._id || r.id),
+                        label: `${r.name || 'Unnamed Rig'}${r.primaryUserId ? ` (Primary: ${personNameById[String(r.primaryUserId)] || 'Unknown'})` : ''}`,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item name="assignedPersonId" label="Assigned Person (Direct)">
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="Assign directly to person"
+                      optionFilterProp="label"
+                      disabled={!!selectedRigId}
+                      options={people.map((p: any) => ({
+                        value: String(p._id || p.id),
+                        label: personName(p),
+                      }))}
+                    />
+                  </Form.Item>
+                  {selectedRigId ? (
+                    <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
+                      This item is rig-assigned. Person assignment will auto-follow that rig's primary user.
+                    </Typography.Paragraph>
+                  ) : null}
+                </>
+              )
+            }}
+          </Form.Item>
           <Form.Item name="dateOfManufacture" label="Date of Manufacture"><DatePicker style={{ width: '100%' }} /></Form.Item>
-          <Form.Item name="notes" label="Notes" rules={[{ max: 1000, message: 'Notes can be up to 1000 characters' }]}>
+          <Form.Item name="notes" label="Notes" rules={[{ max: 1000, message: 'Notes can be up to 1000 characters' }]}> 
             <Input.TextArea rows={4} maxLength={1000} showCount />
           </Form.Item>
           <Form.Item name="imageUrl" hidden><Input /></Form.Item>
@@ -300,4 +435,30 @@ export default function GearPage({ canWrite, canDelete }: GearPageProps) {
       </Modal>
     </div>
   )
+}
+
+function personName(p: any): string {
+  const parts = [p.firstName, p.middleName, p.lastName]
+    .filter(Boolean)
+    .map((s: any) => String(s).trim())
+    .filter(Boolean)
+  return parts.join(' ') || 'Unnamed Person'
+}
+
+function normalizeId(value: any): string | null {
+  if (value === undefined || value === null) return null
+  const normalized = String(value).trim()
+  return normalized || null
+}
+
+function assignmentDisplay(item: any, rigNameById: Record<string, string>, personNameById: Record<string, string>): string {
+  if (item.assignedRigId) {
+    const rigName = rigNameById[String(item.assignedRigId)] || 'Unknown Rig'
+    const person = item.assignedPersonId ? (personNameById[String(item.assignedPersonId)] || 'Unknown Person') : 'No Person'
+    return `Rig: ${rigName} / Person: ${person}`
+  }
+  if (item.assignedPersonId) {
+    return `Person: ${personNameById[String(item.assignedPersonId)] || 'Unknown Person'}`
+  }
+  return 'Unassigned'
 }

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Table, Button, Modal, Form, Input, Select, message, Grid, Space } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import isEmail from 'validator/lib/isEmail'
+import { Link, useNavigate } from 'react-router-dom'
 import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
@@ -14,6 +15,7 @@ type PeoplePageProps = {
 }
 
 export default function PeoplePage({ canWrite, canDelete }: PeoplePageProps) {
+  const navigate = useNavigate()
   const [people, setPeople] = useState<any[]>([])
   const [country] = useState('US')
   const [loading, setLoading] = useState(true)
@@ -88,12 +90,53 @@ export default function PeoplePage({ canWrite, canDelete }: PeoplePageProps) {
     }
   }
 
+  const firstNameFilters = useMemo(() => {
+    const values = Array.from(new Set(people.map((p: any) => String(p.firstName || '').trim()).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [people])
+
+  const lastNameFilters = useMemo(() => {
+    const values = Array.from(new Set(people.map((p: any) => String(p.lastName || '').trim()).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [people])
+
   const desktopColumns = [
-    { title: 'First', dataIndex: 'firstName', key: 'firstName' },
-    { title: 'Middle', dataIndex: 'middleName', key: 'middleName' },
-    { title: 'Last', dataIndex: 'lastName', key: 'lastName' },
-    { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Phone', dataIndex: 'phone', key: 'phone', render: (v: any) => formatPhoneForDisplay(v) },
+    {
+      title: 'First',
+      dataIndex: 'firstName',
+      key: 'firstName',
+      render: (_: any, p: any) => <Link to={`/people/${p._id || p.id}`}>{p.firstName || 'Unnamed'}</Link>,
+      sorter: (a: any, b: any) => String(a.firstName || '').localeCompare(String(b.firstName || '')),
+      filters: firstNameFilters,
+      onFilter: (value: any, record: any) => String(record.firstName || '') === String(value),
+    },
+    {
+      title: 'Middle',
+      dataIndex: 'middleName',
+      key: 'middleName',
+      sorter: (a: any, b: any) => String(a.middleName || '').localeCompare(String(b.middleName || '')),
+    },
+    {
+      title: 'Last',
+      dataIndex: 'lastName',
+      key: 'lastName',
+      sorter: (a: any, b: any) => String(a.lastName || '').localeCompare(String(b.lastName || '')),
+      filters: lastNameFilters,
+      onFilter: (value: any, record: any) => String(record.lastName || '') === String(value),
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      sorter: (a: any, b: any) => String(a.email || '').localeCompare(String(b.email || '')),
+    },
+    {
+      title: 'Phone',
+      dataIndex: 'phone',
+      key: 'phone',
+      render: (v: any) => formatPhoneForDisplay(v),
+      sorter: (a: any, b: any) => String(a.phone || '').localeCompare(String(b.phone || '')),
+    },
     ...(canWrite || canDelete ? [{
       title: 'Actions', key: 'actions', width: 170, render: (_: any, p: any) => (
       <Space>
@@ -108,9 +151,18 @@ export default function PeoplePage({ canWrite, canDelete }: PeoplePageProps) {
       title: 'Name',
       key: 'name',
       width: 130,
-      render: (_: any, p: any) => [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ').trim() || 'Unnamed'
+      render: (_: any, p: any) => [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ').trim() || 'Unnamed',
+      sorter: (a: any, b: any) => [a.firstName, a.middleName, a.lastName].filter(Boolean).join(' ').trim().localeCompare([b.firstName, b.middleName, b.lastName].filter(Boolean).join(' ').trim())
     },
-    { title: 'Phone', dataIndex: 'phone', key: 'phone', width: 122, ellipsis: true, render: (v: any) => formatPhoneForDisplay(v) || 'N/A' },
+    {
+      title: 'Phone',
+      dataIndex: 'phone',
+      key: 'phone',
+      width: 122,
+      ellipsis: true,
+      render: (v: any) => formatPhoneForDisplay(v) || 'N/A',
+      sorter: (a: any, b: any) => String(a.phone || '').localeCompare(String(b.phone || '')),
+    },
     ...(canWrite || canDelete ? [{ title: 'Actions', key: 'actions', width: 80, render: (_: any, p: any) => (
       <Space size={0}>
         {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>{isVerySmall ? null : 'Edit'}</Button> : null}
@@ -135,6 +187,7 @@ export default function PeoplePage({ canWrite, canDelete }: PeoplePageProps) {
               <div className="rt-mobile-card-meta">Phone: {formatPhoneForDisplay(p.phone) || 'N/A'}</div>
               <div className="rt-mobile-card-meta">Email: {p.email || 'N/A'}</div>
               <div className="rt-mobile-card-actions">
+                <Button size="small" onClick={() => navigate(`/people/${p._id || p.id}`)}>View</Button>
                 {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>Edit</Button> : null}
                 {canDelete ? <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(p._id)}>Delete</Button> : null}
               </div>

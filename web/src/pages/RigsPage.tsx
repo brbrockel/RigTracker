@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Table, Button, Modal, Form, Input, DatePicker, Space, Select, message, Grid, Image } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { Link, useNavigate } from 'react-router-dom'
 import { actionErrorMessage, ensureOk } from '../lib/apiClient'
 
 type Rig = any
@@ -14,6 +15,7 @@ const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).e
 const { useBreakpoint } = Grid
 
 export default function RigsPage({ canWrite, canDelete }: RigsPageProps) {
+  const navigate = useNavigate()
   const [rigs, setRigs] = useState<Rig[]>([])
   const [people, setPeople] = useState<Record<string,string>>({})
   const [peopleList, setPeopleList] = useState<any[]>([])
@@ -140,6 +142,26 @@ export default function RigsPage({ canWrite, canDelete }: RigsPageProps) {
     }
   }
 
+  const assignedFilterOptions = useMemo(() => {
+    const names = Array.from(new Set(rigs.map((r: any) => (people[r.primaryUserId] || 'Unassigned')).filter(Boolean)))
+    return names.map((name) => ({ text: name, value: name }))
+  }, [rigs, people])
+
+  const numberFilterOptions = useMemo(() => {
+    const values = Array.from(new Set(rigs.map((r: any) => String(r.number || '').trim()).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [rigs])
+
+  const containerFilterOptions = useMemo(() => {
+    const values = Array.from(new Set(rigs.map((r: any) => String(r.container || '').trim()).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [rigs])
+
+  const aadTypeFilterOptions = useMemo(() => {
+    const values = Array.from(new Set(rigs.map((r: any) => String(r.aadType || '').trim()).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [rigs])
+
   const desktopColumns = [
     {
       title: 'Image',
@@ -148,14 +170,60 @@ export default function RigsPage({ canWrite, canDelete }: RigsPageProps) {
       width: 90,
       render: (v: any) => v ? <Image src={resolveImageUrl(v)} alt="Rig" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8 }} /> : 'N/A'
     },
-    { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Number', dataIndex: 'number', key: 'number' },
-    { title: 'Container', dataIndex: 'container', key: 'container' },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      render: (_: any, r: any) => <Link to={`/rigs/${r._id || r.id}`}>{r.name || 'Unnamed Rig'}</Link>,
+      sorter: (a: any, b: any) => String(a.name || '').localeCompare(String(b.name || '')),
+    },
+    {
+      title: 'Number',
+      dataIndex: 'number',
+      key: 'number',
+      sorter: (a: any, b: any) => String(a.number || '').localeCompare(String(b.number || '')),
+      filters: numberFilterOptions,
+      onFilter: (value: any, record: any) => String(record.number || '') === String(value),
+    },
+    {
+      title: 'Container',
+      dataIndex: 'container',
+      key: 'container',
+      sorter: (a: any, b: any) => String(a.container || '').localeCompare(String(b.container || '')),
+      filters: containerFilterOptions,
+      onFilter: (value: any, record: any) => String(record.container || '') === String(value),
+    },
     { title: 'Container Serial', dataIndex: 'containerSerialNumber', key: 'containerSerialNumber' },
-    { title: 'Assigned', key: 'assigned', render: (_: any, r: any) => people[r.primaryUserId] || '' },
-    { title: 'Last Packed', dataIndex: 'lastPacked', key: 'lastPacked', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
-    { title: 'Repack Due', dataIndex: 'repackDue', key: 'repackDue', render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '' },
-    { title: 'AAD Type', dataIndex: 'aadType', key: 'aadType' },
+    {
+      title: 'Assigned',
+      key: 'assigned',
+      render: (_: any, r: any) => people[r.primaryUserId] || '',
+      sorter: (a: any, b: any) => String(people[a.primaryUserId] || 'Unassigned').localeCompare(String(people[b.primaryUserId] || 'Unassigned')),
+      filters: assignedFilterOptions,
+      onFilter: (value: any, record: any) => String(people[record.primaryUserId] || 'Unassigned') === String(value),
+    },
+    {
+      title: 'Last Packed',
+      dataIndex: 'lastPacked',
+      key: 'lastPacked',
+      render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '',
+      sorter: (a: any, b: any) => dayjs(a.lastPacked || 0).valueOf() - dayjs(b.lastPacked || 0).valueOf(),
+    },
+    {
+      title: 'Repack Due',
+      dataIndex: 'repackDue',
+      key: 'repackDue',
+      render: (v: any) => v ? dayjs(v).format('YYYY-MM-DD') : '',
+      sorter: (a: any, b: any) => dayjs(a.repackDue || 0).valueOf() - dayjs(b.repackDue || 0).valueOf(),
+    },
+    {
+      title: 'AAD Type',
+      dataIndex: 'aadType',
+      key: 'aadType',
+      sorter: (a: any, b: any) => String(a.aadType || '').localeCompare(String(b.aadType || '')),
+      filters: aadTypeFilterOptions,
+      onFilter: (value: any, record: any) => String(record.aadType || '') === String(value),
+    },
     { title: 'Notes', dataIndex: 'notes', key: 'notes', render: (t: any) => t ? String(t).slice(0, 80) + (String(t).length > 80 ? '…' : '') : '' },
     ...(canWrite || canDelete ? [{ title: 'Actions', key: 'actions', width: 170, render: (_: any, r: any) => (
       <Space>
@@ -198,6 +266,7 @@ export default function RigsPage({ canWrite, canDelete }: RigsPageProps) {
               <div className="rt-mobile-card-meta">Assigned: {people[r.primaryUserId] || 'Unassigned'}</div>
               <div className="rt-mobile-card-meta">Repack Due: {r.repackDue ? dayjs(r.repackDue).format('YYYY-MM-DD') : 'N/A'}</div>
               <div className="rt-mobile-card-actions">
+                <Button size="small" onClick={() => navigate(`/rigs/${r._id || r.id}`)}>View</Button>
                 {canWrite ? <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Edit</Button> : null}
                 {canDelete ? <Button size="small" icon={<DeleteOutlined />} danger onClick={() => remove(r._id)}>Delete</Button> : null}
               </div>

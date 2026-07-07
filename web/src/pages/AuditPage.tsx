@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Table, Select, Typography, Tag, Grid, Space } from 'antd'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
@@ -71,6 +71,16 @@ export default function AuditPage() {
   function handleResourceChange(val: string) { setResource(val); setPage(1) }
   function handleActionChange(val: string) { setAction(val); setPage(1) }
 
+  const actionFilters = useMemo(() => {
+    const values = Array.from(new Set(logs.map((l) => l.action).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [logs])
+
+  const resourceFilters = useMemo(() => {
+    const values = Array.from(new Set(logs.map((l) => l.resource).filter(Boolean)))
+    return values.map((value) => ({ text: value.charAt(0).toUpperCase() + value.slice(1), value }))
+  }, [logs])
+
   const desktopColumns = [
     {
       title: 'When',
@@ -78,6 +88,7 @@ export default function AuditPage() {
       key: 'createdAt',
       width: 170,
       render: (v: string) => new Date(v).toLocaleString(),
+      sorter: (a: AuditEntry, b: AuditEntry) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     {
       title: 'Action',
@@ -85,6 +96,8 @@ export default function AuditPage() {
       key: 'action',
       width: 90,
       render: (v: string) => <Tag color={ACTION_COLORS[v] ?? 'default'}>{v}</Tag>,
+      filters: actionFilters,
+      onFilter: (value: any, record: AuditEntry) => record.action === String(value),
     },
     {
       title: 'Resource',
@@ -92,6 +105,8 @@ export default function AuditPage() {
       key: 'resource',
       width: 100,
       render: (v: string) => v.charAt(0).toUpperCase() + v.slice(1),
+      filters: resourceFilters,
+      onFilter: (value: any, record: AuditEntry) => record.resource === String(value),
     },
     {
       title: 'Name / ID',
@@ -102,6 +117,7 @@ export default function AuditPage() {
       title: 'By',
       key: 'by',
       render: (_: any, r: AuditEntry) => r.userDisplayName || r.userEmail || 'Unknown',
+      sorter: (a: AuditEntry, b: AuditEntry) => String(a.userDisplayName || a.userEmail || '').localeCompare(String(b.userDisplayName || b.userEmail || '')),
     },
   ]
 

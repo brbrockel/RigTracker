@@ -16,6 +16,8 @@ import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-
 
 const RigsPage = lazy(() => import('./pages/RigsPage'))
 const PeoplePage = lazy(() => import('./pages/PeoplePage'))
+const RigDetailPage = lazy(() => import('./pages/RigDetailPage'))
+const PersonDetailPage = lazy(() => import('./pages/PersonDetailPage'))
 const GearPage = lazy(() => import('./pages/GearPage'))
 const EventsPage = lazy(() => import('./pages/EventsPage'))
 const EventDetailPage = lazy(() => import('./pages/EventDetailPage'))
@@ -215,7 +217,9 @@ export default function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/rigs" element={<RigsPage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
+              <Route path="/rigs/:id" element={<RigDetailPage canWrite={writeEnabled} />} />
               <Route path="/people" element={<PeoplePage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
+              <Route path="/people/:id" element={<PersonDetailPage canWrite={writeEnabled} />} />
               <Route path="/gear" element={<GearPage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
               <Route path="/events" element={<EventsPage canWrite={writeEnabled} canDelete={deleteEnabled} />} />
               <Route path="/events/:id" element={<EventDetailPage canWrite={writeEnabled} canDelete={deleteEnabled} />} />

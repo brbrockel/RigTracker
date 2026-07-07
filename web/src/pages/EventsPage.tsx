@@ -79,6 +79,11 @@ export default function EventsPage({ canWrite, canDelete }: EventsPageProps) {
     return map
   }, [events])
 
+  const eventNameFilters = useMemo(() => {
+    const values = Array.from(new Set(events.map((event: any) => String(event.name || '').trim()).filter(Boolean)))
+    return values.map((value) => ({ text: value, value }))
+  }, [events])
+
   const tableColumns = [
     {
       title: 'Photo',
@@ -87,13 +92,21 @@ export default function EventsPage({ canWrite, canDelete }: EventsPageProps) {
       width: 90,
       render: (value: any) => value ? <Image src={resolveImageUrl(value)} alt="Event" width={56} height={56} style={{ objectFit: 'cover', borderRadius: 8 }} /> : 'N/A'
     },
-    { title: 'Name', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      sorter: (a: any, b: any) => String(a.name || '').localeCompare(String(b.name || '')),
+      filters: eventNameFilters,
+      onFilter: (value: any, record: any) => String(record.name || '') === String(value),
+    },
     {
       title: 'Date',
       dataIndex: 'eventDate',
       key: 'eventDate',
       width: 140,
-      render: (value: any) => value ? dayjs(value).format('YYYY-MM-DD') : ''
+      render: (value: any) => value ? dayjs(value).format('YYYY-MM-DD') : '',
+      sorter: (a: any, b: any) => dayjs(a.eventDate || 0).valueOf() - dayjs(b.eventDate || 0).valueOf(),
     },
     {
       title: 'Description',
