@@ -1,67 +1,104 @@
-# RigTracker v2 Plan
+# RigTracker Plan
 
-A ground-up rebuild of RigTracker on TeeMate's stack and security model, with a tested migration path from the current app. Decided 2026-10-17; background in [Review-2026-10.md](Review-2026-10.md).
+How RigTracker gets to TeeMate's stack and security model, step by step, while the live app keeps working. Background: [Review-2026-10.md](Review-2026-10.md). Last updated 2026-10-17.
 
 ## Objective
 
-Track the club's skydiving rigs, gear, events and members, with:
+Track the club's rigs, gear, events and people, with:
 
-- RigTracker's own sign-in (no Google). It works like TeeMate: passwords, sign-in links, lockouts, and optional authenticator codes.
-- An interface that matches TeeMate: mobile first, light and dark themes, the same components.
-- A guest view of basic information.
-- One stack shared with TeeMate, so fixes and patterns carry across.
+- RigTracker's own sign-in (no Google), working like TeeMate's.
+- TeeMate's interface: mobile first, light and dark themes, an installable app, the same components.
+- A read-only guest view of basic information.
+- One stack shared with TeeMate, so fixes and patterns carry over.
 
 ## Decisions
 
 | Topic | Decision |
 |---|---|
-| Approach | Rebuild on a `v2` branch in this repo, starting from TeeMate's skeleton. The current app stays in production (Phase 0 hardened) until cutover. |
-| Stack | Node 24, TypeScript 6 (ESM), NestJS 12, Express 5, zod, PostgreSQL 18 + Drizzle; React 19, Vite 8, Tailwind 4 + TeeMate `ui/*`, TanStack Query, react-router 8; vitest everywhere, ESLint, Prettier, CI. |
-| Container | One Node process serves the API and the built web app (no nginx), runs as `node`, has a healthcheck, and applies migrations on start. Secrets come from Docker secrets. |
-| Sign-in | Ported from TeeMate (see [TeeMate Security.md](../../teemate/doc/Security.md)): Argon2id passwords with NIST rules and a breached-password list; single-use, hashed 72-hour password links; per-account exponential lockout and per-IP limits; hashed session cookies; CSRF on every change; optional TOTP with recovery codes. Google sign-in is removed. |
-| First admin | A CLI script prints a sign-in link: `docker exec … node dist/scripts/sign-in-link.js you@example.com`. |
-| Getting people in | An admin adds the person, then uses **⋯ → Get password link** to copy it, or **Text** to open Messages with the link filled in. Email code is included behind TeeMate's mail guard with `MAIL_MODE=off`, so it can be turned on later. |
-| Roles | **Admin** (everything, including people's private details, users and the audit log), **Editor** (changes rigs, gear and events), **Member** (signed-in read access, including people). |
-| Guests | Read-only rigs, gear, events and their photos. People appear only as first name and last initial. No contact details, DOB, address, emergency contacts, audit log or settings. |
-| Audit | Append-only, enforced by a database trigger. It records before and after values plus sign-in events. |
+| Approach | Change the live app in steps instead of a big-bang `v2` branch. The UI step showed this works: each step is rehearsed on a restored copy of last night's backup, then deployed. |
+| People and sign-in | One record. A person may have sign-in access with a role: **Admin** (everything, including private details, access and the audit log), **User** (adds and changes rigs, gear, events and people) or **Viewer** (signed-in read access). |
+| Getting in | An admin gives access on **People**, then sends a single-use 72-hour sign-in link by copying, texting or emailing it. The server sends nothing. The first admin, or anyone locked out, uses `node dist/scripts/sign-in-link.js <email> [--admin "Name"]`. |
+| Passwords | TeeMate's model, added in step 5: Argon2id with NIST rules and a breached-password list; links set a password; per-account lockout and per-IP limits; optional authenticator codes with recovery codes. |
+| Guests | Read-only rigs, gear and events, with their photos. People appear only as first name and last initial. No contact details, DOB, address, emergency contacts, audit log or settings. |
+| Database | PostgreSQL 18 + Drizzle (step 4), for foreign keys, unique constraints, an append-only audit trigger and the same backup and migration tooling as TeeMate. |
+| User data | No new people data is entered as part of this work (decided 2026-10-17). Placeholder dates from the spreadsheet import (before 1950) display as unset. |
 
-## Data model (draft)
+## Done
 
-- `user`: sign-in account (email, password hash, role, lockout, TOTP).
-- `session`, `password_link`: stored as hashes only.
-- `person`: club member. Has a profile and private details (phone, DOB, address, emergency contacts). Linked to a `user` if the person can sign in.
-- `rig`: number (unique), name, primary person (FK), notes, photo.
-- `gear`: type (`container`/`main`/`reserve`/`aad`/`other`), make, model, size, serial (unique), dates (DOM, repack, inspection), rig (FK, `ON DELETE SET NULL`), person (FK), `custom_fields` jsonb.
-  - A rig's container, main, reserve and AAD are gear rows. This replaces the serials embedded in the rig, which kept the same data in two places.
-- `event`, `media`: media has an owner (rig, gear or event), a kind (photo or video) and stored-file metadata. Photos are re-encoded with no EXIF data.
-- `audit_log`: append-only.
-
-Computed, not stored: repack and inspection due status, and what is assigned to whom.
-
-## Migration path
-
-1. **Import script** (`scripts/import-mongo.ts`). It reads a `mongodump` archive from the nightly backup and writes Postgres.
-   - The old ObjectIds are kept in a `legacy_id` column.
-   - Rig serials are reconciled with gear rows, and conflicts are reported instead of guessed.
-   - It is idempotent, so it can be re-run.
-   - Uploads are re-encoded into the media store and linked to their owners.
-2. **Accounts.** The three existing Google users become accounts without passwords. The first admin gets a link from the CLI and sends links to the others.
-3. **Rehearsal.** Deploy v2 as a separate stack at `rigtracker-next.bhbslp.org` and import last night's backup into it. Then compare counts (the script prints them) and check each page against `TestPlan.md`. Repeat as needed.
-4. **Cutover** (short downtime):
-   1. Stop the old app.
-   2. Take a final backup and import it.
-   3. Point `rigtracker.bhbslp.org` at v2.
-5. **Rollback window.** Keep the old image and the Mongo volume for 30 days. Then:
-   - remove Mongo;
-   - delete the Google OAuth client.
-
-## Milestones
-
-| # | Milestone | Done when |
+| Date | What | Commits |
 |---|---|---|
-| M1 | Skeleton from TeeMate: tooling, CI, config, Postgres and migrations, single-process Docker image, health check | `pnpm check` and the CI pipeline pass; the image serves an empty shell |
-| M2 | Auth, users, audit and mail ported; app shell, theme, and the Sign in, Set password, Account and People/Users screens | First admin via CLI; links, lockout and TOTP tested |
-| M3 | Domain schema and API (people, rigs, gear, events, media) with guest rules | API tests cover guest, member, editor and admin access |
-| M4 | Web pages: Home (repacks due), Rigs, Gear, Events, People, Audit | Matches TeeMate's patterns; component tests |
-| M5 | Import script, staging stack, and the `Security.md`, `Deployment.md` and `TestPlan.md` docs | Rehearsal import checks out |
-| M6 | Cutover and clean-up | v2 is live; Mongo and Google are retired after 30 days |
+| 2026-10-17 | Independent review | `8180cc7` |
+| 2026-10-17 | Lock-down: sign-in required everywhere, uploads checked and re-encoded, same-origin only (no CORS), helmet and CSP, Node 24, dependency audit 36 → 1 | `e9ae7ba` |
+| 2026-10-17 | Homelab: Docker secrets, Mongo with auth on an internal network, no published DB/API/mongo-express ports, nightly verified backup (a restore was rehearsed) | homelab `bde07b4`, `b2af016` |
+| 2026-10-17 | Google sign-in removed; single-use sign-in links (CLI and app); hashed session and link tokens; CSRF token on every change; sign-in events in the audit log | `9753af5`, `0c0c36a` |
+| 2026-10-17 | UI on TeeMate's stack: React 19, Vite 8, Tailwind 4, shadcn/Radix, TanStack Query, react-router 8; 36 web tests | `0c0c36a`, `2378698` |
+| 2026-10-17 | People and sign-in accounts merged into one record (production migrated; old accounts kept in `users_merged`) | `7bf839c` |
+| 2026-10-17 | Installable PWA with an iPhone "Add to Home Screen" hint | `69120e1` |
+
+## Next steps
+
+Each step is rehearsed on a backup copy, deployed, and checked on production before the next one starts.
+
+### 1. Close the remaining API gaps (S)
+
+Open findings from the review that are still exploitable today:
+
+- **S3 mass assignment:** rigs save the raw request body (`rigs.service.ts:19,53`). Gear and events need checking too. Fix: whitelist the fields and validate them with zod, as people now do.
+- **S4 query injection:** `?rigId[$ne]=` on gear and `?action[$ne]=` on audit. Fix: string-only query parsing, plus `mongoose.set('sanitizeFilter', true)`.
+- **S7 rate limiting:** add `@nestjs/throttler`, keyed on `CF-Connecting-IP`, for the sign-in link routes, uploads and writes.
+- **Correctness bugs from the review §3:**
+  - `runValidators` on updates;
+  - dangling references when a rig or person is deleted;
+  - gear that can't be edited when its rig is missing.
+
+### 2. Tooling and a safety net (S–M)
+
+Do this before the bigger changes:
+
+- `.nvmrc` (24) and `engines`, `tsconfig.base.json`, ESLint and Prettier (TeeMate's configs), `.editorconfig`, `.env.example`.
+- `pnpm check` = lint + format:check + typecheck + test.
+- GitHub Actions CI with `--frozen-lockfile`.
+- API tests with vitest and supertest against a throwaway Mongo. Cover the guards (signed out, viewer, user, admin), CSRF, sign-in links and access, and CRUD for each resource. These tests are the contract for step 4.
+- Delete stale files: `tools/import_run.log`, the empty `api/src/packs/`, and the workspace path to `/srv/homelab-data`.
+
+### 3. Container and deploys (M)
+
+- One Node process serves the API and the built web app, like TeeMate, with no nginx in the container. Move the security headers and CSP into helmet.
+- `USER node`, `/api/health` and `HEALTHCHECK`; zod-validated config with `*_FILE` secrets.
+- Versioned image tags (`APP_VERSION`, the git commit) and a rolling `docker stack deploy` in `build.sh`. No more `stack rm`, and no more forced updates.
+- Write `Deployment.md` (secrets, deploy, rollback, backup and restore drill) and `Security.md`.
+
+### 4. PostgreSQL + Drizzle, NestJS 12 (L)
+
+- **Upgrade:** ESM, NestJS 12, Express 5 and TypeScript 6, which clears the last audit finding.
+- **Schema:**
+  - Foreign keys: gear → rig and person with `ON DELETE SET NULL`, and rig → primary person.
+  - Unique serial and rig number.
+  - A rig's container, main, reserve and AAD become gear rows, replacing the serials embedded in the rig.
+  - An append-only `audit_log` enforced by a trigger, with before and after values.
+  - A media table with owners.
+- **Migrations** run at start-up, like TeeMate's.
+- **Import script:** reads a `mongodump` archive, keeps the old ids in `legacy_id`, reports conflicts instead of guessing, prints counts, and can be re-run.
+- **Rehearsal:** run it on a staging stack until step 2's API tests and the TestPlan pass. Then cut over with a short downtime, keep Mongo for 30 days as a rollback, and switch the backup job to `pg_dump`.
+
+### 5. Passwords, lockouts and the guest view (M)
+
+- **Port from TeeMate:**
+  - `auth/password.ts` (Argon2id, NIST rules, breached-password list);
+  - set-password links;
+  - per-account exponential lockout, and per-IP limits;
+  - an optional authenticator (TOTP, AES-GCM-encrypted with `APP_SECRET`) with recovery codes;
+  - a Security card on Account.
+- Sign-in links remain for first sign-in and resets.
+- **Guest view:**
+  - "Look around as a guest" on the sign-in page;
+  - read-only;
+  - the API returns guest-safe fields only.
+- **Email** stays off, behind TeeMate's mail guard (`MAIL_MODE=off`), until approved.
+
+### 6. Finish (S)
+
+- **`TestPlan.md`:** a phone and desktop checklist for each page.
+- **Docs:** update `Architecture.md` and `Development.md`.
+- **Retire** Mongo, the `users_merged` collection and the Google OAuth client in Google Cloud Console.
+- **Optional:** move the other homelab stacks' plaintext passwords (Grafana, Frigate, Komodo, Nextcloud) to Docker secrets.
