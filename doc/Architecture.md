@@ -15,8 +15,11 @@ In production, the frontend and API run in a combined container:
 ## Logical Components
 
 1. Web App (`web/`)
-- React + Vite + TypeScript
-- Uses relative API calls by default (`/api/...`) in deployed mode
+- React 19, Vite 8, TypeScript, Tailwind CSS 4 and shadcn/ui on Radix, the same stack and components as TeeMate
+- TanStack Query for data, react-router 8, lucide icons; vitest + Testing Library tests
+- Mobile first: bottom tab bar on phones (Home, Rigs, Gear, Events, People), top links on desktop; admin pages (Users and sign-in, Activity log) in the account menu
+- Light and dark themes
+- Same-origin API calls (`/api/...`), with the session's CSRF token in `x-csrf-token` on every change
 
 2. API (`api/`)
 - NestJS + Mongoose

@@ -18,7 +18,13 @@ function tokenFromHash(): string {
  */
 export function SignInPage() {
   const me = useMe();
-  const [token] = useState(tokenFromHash);
+  const [token, setToken] = useState(tokenFromHash);
+  // A link pasted while already on this page only changes the #fragment.
+  useEffect(() => {
+    const onHash = () => setToken(tokenFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   if (me.isPending) return <div className="min-h-dvh" />;
   if (me.data && !token) return <Navigate to="/" replace />;
   return (
@@ -29,7 +35,7 @@ export function SignInPage() {
           <h1 className="text-2xl font-semibold tracking-tight">RigTracker</h1>
           <p className="text-sm text-muted-foreground">Rigs, gear, events and people for the club</p>
         </div>
-        {token ? <UseLink token={token} /> : <HowToSignIn />}
+        {token ? <UseLink key={token} token={token} /> : <HowToSignIn />}
       </div>
     </div>
   );

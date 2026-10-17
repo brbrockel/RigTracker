@@ -223,11 +223,21 @@ export async function uploadMedia(file: File, folder: string): Promise<string> {
   return url;
 }
 
+/**
+ * A stored date, or null if there's none. Dates before 1950 are blanks from the old
+ * spreadsheet import (an empty Excel date cell becomes 1899/1900), so they count as unset.
+ */
+export function parseDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 1950) return null;
+  return d;
+}
+
 /** "Mar 4, 2026" for a stored date, without shifting the day across time zones. */
 export function formatDate(value?: string | null): string {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
+  const d = parseDate(value);
+  if (!d) return '';
   return d.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -238,16 +248,13 @@ export function formatDate(value?: string | null): string {
 
 /** The yyyy-mm-dd an <input type="date"> wants. */
 export function dateInputValue(value?: string | null): string {
-  if (!value) return '';
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  return parseDate(value)?.toISOString().slice(0, 10) ?? '';
 }
 
 /** Whole days from today (UTC) to the date; negative when it's past. */
 export function daysUntil(value?: string | null): number | null {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
+  const d = parseDate(value);
+  if (!d) return null;
   const today = new Date();
   const t = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   return Math.round((d.getTime() - t) / 86_400_000);

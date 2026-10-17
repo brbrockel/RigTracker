@@ -15,9 +15,13 @@ From repo root:
 
 ```bash
 pnpm install
-pnpm dev:api
-pnpm dev:web
+pnpm dev:api            # API on :4000 (needs MONGO_URI, or a local Mongo on 27017)
+pnpm dev:web            # web on http://localhost:5173; /api and /uploads are proxied to :4000
+pnpm --filter rigtracker-web test       # web tests (vitest)
+pnpm --filter rigtracker-web typecheck
 ```
+
+Sign in locally with a link: `APP_URL=http://localhost:5173 node api/dist/scripts/sign-in-link.js you@example.com --admin "Your Name"` (after `pnpm --filter rigtracker-api build`).
 
 ## Build Commands
 
@@ -72,9 +76,8 @@ Environment variable reference:
 | Variable | Required | Used By | Purpose | Example |
 | --- | --- | --- | --- | --- |
 | `MONGO_URI` / `MONGO_URI_FILE` | Yes | API | MongoDB connection string. `_FILE` reads it from a Docker secret. | `mongodb://mongo:27017/rigtracker` |
-| `RIGTRACKER_CORS_ORIGIN` | Dev only | API | Origins allowed to call the API from another site (exact, or patterns like `http://localhost:*`). Leave unset in production: the app is same-origin, and unset means no CORS at all. | `http://localhost:5173` |
+| `RIGTRACKER_CORS_ORIGIN` | Rarely | API | Origins allowed to call the API from another site (exact, or patterns like `http://localhost:*`). Not needed for development (Vite proxies the API) or production (same origin); unset means no CORS at all. | `https://other.example.com` |
 | `HOST` / `PORT` | Optional | API | Listen address and port. The image sets `HOST=127.0.0.1`. | `0.0.0.0` / `4000` |
-| `RIGTRACKER_API_BASE` | Optional | Web | API base URL override; keep empty for same-origin deployments behind nginx. | `` |
 | `GITHUB_GHCR_TOKEN` | Yes for deploy script | Build/deploy script | Auth token used by `./build.sh --deploy` to push to GHCR. | `ghp_xxx` |
 
 Sign-in:

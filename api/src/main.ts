@@ -6,11 +6,13 @@ import * as fs from 'fs'
 import helmet from 'helmet'
 import { AuthService } from './auth/auth.service'
 import { SERVED_UPLOAD_EXTENSIONS } from './uploads/uploads.controller'
+import { MongoErrorsFilter } from './common/mongo-errors.filter'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const server = app.getHttpAdapter().getInstance() as express.Express
   server.disable('x-powered-by')
+  app.useGlobalFilters(new MongoErrorsFilter(app.getHttpAdapter()))
   server.use(helmet())
 
   // Changes must come from this site. Browsers always send Origin on cross-site POST/PUT/PATCH/DELETE,
