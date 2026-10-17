@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#1d64c2"/>
+  <!-- canopy -->
+  <path d="M96 224 C 120 120, 392 120, 416 224 Q 384 204, 352 224 Q 320 204, 288 224 Q 256 204, 224 224 Q 192 204, 160 224 Q 128 204, 96 224 Z" fill="#ffffff"/>
+  <!-- lines -->
+  <g stroke="#cfe0f7" stroke-width="8" stroke-linecap="round">
+    <line x1="100" y1="226" x2="256" y2="372"/>
+    <line x1="176" y1="222" x2="256" y2="372"/>
+    <line x1="336" y1="222" x2="256" y2="372"/>
+    <line x1="412" y1="226" x2="256" y2="372"/>
+  </g>
+  <!-- jumper -->
+  <circle cx="256" cy="372" r="26" fill="#facc15"/>
+  <rect x="236" y="396" width="40" height="44" rx="14" fill="#facc15"/>
+</svg>

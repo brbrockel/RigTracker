@@ -19,6 +19,7 @@ In production, the frontend and API run in a combined container:
 - TanStack Query for data, react-router 8, lucide icons; vitest + Testing Library tests
 - Mobile first: bottom tab bar on phones (Home, Rigs, Gear, Events, People), top links on desktop; admin pages (Users and sign-in, Activity log) in the account menu
 - Light and dark themes
+- Installable PWA (vite-plugin-pwa): manifest, icons generated from `web/public/icon.svg`, and a service worker that caches the app shell only (never `/api` or `/uploads`); iPhone users get an "Add to Home Screen" hint on Home, since Safari never offers to install
 - Same-origin API calls (`/api/...`), with the session's CSRF token in `x-csrf-token` on every change
 
 2. API (`api/`)

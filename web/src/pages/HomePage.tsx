@@ -1,3 +1,4 @@
+import { InstallHint } from '@/components/InstallHint';
 import { CalendarDays, ChevronRight, Package, Plus, Users, Wrench } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { Link } from 'react-router';
@@ -28,6 +29,8 @@ export function HomePage() {
         </h1>
         <p className="text-sm text-muted-foreground">Repacks coming up and what's on next.</p>
       </div>
+
+      <InstallHint />
 
       <div className="grid gap-5 md:grid-cols-2">
         <RepacksCard rigs={rigs.data} pending={rigs.isPending} error={rigs.error} />
