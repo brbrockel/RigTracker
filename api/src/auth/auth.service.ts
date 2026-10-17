@@ -68,14 +68,16 @@ export class AuthService {
 
     const sessionToken = newToken()
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
+    const csrfToken = newToken()
     await this.sessionModel.create({
       sessionId: hashToken(sessionToken),
       userId: user._id as Types.ObjectId,
       expiresAt,
+      csrfToken,
       ip: meta.ip,
       userAgent: meta.userAgent,
     })
-    return { sessionToken, expiresAt, user: this.mapUser(user) }
+    return { sessionToken, csrfToken, expiresAt, user: this.mapUser(user) }
   }
 
   async getAuthenticatedUser(sessionToken?: string) {
@@ -91,9 +93,17 @@ export class AuthService {
     const user = await this.userModel.findById(session.userId).lean()
     if (!user || user.isActive === false) return null
 
+    let csrfToken = session.csrfToken
+    if (!csrfToken) {
+      // Sessions made before CSRF tokens existed get one on first use.
+      csrfToken = newToken()
+      await this.sessionModel.updateOne({ _id: session._id }, { $set: { csrfToken } })
+    }
+
     return {
       user: this.mapUser(user),
       expiresAt: session.expiresAt,
+      csrfToken,
     }
   }
 

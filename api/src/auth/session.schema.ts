@@ -8,6 +8,8 @@ export class Session {
   @Prop({ type: Types.ObjectId, ref: 'User', index: true }) userId?: Types.ObjectId
   @Prop() expiresAt?: Date
   @Prop() revokedAt?: Date
+  /** Sent back in the x-csrf-token header with every change. */
+  @Prop() csrfToken?: string
   @Prop() ip?: string
   @Prop() userAgent?: string
 }

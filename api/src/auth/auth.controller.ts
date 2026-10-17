@@ -68,7 +68,7 @@ export class AuthController {
       actor: result.user,
       details: { method: 'link', ip: clientIp(req) },
     })
-    return { authenticated: true, user: result.user, sessionExpiresAt: result.expiresAt }
+    return { authenticated: true, user: result.user, sessionExpiresAt: result.expiresAt, csrfToken: result.csrfToken }
   }
 
   @Public()
@@ -80,6 +80,7 @@ export class AuthController {
       authenticated: true,
       user: auth.user,
       sessionExpiresAt: auth.expiresAt,
+      csrfToken: auth.csrfToken,
     }
   }
 
