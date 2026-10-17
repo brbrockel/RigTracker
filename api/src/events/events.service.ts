@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { Event, EventDocument } from './event.schema'
 import * as fs from 'fs'
+import { defined } from '../common/validation'
+import type { EventBody } from './event.dto'
 import * as path from 'path'
 
 const baseUploadDir = path.resolve(process.cwd(), 'uploads')
@@ -21,13 +23,13 @@ export class EventsService {
     return event
   }
 
-  async create(dto: any) {
+  async create(dto: EventBody) {
     const created = new this.eventModel(this.mapDto(dto))
     return created.save()
   }
 
-  async update(id: string, dto: any) {
-    const updated = await this.eventModel.findByIdAndUpdate(id, this.mapDto(dto), { new: true }).lean()
+  async update(id: string, dto: EventBody) {
+    const updated = await this.eventModel.findByIdAndUpdate(id, { $set: this.mapDto(dto) }, { new: true, runValidators: true }).lean()
     if (!updated) throw new NotFoundException('Event not found')
     return updated
   }
@@ -80,36 +82,12 @@ export class EventsService {
     }
   }
 
-  private mapDto(dto: any) {
-    const data: any = {}
-    if (dto.name !== undefined) data.name = dto.name
-    if (dto.eventDate !== undefined) data.eventDate = dto.eventDate
-    if (dto.event_date !== undefined) data.eventDate = dto.event_date
-    if (dto.date !== undefined) data.eventDate = dto.date
-    if (dto.description !== undefined) data.description = dto.description
-    if (dto.eventPhotoUrl !== undefined) data.eventPhotoUrl = dto.eventPhotoUrl
-    if (dto.event_photo_url !== undefined) data.eventPhotoUrl = dto.event_photo_url
-    const photoUrls = this.normalizePhotoUrls(dto.photoUrls ?? dto.photo_urls ?? dto.albumUrls ?? dto.album_urls)
-    if (photoUrls) data.photoUrls = photoUrls
-    const eventPhotoUrl = data.eventPhotoUrl || dto.eventPhotoUrl || dto.event_photo_url
-    if (eventPhotoUrl && !data.photoUrls?.includes(eventPhotoUrl)) {
-      data.photoUrls = [...(data.photoUrls || []), eventPhotoUrl]
+  /** The main photo is always one of the event's photos. */
+  private mapDto(dto: EventBody) {
+    const data: Record<string, unknown> = defined(dto)
+    if (dto.eventPhotoUrl && dto.photoUrls && !dto.photoUrls.includes(dto.eventPhotoUrl)) {
+      data.photoUrls = [...dto.photoUrls, dto.eventPhotoUrl]
     }
-    if (!data.eventPhotoUrl && dto.eventPhotoUrl) data.eventPhotoUrl = dto.eventPhotoUrl
     return data
-  }
-
-  private normalizePhotoUrls(value: any): string[] | undefined {
-    if (value === undefined || value === null) return undefined
-    if (Array.isArray(value)) return value.map((item) => String(item)).filter(Boolean)
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value)
-        if (Array.isArray(parsed)) return parsed.map((item) => String(item)).filter(Boolean)
-      } catch (err) {
-        return value.split(',').map((item) => item.trim()).filter(Boolean)
-      }
-    }
-    return undefined
   }
 }

@@ -57,7 +57,6 @@ type Errors = Partial<Record<'firstName' | 'lastName' | 'email' | 'phone', strin
 function validate(d: Draft, needsEmail: boolean): { body?: Record<string, unknown>; errors: Errors } {
   const errors: Errors = {};
   if (!d.firstName.trim()) errors.firstName = 'Enter a first name';
-  if (!d.lastName.trim()) errors.lastName = 'Enter a last name';
   const email = d.email.trim().toLowerCase();
   if (!email && needsEmail) errors.email = 'Enter an email address. They use it to sign in.';
   else if (email && !isEmail(email)) errors.email = 'Enter a valid email';

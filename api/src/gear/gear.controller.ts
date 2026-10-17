@@ -2,6 +2,8 @@ import { Controller, Get, Param, Post, Body, Put, Delete, Req, Query } from '@ne
 import { GearService } from './gear.service';
 import { RequireRoles } from '../auth/roles.decorator';
 import { AuditService } from '../audit/audit.service';
+import { ZodPipe } from '../common/validation';
+import { GearBody, GearQuery } from './gear.dto';
 
 @Controller('gear')
 export class GearController {
@@ -11,7 +13,7 @@ export class GearController {
   ) {}
 
   @Get()
-  getAll(@Query('rigId') rigId?: string, @Query('personId') personId?: string, @Query('unassigned') unassigned?: string) {
+  getAll(@Query(new ZodPipe(GearQuery)) { rigId, personId, unassigned }: { rigId?: string; personId?: string; unassigned?: string }) {
     return this.gearService.findAll({ rigId, personId, unassigned });
   }
 
@@ -22,7 +24,7 @@ export class GearController {
 
   @Post()
   @RequireRoles('user', 'admin')
-  async create(@Body() dto: any, @Req() req: any) {
+  async create(@Body(new ZodPipe(GearBody)) dto: GearBody, @Req() req: any) {
     const result = await this.gearService.create(dto);
     await this.auditService.log({ action: 'CREATE', resource: 'gear', resourceId: String(result._id || result.id), resourceName: result.name, actor: req.authUser });
     return result;
@@ -30,9 +32,9 @@ export class GearController {
 
   @Put(':id')
   @RequireRoles('user', 'admin')
-  async update(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
+  async update(@Param('id') id: string, @Body(new ZodPipe(GearBody)) dto: GearBody, @Req() req: any) {
     const result = await this.gearService.update(id, dto);
-    await this.auditService.log({ action: 'UPDATE', resource: 'gear', resourceId: id, resourceName: result?.name ?? dto?.name, actor: req.authUser });
+    await this.auditService.log({ action: 'UPDATE', resource: 'gear', resourceId: id, resourceName: result?.name ?? dto?.name ?? undefined, actor: req.authUser });
     return result;
   }
 

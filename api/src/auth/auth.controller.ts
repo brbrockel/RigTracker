@@ -2,6 +2,8 @@ import { BadRequestException, Body, Controller, ForbiddenException, Get, NotFoun
 import { Request, Response } from 'express'
 import { AuthService, ROLES, type Role } from './auth.service'
 import { Public } from './public.decorator'
+import { Throttle } from '@nestjs/throttler'
+import { SIGN_IN_LIMIT } from '../common/throttle'
 import { RequireRoles } from './roles.decorator'
 import { signInLinkUrl } from './tokens'
 import { clientIp } from '../common/client-ip'
@@ -36,6 +38,7 @@ export class AuthController {
 
   /** Who a sign-in link is for. Doesn't use it up. */
   @Public()
+  @Throttle(SIGN_IN_LIMIT)
   @Post('link/check')
   async checkLink(@Body() body: { token?: unknown }) {
     const info = await this.authService.peekSignInLink(this.tokenFrom(body))
@@ -45,6 +48,7 @@ export class AuthController {
 
   /** Uses up a sign-in link and signs in. */
   @Public()
+  @Throttle(SIGN_IN_LIMIT)
   @Post('link/redeem')
   async redeemLink(@Req() req: Request, @Res({ passthrough: true }) res: Response, @Body() body: { token?: unknown }) {
     const result = await this.authService.redeemSignInLink(this.tokenFrom(body), {

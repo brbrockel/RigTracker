@@ -65,6 +65,10 @@ export class PeopleService {
   async remove(id: string) {
     const res = await this.personModel.findByIdAndDelete(id).lean()
     if (!res) throw new NotFoundException('Person not found')
+    // Nothing keeps pointing at someone who's gone.
+    const db = this.personModel.db
+    await db.collection('rigs').updateMany({ primaryUserId: id }, { $set: { primaryUserId: null } })
+    await db.collection('gear').updateMany({ assignedPersonId: id }, { $set: { assignedPersonId: null } })
     return { deleted: true }
   }
 }

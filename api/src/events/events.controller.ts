@@ -1,6 +1,8 @@
 import { Controller, Get, Param, Post, Body, Put, Delete, Query, Req } from '@nestjs/common'
 import { EventsService } from './events.service'
 import { RequireRoles } from '../auth/roles.decorator'
+import { ZodPipe } from '../common/validation'
+import { EventBody } from './event.dto'
 import { AuditService } from '../audit/audit.service'
 
 @Controller('events')
@@ -22,7 +24,7 @@ export class EventsController {
 
   @Post()
   @RequireRoles('user', 'admin')
-  async create(@Body() dto: any, @Req() req: any) {
+  async create(@Body(new ZodPipe(EventBody)) dto: EventBody, @Req() req: any) {
     const result = await this.eventsService.create(dto)
     await this.auditService.log({ action: 'CREATE', resource: 'events', resourceId: String(result._id || result.id), resourceName: result.name, actor: req.authUser })
     return result
@@ -30,9 +32,9 @@ export class EventsController {
 
   @Put(':id')
   @RequireRoles('user', 'admin')
-  async update(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
+  async update(@Param('id') id: string, @Body(new ZodPipe(EventBody)) dto: EventBody, @Req() req: any) {
     const result = await this.eventsService.update(id, dto)
-    await this.auditService.log({ action: 'UPDATE', resource: 'events', resourceId: id, resourceName: result?.name ?? dto?.name, actor: req.authUser })
+    await this.auditService.log({ action: 'UPDATE', resource: 'events', resourceId: id, resourceName: result?.name ?? dto?.name ?? undefined, actor: req.authUser })
     return result
   }
 

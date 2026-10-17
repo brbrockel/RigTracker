@@ -4,6 +4,8 @@ import { Model } from 'mongoose'
 import { Gear, GearDocument } from './gear.schema'
 import { Rig } from '../rigs/rig.schema'
 import { Person } from '../people/person.schema'
+import { defined } from '../common/validation'
+import type { GearBody } from './gear.dto'
 
 type AnyModel = Model<any>
 
@@ -34,17 +36,23 @@ export class GearService {
     return gear
   }
 
-  async create(dto: any) {
-    const normalized = await this.normalizeAssignment(undefined, this.mapDto(dto), dto)
+  async create(dto: GearBody) {
+    const normalized = await this.normalizeAssignment(undefined, defined(dto), dto)
+    if (!normalized.serialNumber) delete normalized.serialNumber
     const created = new this.gearModel(normalized)
     return created.save()
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: GearBody) {
     const current = await this.gearModel.findById(id).lean()
     if (!current) throw new NotFoundException('Gear not found')
-    const normalized = await this.normalizeAssignment(current, this.mapDto(dto), dto)
-    const updated = await this.gearModel.findByIdAndUpdate(id, normalized, { new: true }).lean()
+    const normalized = await this.normalizeAssignment(current, defined(dto), dto)
+    // A cleared serial is removed: the unique (sparse) index would treat every null as the same value.
+    const unset = 'serialNumber' in normalized && !normalized.serialNumber ? { serialNumber: 1 } : undefined
+    if (unset) delete normalized.serialNumber
+    const updated = await this.gearModel
+      .findByIdAndUpdate(id, { $set: normalized, ...(unset ? { $unset: unset } : {}) }, { new: true, runValidators: true })
+      .lean()
     if (!updated) throw new NotFoundException('Gear not found')
     return updated
   }
@@ -53,26 +61,6 @@ export class GearService {
     const deleted = await this.gearModel.findByIdAndDelete(id).lean()
     if (!deleted) throw new NotFoundException('Gear not found')
     return { ok: true }
-  }
-
-  private mapDto(dto: any) {
-    const data: any = {}
-    if (dto.name !== undefined) data.name = dto.name
-    if (dto.type !== undefined) data.type = dto.type
-    if (dto.dateOfManufacture !== undefined) data.dateOfManufacture = dto.dateOfManufacture
-    if (dto.date_of_manufacture !== undefined) data.dateOfManufacture = dto.date_of_manufacture
-    if (dto.manufactureDate !== undefined) data.dateOfManufacture = dto.manufactureDate
-    if (dto.notes !== undefined) data.notes = dto.notes
-    if (dto.imageUrl !== undefined) data.imageUrl = dto.imageUrl
-    if (dto.image_url !== undefined) data.imageUrl = dto.image_url
-    if (dto.image !== undefined) data.imageUrl = dto.image
-    if (dto.serialNumber !== undefined) data.serialNumber = dto.serialNumber
-    if (dto.serial_number !== undefined) data.serialNumber = dto.serial_number
-    if (dto.assignedRigId !== undefined) data.assignedRigId = dto.assignedRigId
-    if (dto.assigned_rig_id !== undefined) data.assignedRigId = dto.assigned_rig_id
-    if (dto.assignedPersonId !== undefined) data.assignedPersonId = dto.assignedPersonId
-    if (dto.assigned_person_id !== undefined) data.assignedPersonId = dto.assigned_person_id
-    return data
   }
 
   private normalizeId(value: any): string | null | undefined {
@@ -87,8 +75,8 @@ export class GearService {
     const existingRigId = this.normalizeId(existing?.assignedRigId) ?? null
     const existingPersonId = this.normalizeId(existing?.assignedPersonId) ?? null
 
-    const hasAssignedRigField = rawDto?.assignedRigId !== undefined || rawDto?.assigned_rig_id !== undefined
-    const hasAssignedPersonField = rawDto?.assignedPersonId !== undefined || rawDto?.assigned_person_id !== undefined
+    const hasAssignedRigField = rawDto?.assignedRigId !== undefined
+    const hasAssignedPersonField = rawDto?.assignedPersonId !== undefined
 
     const requestedRigId = this.normalizeId(next.assignedRigId)
     const requestedPersonId = this.normalizeId(next.assignedPersonId)
@@ -97,10 +85,16 @@ export class GearService {
 
     if (effectiveRigId) {
       const rig = await this.rigModel.findById(effectiveRigId).lean() as any
-      if (!rig) throw new BadRequestException('Assigned rig not found')
-      next.assignedRigId = effectiveRigId
-      next.assignedPersonId = this.normalizeId(rig.primaryUserId) ?? null
-      return next
+      if (rig) {
+        // On a rig, the gear goes with the rig's primary person.
+        next.assignedRigId = effectiveRigId
+        next.assignedPersonId = this.normalizeId(rig.primaryUserId) ?? null
+        return next
+      }
+      if (hasAssignedRigField) throw new BadRequestException('Assigned rig not found')
+      // Its rig was deleted: the gear is no longer on a rig, and stays editable.
+      next.assignedRigId = null
+      if (!hasAssignedPersonField) return next
     }
 
     if (hasAssignedRigField) {

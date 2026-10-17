@@ -6,6 +6,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import sharp from 'sharp'
 import { RequireRoles } from '../auth/roles.decorator'
+import { Throttle } from '@nestjs/throttler'
+import { UPLOAD_LIMIT } from '../common/throttle'
 
 const baseUploadDir = path.resolve(process.cwd(), 'uploads')
 const tmpUploadDir = path.join(baseUploadDir, '.incoming')
@@ -67,6 +69,7 @@ function readHead(file: string): Buffer {
 export class UploadsController {
   @Post('image')
   @RequireRoles('user', 'admin')
+  @Throttle(UPLOAD_LIMIT)
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
       destination: (_req, _file, cb) => {
@@ -87,7 +90,7 @@ export class UploadsController {
         throw new BadRequestException('Only JPEG, PNG, GIF, WebP or AVIF images and MP4, MOV or WebM videos can be uploaded')
       }
 
-      const safe = folder ? sanitizeFolder(folder) : ''
+      const safe = typeof folder === 'string' && folder ? sanitizeFolder(folder) : ''
       const dir = safe ? path.join(baseUploadDir, safe) : baseUploadDir
       fs.mkdirSync(dir, { recursive: true })
       const id = randomUUID()

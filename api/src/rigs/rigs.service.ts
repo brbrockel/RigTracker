@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { Rig, RigDocument } from './rig.schema'
 import { Person } from '../people/person.schema'
 import { Gear } from '../gear/gear.schema'
+import { defined } from '../common/validation'
+import type { RigBody } from './rig.dto'
 
 type AnyModel = Model<any>
 
@@ -15,8 +17,13 @@ export class RigsService {
     @InjectModel(Gear.name) private gearModel: AnyModel,
   ) {}
 
-  async create(dto: any) {
-    const created = new this.rigModel(dto)
+  private async checkPerson(id: string | null | undefined) {
+    if (id && !(await this.personModel.exists({ _id: id }))) throw new BadRequestException('Primary person not found')
+  }
+
+  async create(dto: RigBody) {
+    await this.checkPerson(dto.primaryUserId)
+    const created = new this.rigModel(defined(dto))
     return created.save()
   }
 
@@ -46,11 +53,12 @@ export class RigsService {
     return r
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: RigBody) {
     const existing = await this.rigModel.findById(id).lean() as any
     if (!existing) throw new NotFoundException('Rig not found')
+    await this.checkPerson(dto.primaryUserId)
 
-    const updated = await this.rigModel.findByIdAndUpdate(id, dto, { new: true }).lean()
+    const updated = await this.rigModel.findByIdAndUpdate(id, { $set: defined(dto) }, { new: true, runValidators: true }).lean()
     if (!updated) throw new NotFoundException('Rig not found')
 
     if (dto.primaryUserId !== undefined) {

@@ -34,12 +34,13 @@ Track the club's rigs, gear, events and people, with:
 | 2026-10-17 | UI on TeeMate's stack: React 19, Vite 8, Tailwind 4, shadcn/Radix, TanStack Query, react-router 8; 36 web tests | `0c0c36a`, `2378698` |
 | 2026-10-17 | People and sign-in accounts merged into one record (production migrated; old accounts kept in `users_merged`) | `7bf839c` |
 | 2026-10-17 | Installable PWA with an iPhone "Add to Home Screen" hint | `69120e1` |
+| 2026-10-17 | Step 1: strict zod schemas for rigs, gear and events (unknown fields, operator values and non-upload media URLs refused); query strings must be plain strings; per-IP rate limits (300/min, sign-in links 10/min, uploads 30/min); updates run validators; deleting a person clears references; gear whose rig was deleted stays editable; cleared serials removed; last name optional | this commit |
 
 ## Next steps
 
 Each step is rehearsed on a backup copy, deployed, and checked on production before the next one starts.
 
-### 1. Close the remaining API gaps (S)
+### 1. Close the remaining API gaps (S) — done 2026-10-17
 
 Open findings from the review that are still exploitable today:
 

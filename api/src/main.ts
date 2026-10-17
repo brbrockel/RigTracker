@@ -4,9 +4,14 @@ import * as path from 'path'
 import * as express from 'express'
 import * as fs from 'fs'
 import helmet from 'helmet'
+import mongoose from 'mongoose'
 import { AuthService } from './auth/auth.service'
 import { SERVED_UPLOAD_EXTENSIONS } from './uploads/uploads.controller'
 import { MongoErrorsFilter } from './common/mongo-errors.filter'
+
+// Filters only use fields in the schema. Request values reach filters only after the
+// controllers' zod checks make them plain strings (so ?id[$ne]=x is refused, not run).
+mongoose.set('strictQuery', true)
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
