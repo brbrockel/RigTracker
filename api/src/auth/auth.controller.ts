@@ -1,11 +1,14 @@
-import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common'
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { AuthService } from './auth.service'
+import { Public } from './public.decorator'
+import { clientIp } from '../common/client-ip'
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Get('google')
   startGoogleAuth(@Res() res: Response) {
     const { url, state } = this.authService.createGoogleAuthRequest()
@@ -20,6 +23,7 @@ export class AuthController {
     return res.redirect(url)
   }
 
+  @Public()
   @Get('google/callback')
   async handleGoogleCallback(
     @Req() req: Request,
@@ -30,7 +34,7 @@ export class AuthController {
     const secureCookie = process.env.NODE_ENV === 'production'
     const expectedState = this.authService.extractCookie(req.headers.cookie, this.authService.getOAuthStateCookieName())
 
-    const ip = this.extractIp(req)
+    const ip = clientIp(req)
     const userAgent = req.headers['user-agent'] || undefined
 
     try {
@@ -60,6 +64,7 @@ export class AuthController {
     }
   }
 
+  @Public()
   @Get('me')
   async getMe(@Req() req: Request) {
     const sessionId = this.authService.extractCookie(req.headers.cookie, this.authService.getSessionCookieName())
@@ -72,6 +77,7 @@ export class AuthController {
     }
   }
 
+  @Public()
   @Post('logout')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const sessionId = this.authService.extractCookie(req.headers.cookie, this.authService.getSessionCookieName())
@@ -114,11 +120,15 @@ export class AuthController {
     return this.authService.setUserRole(id, role)
   }
 
-  private extractIp(req: Request): string | undefined {
-    const forwarded = req.headers['x-forwarded-for']
-    if (typeof forwarded === 'string' && forwarded.trim()) {
-      return forwarded.split(',')[0].trim()
+  /** Adds someone who may sign in with Google. Without an env allowlist, this is the only way in. */
+  @Post('users')
+  async addUser(@Req() req: Request, @Body() body: { email?: unknown; role?: unknown }) {
+    await this.requireAdmin(req)
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      throw new BadRequestException('A valid email address is required')
     }
-    return req.socket?.remoteAddress || undefined
+    const role = body?.role === 'admin' ? 'admin' : 'user'
+    return this.authService.addUser(email, role)
   }
 }

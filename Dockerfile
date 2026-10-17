@@ -1,4 +1,4 @@
-FROM node:18 AS builder
+FROM node:24 AS builder
 WORKDIR /app
 
 # copy package manifests to leverage caching
@@ -8,7 +8,7 @@ COPY web/package.json ./web/
 
 RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 # Install workspace deps required for both api and web
-RUN pnpm install --no-frozen-lockfile --shamefully-hoist --filter ./api... --filter ./web...
+RUN pnpm install --frozen-lockfile --shamefully-hoist --filter ./api... --filter ./web...
 
 COPY . .
 
@@ -16,7 +16,7 @@ WORKDIR /app
 RUN pnpm --filter ./api run build
 RUN pnpm --filter ./web run build
 
-FROM node:18-slim AS runtime
+FROM node:24-slim AS runtime
 WORKDIR /app
 
 # Install nginx, curl and required system libs
@@ -39,7 +39,7 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    HOST=127.0.0.1
 EXPOSE 80
-EXPOSE 4000
 CMD ["/usr/local/bin/docker-entrypoint.sh"]

@@ -3,7 +3,7 @@ import { GearSchema } from '../src/gear/gear.schema'
 
 async function main() {
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/rigtracker'
-  console.log('Connecting to', mongoUri)
+  console.log('Connecting to', mongoUri.replace(/\/\/[^@/]*@/, '//***@'))
   await mongoose.connect(mongoUri)
 
   const Gear = mongoose.model('Gear', GearSchema)

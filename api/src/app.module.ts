@@ -7,10 +7,11 @@ import { UploadsModule } from './uploads/uploads.module';
 import { EventsModule } from './events/events.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
+import { readSecret } from './common/secrets';
 
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/rigtracker'),
+    MongooseModule.forRoot(readSecret('MONGO_URI') || 'mongodb://localhost:27017/rigtracker'),
     GearModule,
     RigsModule,
     PeopleModule,

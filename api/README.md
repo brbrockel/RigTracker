@@ -61,5 +61,8 @@ People:
 
 ## Environment
 
-- `MONGO_URI` (default fallback is localhost)
-- `RIGTRACKER_CORS_ORIGIN` (optional allowlist/patterns)
+- `MONGO_URI` or `MONGO_URI_FILE` (default fallback is localhost)
+- `RIGTRACKER_CORS_ORIGIN` (dev only: origins allowed cross-site; unset means same-origin, no CORS)
+- `HOST`, `PORT` (default `0.0.0.0`, `4000`)
+
+All routes need a session except the `/api/auth` sign-in routes; see [doc/Development.md](../doc/Development.md#environment-variables).

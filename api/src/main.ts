@@ -3,61 +3,81 @@ import { AppModule } from './app.module';
 import * as path from 'path'
 import * as express from 'express'
 import * as fs from 'fs'
+import helmet from 'helmet'
+import { AuthService } from './auth/auth.service'
+import { SERVED_UPLOAD_EXTENSIONS } from './uploads/uploads.controller'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const server = app.getHttpAdapter().getInstance() as express.Express
+  server.disable('x-powered-by')
+  server.use(helmet())
+
+  // Changes must come from this site. Browsers always send Origin on cross-site POST/PUT/PATCH/DELETE,
+  // so a page on another (sub)domain can't make changes with the visitor's session cookie.
+  // CORS-allowed origins (below) are let through too.
+  server.use((req, res, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+    const origin = req.headers.origin
+    if (!origin) return next()
+    let originHost = ''
+    try {
+      originHost = new URL(origin).host
+    } catch {}
+    if (originHost && originHost === req.headers.host) return next()
+    if (isCorsAllowed(origin)) return next()
+    res.status(403).json({ statusCode: 403, message: 'Cross-site request blocked' })
+  })
+
   // Enable CORS using runtime env `RIGTRACKER_CORS_ORIGIN`.
   // Accepts a comma-separated list of origins, exact origins (https://host) or wildcard patterns like *.example.com
-  const corsEnv = (process.env.RIGTRACKER_CORS_ORIGIN || '').trim();
-  if (corsEnv) {
-    const parts = corsEnv.split(',').map(s => s.trim()).filter(Boolean);
-    // build matchers: strings (exact) or RegExp (for patterns containing '*')
-    const matchers: Array<string | RegExp> = parts.map(p => {
-      if (p.includes('*')) {
-        // allow entries like *.example.com or https://*.example.com
-        // remove protocol if present
-        const withoutProto = p.replace(/^https?:\/\//, '');
-        const regexStr = '^https?://'+ withoutProto.replace(/\./g, '\\.') .replace(/\*/g, '[^.]+') + '(?::[0-9]+)?$';
-        return new RegExp(regexStr);
-      }
-      return p;
-    });
-
+  if (corsParts.length) {
+    const parts = corsParts
     // origin function callback for CORS
     const originValidator = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       if (!origin) {
         // allow non-browser requests like curl/postman
         return callback(null, true);
       }
-      for (const m of matchers) {
-        if (typeof m === 'string') {
-          if (m === origin) return callback(null, true);
-        } else if (m instanceof RegExp) {
-          if (m.test(origin)) return callback(null, true);
-        }
-      }
-      // Do not throw an error here — deny the origin without causing a 500.
-      // Returning `callback(null, false)` will cause CORS to not set allow headers
-      // for the request but won't raise an exception handled as a server error.
-      return callback(null, false);
+      // Deny without an error, so a refused origin isn't a 500.
+      return callback(null, isCorsAllowed(origin));
     };
 
     app.enableCors({ origin: originValidator, credentials: true });
     console.log('CORS enabled with matcher(s):', parts);
   } else {
-    app.enableCors();
-    console.log('CORS enabled (default permissive)');
+    // Same-origin only: the web app is served from this site, so no CORS headers are sent.
+    console.log('CORS disabled (same-origin only)');
   }
 
   // Serve built frontend from ./public inside the compiled api folder (if present)
-  const server = app.getHttpAdapter().getInstance() as express.Express
   const staticPath = path.join(__dirname, 'public')
   const uploadsPath = path.resolve(process.cwd(), 'uploads')
   if (!fs.existsSync(uploadsPath)) {
     fs.mkdirSync(uploadsPath, { recursive: true })
   }
 
-  server.use('/uploads', express.static(uploadsPath))
+  // Uploaded media is for signed-in users only, and only known media types are served.
+  const authService = app.get(AuthService)
+  server.use('/uploads', async (req, res, next) => {
+    try {
+      const ext = path.extname(req.path).toLowerCase()
+      if (!SERVED_UPLOAD_EXTENSIONS.has(ext) || req.path.includes('/.')) {
+        res.status(404).end()
+        return
+      }
+      const sessionId = authService.extractCookie(req.headers.cookie, authService.getSessionCookieName())
+      if (!(await authService.getAuthenticatedUser(sessionId))) {
+        res.status(401).end()
+        return
+      }
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
+      res.setHeader('Cache-Control', 'private, max-age=86400')
+      next()
+    } catch (err) {
+      next(err)
+    }
+  }, express.static(uploadsPath, { dotfiles: 'deny', index: false }))
 
   if (fs.existsSync(staticPath)) {
     server.use(express.static(staticPath))
@@ -75,8 +95,24 @@ async function bootstrap() {
     app.setGlobalPrefix('api')
   }
 
-  await app.listen(4000, '0.0.0.0');
-  console.log('API listening on http://0.0.0.0:4000');
+  // In the combined container nginx is the only client, so HOST=127.0.0.1 keeps the API off the network.
+  const host = process.env.HOST || '0.0.0.0'
+  const port = Number(process.env.PORT) || 4000
+  await app.listen(port, host);
+  console.log(`API listening on http://${host}:${port}`);
+}
+
+// RIGTRACKER_CORS_ORIGIN: comma-separated exact origins (https://host) or patterns like *.example.com.
+// Unset means same-origin only.
+const corsParts = (process.env.RIGTRACKER_CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean)
+const corsMatchers: Array<string | RegExp> = corsParts.map((p) => {
+  if (!p.includes('*')) return p
+  const withoutProto = p.replace(/^https?:\/\//, '')
+  return new RegExp('^https?://' + withoutProto.replace(/\./g, '\\.').replace(/\*/g, '[^.]+') + '(?::[0-9]+)?$')
+})
+
+function isCorsAllowed(origin: string): boolean {
+  return corsMatchers.some((m) => (typeof m === 'string' ? m === origin : m.test(origin)))
 }
 
 bootstrap();

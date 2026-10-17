@@ -1,20 +1,16 @@
 import * as path from 'path'
 import * as fs from 'fs'
-import * as xlsx from 'xlsx'
 import mongoose from 'mongoose'
 
 async function main() {
   const fileArg = process.argv[2] || path.join(__dirname, '../../UConn Skydiving Gear.xlsx - Sheet2.csv')
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/rigtracker'
 
-  console.log('Connecting to', mongoUri)
+  console.log('Connecting to', mongoUri.replace(/\/\/[^@/]*@/, '//***@'))
   await mongoose.connect(mongoUri)
 
   console.log('Reading', fileArg)
-  const workbook = xlsx.readFile(fileArg, { raw: true })
-  const sheetName = workbook.SheetNames[0]
-  const sheet = workbook.Sheets[sheetName]
-  const rows: any[][] = xlsx.utils.sheet_to_json(sheet, { header: 1 }) as any
+  const rows: any[][] = parseCsv(fs.readFileSync(fileArg, 'utf8'))
 
   // Rows: first column = field names. First row has Primary User header and user names starting at col 4
   if (!rows || rows.length === 0) {
@@ -140,3 +136,26 @@ main().catch(err => {
   console.error(err)
   process.exit(1)
 })
+
+/** Minimal RFC 4180 CSV parser: quoted fields, doubled quotes, CRLF or LF line endings. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let quoted = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++ }
+      else if (ch === '"') quoted = false
+      else field += ch
+    } else if (ch === '"') quoted = true
+    else if (ch === ',') { row.push(field); field = '' }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++
+      row.push(field); rows.push(row); row = []; field = ''
+    } else field += ch
+  }
+  if (field || row.length) { row.push(field); rows.push(row) }
+  return rows
+}

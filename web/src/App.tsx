@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react'
-import { Layout, Button, Typography, Menu, Grid, Space, message } from 'antd'
+import { Alert, Layout, Button, Typography, Menu, Grid, Space, message } from 'antd'
 import {
   GithubOutlined,
   DashboardOutlined,
@@ -47,11 +47,22 @@ function HomePage() {
   )
 }
 
-function PlaceholderPage({ title, summary }: { title: string; summary: string }) {
+function SignInCard({ onSignIn }: { onSignIn: () => void }) {
+  const failed = new URLSearchParams(window.location.search).get('auth') === 'failed'
   return (
     <div className="rt-home-card">
-      <Typography.Title level={4} style={{ marginTop: 0 }}>{title}</Typography.Title>
-      <Typography.Paragraph style={{ marginBottom: 0 }}>{summary}</Typography.Paragraph>
+      <Typography.Title level={3} style={{ marginTop: 0 }}>Sign in to RigTracker</Typography.Title>
+      {failed ? (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Sign-in didn't work"
+          description="Your Google account may not have been added yet. Ask a RigTracker admin to add your email address."
+        />
+      ) : null}
+      <Typography.Paragraph>Rigs, gear, events and people records are for signed-in members only.</Typography.Paragraph>
+      <Button type="primary" onClick={onSignIn}>Sign In with Google</Button>
     </div>
   )
 }
@@ -131,11 +142,13 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' })
       if (!res.ok) throw new Error('Logout failed')
-      setAuthUser(null)
       message.success('Signed out')
     } catch (err) {
       console.error(err)
       message.error('Failed to sign out')
+    } finally {
+      setAuthUser(null)
+      navigate('/')
     }
   }
 
@@ -196,16 +209,12 @@ export default function App() {
             <Typography.Text className="rt-header-title">Operations Console</Typography.Text>
           </div>
           <Space>
-            {!loadingAuth ? (
+            {authUser ? (
               <Typography.Text type="secondary">
-                {authUser ? `Signed in: ${authUser.displayName || authUser.email}` : 'Guest mode'}
+                Signed in: {authUser.displayName || authUser.email}
               </Typography.Text>
             ) : null}
-            {authUser ? (
-              <Button onClick={logout}>Sign Out</Button>
-            ) : (
-              <Button type="primary" onClick={startGoogleLogin}>Sign In with Google</Button>
-            )}
+            {authUser ? <Button onClick={logout}>Sign Out</Button> : null}
             <Button href="https://github.com/brbrockel/RigTracker" target="_blank" rel="noopener noreferrer" icon={<GithubOutlined />}>
               GitHub
             </Button>
@@ -213,6 +222,11 @@ export default function App() {
         </Header>
 
         <Content style={{ padding: 20 }}>
+          {loadingAuth ? (
+            <div className="rt-home-card"><Typography.Text>Loading...</Typography.Text></div>
+          ) : !authUser ? (
+            <SignInCard onSignIn={startGoogleLogin} />
+          ) : (
           <Suspense fallback={<div className="rt-home-card"><Typography.Text>Loading page...</Typography.Text></div>}>
             <Routes>
               <Route path="/" element={<HomePage />} />
@@ -228,6 +242,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
+          )}
         </Content>
       </Layout>
     </Layout>

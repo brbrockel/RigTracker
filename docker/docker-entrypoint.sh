@@ -22,7 +22,7 @@ NODE_PID=$!
 SECS=0
 MAX=60
 echo "Waiting for Node server to become available on 127.0.0.1:4000..."
-until curl -sSf http://127.0.0.1:4000/ >/dev/null 2>&1 || [ $SECS -ge $MAX ]; do
+until curl -sSf http://127.0.0.1:4000/api/auth/me >/dev/null 2>&1 || [ $SECS -ge $MAX ]; do
 	sleep 1
 	SECS=$((SECS+1))
 done

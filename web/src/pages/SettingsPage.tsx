@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Table, Select, Typography, message, Grid, Tag } from 'antd'
+import { Button, Input, Space, Table, Select, Typography, message, Grid, Tag } from 'antd'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 const { useBreakpoint } = Grid
@@ -19,6 +19,9 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<AppUser[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [newEmail, setNewEmail] = useState('')
+  const [newRole, setNewRole] = useState('user')
+  const [adding, setAdding] = useState(false)
   const screens = useBreakpoint()
   const isMobile = !screens.md
 
@@ -64,6 +67,30 @@ export default function SettingsPage() {
       message.error(err?.message || 'Failed to update role')
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  async function addUser() {
+    setAdding(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/users`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newEmail.trim(), role: newRole }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.message || 'Failed to add user')
+      }
+      const added: AppUser = await res.json()
+      setUsers((prev) => [...prev, added])
+      setNewEmail('')
+      message.success(`${added.email} can now sign in with Google`)
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to add user')
+    } finally {
+      setAdding(false)
     }
   }
 
@@ -170,7 +197,31 @@ export default function SettingsPage() {
 
   return (
     <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
-      <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>User Management</Typography.Title>
+      <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 8 }}>User Management</Typography.Title>
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+        Only people added here can sign in. Add their Google account email address.
+      </Typography.Paragraph>
+      <Space.Compact style={{ width: '100%', maxWidth: 520, marginBottom: 16 }}>
+        <Input
+          type="email"
+          placeholder="name@example.com"
+          aria-label="Email address to add"
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+          onPressEnter={() => newEmail.trim() && addUser()}
+        />
+        <Select
+          value={newRole}
+          onChange={setNewRole}
+          style={{ width: 110 }}
+          aria-label="Role"
+          options={[
+            { value: 'user', label: 'User' },
+            { value: 'admin', label: 'Admin' },
+          ]}
+        />
+        <Button type="primary" loading={adding} disabled={!newEmail.trim()} onClick={addUser}>Add</Button>
+      </Space.Compact>
       <Table
         className="rt-compact-table"
         dataSource={users}

@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, NotFoundException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
 import { randomBytes } from 'crypto'
 import { User, UserDocument } from './user.schema'
 import { Session, SessionDocument } from './session.schema'
+import { readSecret } from '../common/secrets'
 
 export const SESSION_COOKIE_NAME = 'rigtracker_session'
 export const OAUTH_STATE_COOKIE_NAME = 'rigtracker_oauth_state'
@@ -21,6 +22,7 @@ interface GoogleTokenResponse {
 interface GoogleUserInfo {
   sub?: string
   email?: string
+  email_verified?: boolean
   name?: string
   picture?: string
 }
@@ -61,7 +63,7 @@ export class AuthService {
     const url =
       `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}` +
       `&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${encodeURIComponent(state)}` +
-      '&access_type=offline&prompt=consent'
+      '&prompt=select_account'
 
     return { url, state }
   }
@@ -95,7 +97,14 @@ export class AuthService {
     if (!googleId || !email) {
       throw new UnauthorizedException('Google profile data incomplete')
     }
-    if (!this.isEmailAllowed(email)) {
+    if (profile.email_verified !== true) {
+      throw new UnauthorizedException('Google email address is not verified')
+    }
+    const known = await this.findKnownUser(googleId, email)
+    if (known?.isActive === false) {
+      throw new UnauthorizedException('This account is disabled')
+    }
+    if (!known && !this.isEmailAllowed(email)) {
       throw new UnauthorizedException('This account is not allowed to access RigTracker')
     }
 
@@ -166,8 +175,22 @@ export class AuthService {
       { $set: { roles: [role] } },
       { new: true },
     ).lean()
-    if (!user) throw new Error('User not found')
+    if (!user) throw new NotFoundException('User not found')
     return this.mapUser(user)
+  }
+
+  async addUser(email: string, role: 'user' | 'admin') {
+    const existing = await this.userModel.findOne({ email }).lean()
+    if (existing) throw new ConflictException('That email address has already been added')
+    const user = await this.userModel.create({ provider: 'google', email, roles: [role], isActive: true })
+    return this.mapUser(user)
+  }
+
+  /** A user already on file: by Google account, or by email for someone an admin added who hasn't signed in yet. */
+  private async findKnownUser(googleId: string, email: string) {
+    const byGoogleId = await this.userModel.findOne({ googleId })
+    if (byGoogleId) return byGoogleId
+    return this.userModel.findOne({ email, googleId: { $exists: false } })
   }
 
   extractCookie(cookieHeader: string | undefined, name: string): string | undefined {
@@ -197,7 +220,7 @@ export class AuthService {
 
   private async fetchGoogleToken(code: string): Promise<GoogleTokenResponse> {
     const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
+    const clientSecret = readSecret('GOOGLE_CLIENT_SECRET')
     const callbackUrl = process.env.AUTH_GOOGLE_CALLBACK_URL?.trim()
     if (!clientId || !clientSecret || !callbackUrl) {
       throw new InternalServerErrorException('Google auth is not configured')
@@ -240,9 +263,7 @@ export class AuthService {
     ip?: string
     userAgent?: string
   }) {
-    const existing = await this.userModel.findOne({
-      $or: [{ googleId: params.googleId }, { email: params.email }],
-    })
+    const existing = await this.findKnownUser(params.googleId, params.email)
 
     if (existing) {
       existing.provider = 'google'
@@ -293,7 +314,8 @@ export class AuthService {
   private isEmailAllowed(email: string): boolean {
     const allowlistRaw = (process.env.AUTH_ALLOWED_EMAILS || '').trim()
     const domainRaw = (process.env.AUTH_ALLOWED_EMAIL_DOMAIN || '').trim()
-    if (!allowlistRaw && !domainRaw) return true
+    // Fail closed: with no allowlist, only people already added (by an admin) can sign in.
+    if (!allowlistRaw && !domainRaw) return false
 
     const allowlist = new Set(
       allowlistRaw

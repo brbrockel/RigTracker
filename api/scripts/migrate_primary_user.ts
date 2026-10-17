@@ -8,7 +8,7 @@ function escapeRegex(s: string) {
 
 async function main() {
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/rigtracker'
-  console.log('Connecting to', mongoUri)
+  console.log('Connecting to', mongoUri.replace(/\/\/[^@/]*@/, '//***@'))
   await mongoose.connect(mongoUri)
 
   const Rig = mongoose.model('Rig', RigSchema)

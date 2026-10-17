@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AuthService } from './auth.service'
-import { REQUIRED_ROLES_KEY } from './roles.decorator'
+import { IS_PUBLIC_KEY } from './public.decorator'
 
 @Injectable()
 export class AuthSessionGuard implements CanActivate {
@@ -11,12 +11,11 @@ export class AuthSessionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(REQUIRED_ROLES_KEY, [
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ])
-
-    if (!requiredRoles || requiredRoles.length === 0) {
+    if (isPublic) {
       return true
     }
 
