@@ -17,6 +17,7 @@ It provides a web UI and API for equipment records, assignment tracking, and ope
 - High-level architecture: [doc/Architecture.md](doc/Architecture.md)
 - Roadmap and enhancement specs: [doc/Enhancements.md](doc/Enhancements.md)
 - API-specific notes: [api/README.md](api/README.md)
+- v2 rebuild plan and migration path: [doc/Plan.md](doc/Plan.md)
 - Independent review and modernization roadmap (Oct 2026): [doc/Review-2026-10.md](doc/Review-2026-10.md)
 
 ## Repository Layout
