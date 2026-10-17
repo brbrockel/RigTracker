@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api, type Gear, type Person, type Rig, type RigEvent, type User } from '@/lib/api';
+import { api, type Gear, type Person, type Rig, type RigEvent } from '@/lib/api';
 
 /** Query keys; invalidate the list key after a change (detail keys sit under it). */
 export const keys = {
@@ -11,7 +11,6 @@ export const keys = {
   person: (id: string) => ['people', id] as const,
   events: ['events'] as const,
   event: (id: string) => ['events', id] as const,
-  users: ['users'] as const,
   audit: ['audit'] as const,
 };
 
@@ -33,6 +32,3 @@ export const useEvents = () =>
 export const useEvent = (id: string) =>
   useQuery({ queryKey: keys.event(id), queryFn: () => api<RigEvent>(`/events/${id}`) });
 
-/** Sign-in accounts (admins only). */
-export const useUsers = () =>
-  useQuery({ queryKey: keys.users, queryFn: () => api<User[]>('/auth/users') });

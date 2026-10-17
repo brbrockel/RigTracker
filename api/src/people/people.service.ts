@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
-import { Person, PersonDocument } from './person.schema'
+import { PERSON_PROFILE_FIELDS, Person, PersonDocument } from './person.schema'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import isEmail from 'validator/lib/isEmail'
 
@@ -9,19 +9,38 @@ import isEmail from 'validator/lib/isEmail'
 export class PeopleService {
   constructor(@InjectModel(Person.name) private personModel: Model<PersonDocument>) {}
 
-  async create(dto: any) {
-    // validate / normalize
-    if (dto.email) {
-      const e = String(dto.email).trim().toLowerCase()
+  /** Only profile fields, validated; sign-in fields (roles etc.) can't be set this way. */
+  private profile(dto: any): Record<string, any> {
+    const out: Record<string, any> = {}
+    for (const key of PERSON_PROFILE_FIELDS) {
+      if (dto && Object.prototype.hasOwnProperty.call(dto, key)) out[key] = dto[key]
+    }
+    if (out.email) {
+      const e = String(out.email).trim().toLowerCase()
       if (!isEmail(e)) throw new BadRequestException('Invalid email')
-      dto.email = e
+      out.email = e
     }
-    if (dto.phone) {
-      const pn = parsePhoneNumberFromString(String(dto.phone), dto.country || 'US')
+    if (out.phone) {
+      const pn = parsePhoneNumberFromString(String(out.phone), dto.country || 'US')
       if (!pn || !pn.isValid()) throw new BadRequestException('Invalid phone')
-      dto.phone = pn.format('E.164')
+      out.phone = pn.format('E.164')
     }
-    const created = new this.personModel(dto)
+    return out
+  }
+
+  /** Someone who signs in needs an email address no one else who signs in uses. */
+  private async checkSignInEmail(id: string, email: unknown) {
+    const person = await this.personModel.findById(id).lean()
+    if (!person) throw new NotFoundException('Person not found')
+    if (!person.roles?.length) return
+    const e = typeof email === 'string' ? email : ''
+    if (!e) throw new BadRequestException('This person signs in, so they need an email address')
+    const other = await this.personModel.findOne({ _id: { $ne: id }, email: e, 'roles.0': { $exists: true } }).lean()
+    if (other) throw new ConflictException('Another person who signs in already uses that email')
+  }
+
+  async create(dto: any) {
+    const created = new this.personModel(this.profile(dto))
     return created.save()
   }
 
@@ -36,18 +55,9 @@ export class PeopleService {
   }
 
   async update(id: string, dto: any) {
-    // validate / normalize
-    if (dto.email) {
-      const e = String(dto.email).trim().toLowerCase()
-      if (!isEmail(e)) throw new BadRequestException('Invalid email')
-      dto.email = e
-    }
-    if (dto.phone) {
-      const pn = parsePhoneNumberFromString(String(dto.phone), dto.country || 'US')
-      if (!pn || !pn.isValid()) throw new BadRequestException('Invalid phone')
-      dto.phone = pn.format('E.164')
-    }
-    const updated = await this.personModel.findByIdAndUpdate(id, dto, { new: true }).lean()
+    const changes = this.profile(dto)
+    if ('email' in changes) await this.checkSignInEmail(id, changes.email)
+    const updated = await this.personModel.findByIdAndUpdate(id, { $set: changes }, { new: true, runValidators: true }).lean()
     if (!updated) throw new NotFoundException('Person not found')
     return updated
   }

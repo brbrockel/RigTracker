@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Req, Res, UnauthorizedException } from '@nestjs/common'
 import { Request, Response } from 'express'
-import { AuthService } from './auth.service'
+import { AuthService, ROLES, type Role } from './auth.service'
 import { Public } from './public.decorator'
 import { RequireRoles } from './roles.decorator'
 import { signInLinkUrl } from './tokens'
@@ -62,7 +62,7 @@ export class AuthController {
     })
     await this.auditService.log({
       action: 'SIGN_IN',
-      resource: 'user',
+      resource: 'people',
       resourceId: result.user.id,
       resourceName: result.user.email,
       actor: result.user,
@@ -94,7 +94,7 @@ export class AuthController {
     if (auth) {
       await this.auditService.log({
         action: 'SIGN_OUT',
-        resource: 'user',
+        resource: 'people',
         resourceId: auth.user.id,
         resourceName: auth.user.email,
         actor: auth.user,
@@ -103,90 +103,57 @@ export class AuthController {
     return { ok: true }
   }
 
-  // ── Admin-only user management ────────────────────────────────────────────
+  // ── Sign-in access for people (admins) ─────────────────────────────────
 
-  @Get('users')
+  /** Gives a person sign-in access with a role, or removes it (role: null). */
+  @Patch('people/:id/access')
   @RequireRoles('admin')
-  listUsers() {
-    return this.authService.listUsers()
-  }
-
-  /** Adds someone who can be sent a sign-in link. */
-  @Post('users')
-  @RequireRoles('admin')
-  async addUser(@Req() req: any, @Body() body: { email?: unknown; role?: unknown; displayName?: unknown }) {
-    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-      throw new BadRequestException('A valid email address is required')
+  async setAccess(@Req() req: any, @Param('id') id: string, @Body() body: { role?: unknown }) {
+    const role = body?.role === null ? null : (ROLES as readonly unknown[]).includes(body?.role) ? (body.role as Role) : undefined
+    if (role === undefined) throw new BadRequestException('Role must be "admin", "user", "viewer" or null')
+    if (req.authUser?.id === id && role !== 'admin') {
+      throw new ForbiddenException('You cannot remove your own admin role')
     }
-    const displayName = typeof body?.displayName === 'string' ? body.displayName.trim().slice(0, 100) : undefined
-    const role = body?.role === 'admin' ? 'admin' : 'user'
-    const user = await this.authService.addUser(email, role, displayName || undefined)
+    const person = await this.authService.setAccess(id, role)
     await this.auditService.log({
-      action: 'CREATE',
-      resource: 'user',
-      resourceId: user.id,
-      resourceName: user.email,
+      action: 'UPDATE',
+      resource: 'people',
+      resourceId: id,
+      resourceName: [person?.firstName, person?.lastName].filter(Boolean).join(' '),
       actor: req.authUser,
-      details: { role },
+      details: { signInAccess: role ?? 'none' },
     })
-    return user
+    return person
   }
 
   /** A single-use sign-in link (72 hours) for the admin to text or email to the person. */
-  @Post('users/:id/link')
+  @Post('people/:id/link')
   @RequireRoles('admin')
   async createLink(@Req() req: any, @Param('id') id: string) {
     const { token, expiresAt, user } = await this.authService.createSignInLink(id, req.authUser?.email)
     await this.auditService.log({
       action: 'SIGN_IN_LINK',
-      resource: 'user',
+      resource: 'people',
       resourceId: user.id,
-      resourceName: user.email,
+      resourceName: user.displayName || user.email,
       actor: req.authUser,
+      details: { email: user.email },
     })
     return { link: signInLinkUrl(this.appUrl(req), token), expiresAt, email: user.email }
   }
 
   /** Signs the person out on every device. */
-  @Post('users/:id/sign-out')
+  @Post('people/:id/sign-out')
   @RequireRoles('admin')
   async signOutEverywhere(@Req() req: any, @Param('id') id: string) {
     await this.authService.revokeAllSessions(id)
     await this.auditService.log({
       action: 'SIGN_OUT',
-      resource: 'user',
+      resource: 'people',
       resourceId: id,
       actor: req.authUser,
       details: { everywhere: true },
     })
     return { ok: true }
-  }
-
-  @Patch('users/:id/role')
-  @RequireRoles('admin')
-  async updateUserRole(
-    @Req() req: any,
-    @Param('id') id: string,
-    @Body() body: { role: string },
-  ) {
-    const role = body?.role
-    if (role !== 'user' && role !== 'admin') {
-      throw new BadRequestException('Role must be "user" or "admin"')
-    }
-    // Prevent an admin from demoting themselves
-    if (req.authUser?.id === id && role !== 'admin') {
-      throw new ForbiddenException('You cannot remove your own admin role')
-    }
-    const user = await this.authService.setUserRole(id, role)
-    await this.auditService.log({
-      action: 'UPDATE',
-      resource: 'user',
-      resourceId: user.id,
-      resourceName: user.email,
-      actor: req.authUser,
-      details: { role },
-    })
-    return user
   }
 }

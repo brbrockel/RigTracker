@@ -5,12 +5,12 @@
  *   docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com
  *   docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com --admin "Your Name"
  *
- * --admin creates the account as an admin if it doesn't exist yet (or makes an existing one admin).
+ * --admin makes the person with that email an admin, creating them if there's no one with it yet.
  * Links use APP_URL (e.g. https://rigtracker.bhbslp.org).
  */
 import mongoose from 'mongoose'
 import { readSecret } from '../common/secrets'
-import { User, UserSchema } from '../auth/user.schema'
+import { Person, PersonSchema } from '../people/person.schema'
 import { SignInLink, SignInLinkSchema } from '../auth/sign-in-link.schema'
 import { AuditLog, AuditLogSchema } from '../audit/audit-log.schema'
 import { SIGN_IN_LINK_TTL_MS, hashToken, newToken, signInLinkUrl } from '../auth/tokens'
@@ -19,7 +19,7 @@ async function main() {
   const args = process.argv.slice(2)
   const adminIdx = args.indexOf('--admin')
   const makeAdmin = adminIdx !== -1
-  const displayName = makeAdmin && args[adminIdx + 1] && !args[adminIdx + 1].startsWith('--') ? args[adminIdx + 1].trim() : undefined
+  const fullName = makeAdmin && args[adminIdx + 1] && !args[adminIdx + 1].startsWith('--') ? args[adminIdx + 1].trim() : undefined
   const email = (args[0] || '').trim().toLowerCase()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     console.error('Usage: sign-in-link <email> [--admin "Name"]')
@@ -33,27 +33,42 @@ async function main() {
 
   await mongoose.connect(readSecret('MONGO_URI') || 'mongodb://localhost:27017/rigtracker')
   try {
-    const Users = mongoose.model(User.name, UserSchema)
+    const People = mongoose.model(Person.name, PersonSchema)
     const Links = mongoose.model(SignInLink.name, SignInLinkSchema)
     const Audit = mongoose.model(AuditLog.name, AuditLogSchema)
 
-    let user = await Users.findOne({ email })
+    const matches = await People.find({ email })
+    if (matches.length > 1) {
+      const withAccess = matches.filter((p) => p.roles?.length)
+      if (withAccess.length !== 1) {
+        console.error(`${matches.length} people have the email ${email}. Fix that on People first.`)
+        process.exitCode = 1
+        return
+      }
+    }
+    let user = matches.find((p) => p.roles?.length) ?? matches[0]
     if (!user && !makeAdmin) {
-      console.error(`No user ${email}. Add them on Settings, or run again with --admin to create an admin.`)
+      console.error(`No one has the email ${email}. Give them sign-in access on People, or run again with --admin.`)
       process.exitCode = 1
       return
     }
     if (!user) {
-      user = await Users.create({ provider: 'link', email, displayName, roles: ['admin'], isActive: true })
-      console.log(`Created admin ${email}`)
-    } else if (makeAdmin && !user.roles?.includes('admin')) {
+      const [firstName, ...rest] = (fullName || email.split('@')[0]!).split(/\s+/)
+      user = await People.create({ firstName, lastName: rest.join(' ') || undefined, email, roles: ['admin'], isActive: true })
+      console.log(`Added ${[user.firstName, user.lastName].filter(Boolean).join(' ')} to People as an admin`)
+    } else if (makeAdmin && (!user.roles?.includes('admin') || user.isActive === false)) {
       user.roles = ['admin']
       user.isActive = true
       await user.save()
       console.log(`${email} is now an admin`)
     }
+    if (!user.roles?.length) {
+      console.error(`${email} has no sign-in access. Give it on People, or run again with --admin.`)
+      process.exitCode = 1
+      return
+    }
     if (user.isActive === false) {
-      console.error(`${email} is disabled.`)
+      console.error(`${email} has sign-in turned off.`)
       process.exitCode = 1
       return
     }
@@ -63,7 +78,7 @@ async function main() {
     await Links.create({ tokenHash: hashToken(token), userId: user._id, expiresAt })
     await Audit.create({
       action: 'SIGN_IN_LINK',
-      resource: 'user',
+      resource: 'people',
       resourceId: String(user._id),
       resourceName: email,
       details: { via: 'command line' },

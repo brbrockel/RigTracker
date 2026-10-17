@@ -14,7 +14,6 @@ import { PersonPage } from '@/pages/PersonPage';
 import { RigPage } from '@/pages/RigPage';
 import { RigsPage } from '@/pages/RigsPage';
 import { SignInPage } from '@/pages/SignInPage';
-import { UsersPage } from '@/pages/UsersPage';
 
 /** Everything except the sign-in page requires a session. */
 function RequireSession() {
@@ -49,10 +48,11 @@ export const routes = [
           { path: 'people', element: <PeoplePage /> },
           { path: 'people/:id', element: <PersonPage /> },
           { path: 'account', element: <AccountPage /> },
+          // Sign-in is managed from People now.
+          { path: 'users', element: <Navigate to="/people" replace /> },
           {
             element: <RequireAdmin />,
             children: [
-              { path: 'users', element: <UsersPage /> },
               { path: 'activity', element: <ActivityPage /> },
             ],
           },

@@ -1,12 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X } from 'lucide-react';
 import { useState, type ComponentProps, type FormEvent } from 'react';
+import { ME_KEY, useUser } from '@/auth/session';
 import { Field } from '@/components/Field';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { api, dateInputValue, errorMessage, type Person } from '@/lib/api';
+import { api, canSignIn, dateInputValue, errorMessage, type Person } from '@/lib/api';
 import { keys } from '@/lib/queries';
 import { formatPhone, isEmail, normalizePhone, PHONE_HINT } from '@/lib/phone';
 
@@ -53,12 +54,13 @@ type Errors = Partial<Record<'firstName' | 'lastName' | 'email' | 'phone', strin
 };
 
 /** Checks the form; returns the request body, or the problems to show. */
-function validate(d: Draft): { body?: Record<string, unknown>; errors: Errors } {
+function validate(d: Draft, needsEmail: boolean): { body?: Record<string, unknown>; errors: Errors } {
   const errors: Errors = {};
   if (!d.firstName.trim()) errors.firstName = 'Enter a first name';
   if (!d.lastName.trim()) errors.lastName = 'Enter a last name';
   const email = d.email.trim().toLowerCase();
-  if (email && !isEmail(email)) errors.email = 'Enter a valid email';
+  if (!email && needsEmail) errors.email = 'Enter an email address. They use it to sign in.';
+  else if (email && !isEmail(email)) errors.email = 'Enter a valid email';
   const phone = normalizePhone(d.phone);
   if (d.phone.trim() && !phone) errors.phone = PHONE_HINT;
 
@@ -113,6 +115,8 @@ export function PersonDialog({
   onSaved?: (p: Person) => void;
 }) {
   const qc = useQueryClient();
+  const me = useUser();
+  const signsIn = canSignIn(person);
   const [d, setD] = useState<Draft>(() => draftOf(person));
   const [errors, setErrors] = useState<Errors>({});
   const set = (k: keyof Omit<Draft, 'contacts'>) => (e: { target: { value: string } }) =>
@@ -130,6 +134,8 @@ export function PersonDialog({
         : api<Person>('/people', { method: 'POST', body }),
     onSuccess: async (saved) => {
       await qc.invalidateQueries({ queryKey: keys.people });
+      // Your own name shows in the account menu.
+      if (person && person._id === me?.id) await qc.invalidateQueries({ queryKey: ME_KEY });
       onSaved?.(saved);
       onClose();
     },
@@ -137,7 +143,7 @@ export function PersonDialog({
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const { body, errors } = validate(d);
+    const { body, errors } = validate(d, signsIn);
     setErrors(errors);
     if (body) save.mutate(body);
   }
@@ -173,8 +179,9 @@ export function PersonDialog({
               <Err id="p-last-err" msg={errors.lastName} />
             </Field>
           </div>
-          <Field id="p-email" label="Email">
+          <Field id="p-email" label="Email" hint={signsIn ? 'Used to sign in' : undefined}>
             {input('p-email', 'email', {
+              required: signsIn,
               type: 'email',
               inputMode: 'email',
               autoCapitalize: 'none',

@@ -5,7 +5,6 @@ import {
   Home,
   LogOut,
   Package,
-  UserCog,
   UserRound,
   Users,
   Wrench,
@@ -83,14 +82,9 @@ export function AppLayout() {
                   <UserRound /> Account
                 </DropdownMenuItem>
                 {admin && (
-                  <>
-                    <DropdownMenuItem onSelect={() => navigate('/users')}>
-                      <UserCog /> Users and sign-in
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => navigate('/activity')}>
-                      <History /> Activity log
-                    </DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem onSelect={() => navigate('/activity')}>
+                    <History /> Activity log
+                  </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
                   <a href="https://github.com/brbrockel/RigTracker" target="_blank" rel="noopener noreferrer">

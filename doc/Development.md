@@ -89,7 +89,7 @@ Sign-in:
 Access rules:
 
 - Every API route and every file under `/uploads` needs a signed-in session, except the sign-in routes (`/api/auth/link/check`, `/api/auth/link/redeem`, `/api/auth/me`, `/api/auth/logout`).
-- There is no Google sign-in or password. An admin adds the person on **Settings**, then **Sign-in link** gives a single-use link (valid 72 hours) to copy, text or email. Opening the link shows who it's for; pressing **Sign in** uses it up and starts a 30-day session. Only hashes of link and session tokens are stored.
+- There is no Google sign-in or password. People and sign-in accounts are the same records: on **People**, an admin uses **⋯ → Sign-in access…** to give someone a role (Viewer, User or Admin; it needs their email address), then **⋯ → Get sign-in link** gives a single-use link (valid 72 hours) to copy, text or email. Opening the link shows who it's for; pressing **Sign in** uses it up and starts a 30-day session. Only hashes of link and session tokens are stored.
 - First admin, or if no admin can sign in:
 
   ```bash
@@ -97,7 +97,8 @@ Access rules:
   ```
 
   Without `--admin` it prints a link for an existing user. Locally: `APP_URL=http://localhost:5173 node api/dist/scripts/sign-in-link.js you@example.com`.
-- Sign-ins, sign-outs, links made and role changes are in the audit log. **Sign out everywhere** on Settings ends all of someone's sessions.
+- Sign-ins, sign-outs, links made and access changes are in the audit log. **⋯ → Sign out everywhere** ends all of someone's sessions; removing sign-in access does that too.
+- One-off migration (done 2026-10-17): `node dist/scripts/merge-users-into-people.js` (report) / `--apply` moved the old `users` accounts onto their people records and kept them in `users_merged`.
 - Writes (`POST`/`PUT`/`PATCH`/`DELETE`) from another site are refused (`Origin` must match the host).
 - Uploads are checked by content, not name: images are re-encoded to JPEG (no EXIF or GPS), and videos are kept only as MP4, MOV or WebM.
 

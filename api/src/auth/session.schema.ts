@@ -5,7 +5,7 @@ import { Document, Types } from 'mongoose'
 export class Session {
   /** SHA-256 hash of the session cookie's token; the token itself is never stored. */
   @Prop({ unique: true }) sessionId?: string
-  @Prop({ type: Types.ObjectId, ref: 'User', index: true }) userId?: Types.ObjectId
+  @Prop({ type: Types.ObjectId, ref: 'Person', index: true }) userId?: Types.ObjectId
   @Prop() expiresAt?: Date
   @Prop() revokedAt?: Date
   /** Sent back in the x-csrf-token header with every change. */

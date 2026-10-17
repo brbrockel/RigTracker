@@ -104,6 +104,13 @@ export interface Person {
   dob?: string;
   emergencyContacts?: Array<{ name?: string; phone?: string; relation?: string }>;
   customFields?: Record<string, unknown>;
+  /** Sign-in roles; missing or empty means they can't sign in. */
+  roles?: Role[];
+  /** false means sign-in is turned off. */
+  isActive?: boolean;
+  /** Only sent to admins. */
+  lastLoginAt?: string | null;
+  loginCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -191,6 +198,19 @@ export interface SignInLink {
 export function personName(p?: Pick<Person, 'firstName' | 'lastName'> | null): string {
   if (!p) return '';
   return [p.firstName, p.lastName].filter(Boolean).join(' ').trim();
+}
+
+/** They have a sign-in role and sign-in isn't turned off. */
+export const canSignIn = (p?: Pick<Person, 'roles' | 'isActive'> | null) =>
+  !!p?.roles?.length && p.isActive !== false;
+
+/** The person's sign-in access as a word. */
+export function roleLabel(p?: Pick<Person, 'roles'> | null): 'Admin' | 'User' | 'Viewer' | 'No sign-in' {
+  const roles = p?.roles ?? [];
+  if (roles.includes('admin')) return 'Admin';
+  if (roles.includes('user')) return 'User';
+  if (roles.includes('viewer')) return 'Viewer';
+  return 'No sign-in';
 }
 
 export function rigLabel(r?: Pick<Rig, 'number' | 'name'> | null): string {

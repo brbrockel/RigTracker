@@ -1,12 +1,38 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { asAdmin, asViewer, mockApi, renderAt } from './render';
+import { asAdmin, asUser, asViewer, mockApi, renderAt } from './render';
 
 const people = [
   { _id: 'p1', firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', phone: '+18605551234' },
   { _id: 'p2', firstName: 'Grace', lastName: 'Hopper', email: 'grace@navy.mil' },
 ];
+const ok = (body: unknown) => () => ({ status: 200, body });
+
+// Brian (u1) is the signed-in admin; Sam can sign in; Kim has no email and no sign-in.
+const self = {
+  _id: 'u1',
+  firstName: 'Brian',
+  lastName: 'B',
+  email: 'brian@example.com',
+  roles: ['admin'],
+  isActive: true,
+  lastLoginAt: '2026-10-01T12:00:00.000Z',
+  loginCount: 4,
+};
+const sam = {
+  _id: 'p3',
+  firstName: 'Sam',
+  lastName: 'Jones',
+  email: 'sam@example.com',
+  roles: ['user'],
+  isActive: true,
+  lastLoginAt: null,
+  loginCount: 0,
+};
+const kim = { _id: 'p4', firstName: 'Kim', lastName: 'Lee', roles: [] };
+const everyone = [...people, self, sam, kim];
+const card = (name: string) => screen.getByRole('link', { name }).closest('li')!;
 
 describe('people', () => {
   it('lists people with contact links and filters by search', async () => {
@@ -143,5 +169,207 @@ describe('people', () => {
     });
     renderAt('/people/nope');
     expect(await screen.findByText('Person not found')).toBeInTheDocument();
+  });
+
+  it('shows role badges, You and sign-in history, and filters by access', async () => {
+    mockApi({ 'GET /api/auth/me': asAdmin, 'GET /api/people': ok(everyone) });
+    renderAt('/people');
+    await screen.findByRole('link', { name: 'Sam Jones' });
+    const me = within(card('Brian B'));
+    expect(me.getByText('You')).toBeInTheDocument();
+    expect(me.getByText('Admin')).toHaveClass('text-primary');
+    expect(me.getByText(/Last signed in .* · 4 sign-ins/)).toBeInTheDocument();
+    expect(within(card('Sam Jones')).getByText('User')).toBeInTheDocument();
+    expect(within(card('Sam Jones')).getByText('Never signed in')).toBeInTheDocument();
+    expect(within(card('Ada Lovelace')).queryByText(/signed in|Admin|User|Viewer/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Each sign-in link works once and lasts\s+72 hours/)).toBeInTheDocument();
+
+    const filter = screen.getByRole('combobox', { name: 'Filter people' });
+    await userEvent.selectOptions(filter, 'sign-in');
+    expect(screen.getByRole('link', { name: 'Sam Jones' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Brian B' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Kim Lee' })).not.toBeInTheDocument();
+    await userEvent.selectOptions(filter, 'admin');
+    expect(screen.queryByRole('link', { name: 'Sam Jones' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Brian B' })).toBeInTheDocument();
+    await userEvent.selectOptions(filter, 'none');
+    expect(screen.getByRole('link', { name: 'Kim Lee' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Brian B' })).not.toBeInTheDocument();
+  });
+
+  it('gives someone sign-in access with the CSRF header', async () => {
+    let list: unknown[] = everyone;
+    const calls = mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': () => ({ status: 200, body: list }),
+      'PATCH /api/auth/people/p1/access': () => {
+        const updated = { ...people[0], roles: ['user'], isActive: true, loginCount: 0 };
+        list = [updated, ...everyone.slice(1)];
+        return { status: 200, body: updated };
+      },
+    });
+    const user = userEvent.setup();
+    renderAt('/people');
+    await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
+    expect(screen.queryByRole('menuitem', { name: /Get sign-in link/ })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('menuitem', { name: /Sign-in access/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Sign-in access for Ada Lovelace' });
+    expect(within(dialog).getByText(/needs an email address/)).toBeInTheDocument();
+    await user.selectOptions(within(dialog).getByLabelText('Access'), 'user');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const patch = calls.find((c) => c.key === 'PATCH /api/auth/people/p1/access')!;
+    expect(JSON.parse(String(patch.init?.body))).toEqual({ role: 'user' });
+    expect((patch.init?.headers as Record<string, string>)['x-csrf-token']).toBe('csrf-123');
+    expect(await within(card('Ada Lovelace')).findByText('User')).toBeInTheDocument();
+  });
+
+  it('shows the API error when the person has no email', async () => {
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': ok(everyone),
+      'PATCH /api/auth/people/p4/access': () => ({
+        status: 400,
+        body: { message: 'Add an email address before giving sign-in access' },
+      }),
+    });
+    const user = userEvent.setup();
+    renderAt('/people');
+    await user.click(await screen.findByRole('button', { name: 'Actions for Kim Lee' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Sign-in access/ }));
+    const dialog = await screen.findByRole('dialog');
+    await user.selectOptions(within(dialog).getByLabelText('Access'), 'viewer');
+    expect(within(dialog).getByText(/has no email address yet/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(
+      await within(dialog).findByText('Add an email address before giving sign-in access'),
+    ).toBeInTheDocument();
+  });
+
+  it('gets a sign-in link to copy, text or email', async () => {
+    const link = 'https://rigs.example.com/sign-in#token=abc';
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': ok(everyone),
+      'POST /api/auth/people/p3/link': () => ({
+        status: 201,
+        body: { link, email: 'sam@example.com', expiresAt: '2026-10-20T12:00:00.000Z' },
+      }),
+    });
+    const user = userEvent.setup();
+    renderAt('/people');
+    await user.click(await screen.findByRole('button', { name: 'Actions for Sam Jones' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Get sign-in link/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Sign-in link for Sam Jones' });
+    expect(within(dialog).getByRole('textbox', { name: 'Sign-in link' })).toHaveValue(link);
+    expect(within(dialog).getByText(/works once, until/)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Copy link' }));
+    expect(await within(dialog).findByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    expect(await navigator.clipboard.readText()).toBe(link);
+
+    const text = within(dialog).getByRole('link', { name: 'Text' });
+    expect(text.getAttribute('href')).toMatch(/^sms:/);
+    expect(decodeURIComponent(text.getAttribute('href')!)).toContain(link);
+    const email = within(dialog).getByRole('link', { name: 'Email' });
+    expect(email.getAttribute('href')).toMatch(/^mailto:sam@example\.com\?subject=Your%20RigTracker/);
+    expect(decodeURIComponent(email.getAttribute('href')!)).toContain(link);
+  });
+
+  it('signs someone out everywhere after asking', async () => {
+    const calls = mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': ok(everyone),
+      'POST /api/auth/people/p3/sign-out': ok({ ok: true }),
+    });
+    const user = userEvent.setup();
+    renderAt('/people');
+    await user.click(await screen.findByRole('button', { name: 'Actions for Sam Jones' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Sign out everywhere/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Sign out everywhere?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Sign out everywhere' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(calls.some((c) => c.key === 'POST /api/auth/people/p3/sign-out')).toBe(true);
+  });
+
+  it("can't remove your own admin role or delete yourself", async () => {
+    mockApi({ 'GET /api/auth/me': asAdmin, 'GET /api/people': ok(everyone) });
+    const user = userEvent.setup();
+    renderAt('/people');
+    await user.click(await screen.findByRole('button', { name: 'Actions for Brian B' }));
+    expect(await screen.findByRole('menuitem', { name: /Get sign-in link/ })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Delete/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: /Sign-in access/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/can't remove your own admin role/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('option', { name: 'No sign-in' })).toBeDisabled();
+    expect(within(dialog).getByRole('option', { name: /^User/ })).toBeDisabled();
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Sam Jones' }));
+    expect(await screen.findByRole('menuitem', { name: /Delete/ })).toBeInTheDocument();
+  });
+
+  it('shows access on the person page, with no Delete for yourself', async () => {
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people/u1': ok(self),
+      'GET /api/rigs': ok([]),
+      'GET /api/gear': ok([]),
+    });
+    const user = userEvent.setup();
+    renderAt('/people/u1');
+    expect(await screen.findByRole('heading', { name: 'Brian B' })).toBeInTheDocument();
+    expect(screen.getByText('You')).toBeInTheDocument();
+    expect(screen.getByText('Admin')).toBeInTheDocument();
+    expect(screen.getByText(/Last signed in .* · 4 sign-ins/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Actions for Brian B' }));
+    expect(await screen.findByRole('menuitem', { name: /Sign-in access/ })).toBeInTheDocument();
+  });
+
+  it('requires an email for someone who signs in', async () => {
+    const calls = mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': ok(everyone),
+      'PUT /api/people/p3': ok(sam),
+    });
+    const user = userEvent.setup();
+    renderAt('/people');
+    await user.click(await screen.findByRole('button', { name: 'Actions for Sam Jones' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Edit/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Used to sign in')).toBeInTheDocument();
+    await user.clear(within(dialog).getByLabelText('Email'));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(within(dialog).getByText(/Enter an email address/)).toBeInTheDocument();
+    expect(calls.some((c) => c.key === 'PUT /api/people/p3')).toBe(false);
+  });
+
+  it('shows non-admins badges but no sign-in actions', async () => {
+    mockApi({ 'GET /api/auth/me': asUser, 'GET /api/people': ok(everyone) });
+    const user = userEvent.setup();
+    renderAt('/people');
+    await screen.findByRole('link', { name: 'Sam Jones' });
+    expect(within(card('Sam Jones')).getByText('User')).toBeInTheDocument();
+    expect(screen.queryByText(/signed in/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sign-in link works once/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Actions for Sam Jones' }));
+    expect(await screen.findByRole('menuitem', { name: /Edit/ })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Sign-in access/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Get sign-in link/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Sign out everywhere/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Delete/ })).not.toBeInTheDocument();
+  });
+
+  it('sends /users to People', async () => {
+    mockApi({ 'GET /api/auth/me': asAdmin, 'GET /api/people': ok(everyone) });
+    const router = renderAt('/users');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/people'));
+    expect(await screen.findByRole('link', { name: 'Sam Jones' })).toBeInTheDocument();
+    expect(screen.queryByText('Users and sign-in')).not.toBeInTheDocument();
   });
 });

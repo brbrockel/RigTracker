@@ -5,7 +5,7 @@ import { Document, Types } from 'mongoose'
 @Schema({ timestamps: true, collection: 'sign_in_links' })
 export class SignInLink {
   @Prop({ required: true, unique: true }) tokenHash!: string
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true }) userId!: Types.ObjectId
+  @Prop({ type: Types.ObjectId, ref: 'Person', required: true, index: true }) userId!: Types.ObjectId
   @Prop({ required: true }) expiresAt!: Date
   @Prop() usedAt?: Date
   /** Admin who made it; empty when made with the command-line script. */

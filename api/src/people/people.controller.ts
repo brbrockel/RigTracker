@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Req } from '@nestjs/common'
+import { Controller, Get, Post, Put, Delete, Param, Body, Req, ForbiddenException } from '@nestjs/common'
 import { PeopleService } from './people.service'
 import { RequireRoles } from '../auth/roles.decorator'
 import { AuditService } from '../audit/audit.service'
@@ -33,7 +33,7 @@ export class PeopleController {
   @RequireRoles('user', 'admin')
   async update(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
     const result = await this.peopleService.update(id, dto)
-    const name = [dto.firstName, dto.lastName].filter(Boolean).join(' ')
+    const name = [result.firstName, result.lastName].filter(Boolean).join(' ')
     await this.auditService.log({ action: 'UPDATE', resource: 'people', resourceId: id, resourceName: name, actor: req.authUser })
     return result
   }
@@ -41,8 +41,10 @@ export class PeopleController {
   @Delete(':id')
   @RequireRoles('admin')
   async remove(@Param('id') id: string, @Req() req: any) {
+    if (req.authUser?.id === id) throw new ForbiddenException("You can't delete yourself")
+    const person = await this.peopleService.findOne(id)
     const result = await this.peopleService.remove(id)
-    await this.auditService.log({ action: 'DELETE', resource: 'people', resourceId: id, actor: req.authUser })
+    await this.auditService.log({ action: 'DELETE', resource: 'people', resourceId: id, resourceName: [person.firstName, person.lastName].filter(Boolean).join(' '), actor: req.authUser })
     return result
   }
 }

@@ -1,5 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Link2Off, Package, Pencil, Phone, Plus, Trash2, Wrench } from 'lucide-react';
+import {
+  ArrowLeft,
+  KeyRound,
+  Link2Off,
+  LogOut,
+  Package,
+  Pencil,
+  Phone,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  Wrench,
+} from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useUser } from '@/auth/session';
@@ -10,6 +22,7 @@ import { RowMenu } from '@/components/RowMenu';
 import { Thumb } from '@/components/Thumb';
 import { addressLine, ContactLinks, fullName } from '@/components/people/ContactLinks';
 import { PersonDialog } from '@/components/people/PersonDialog';
+import { AccessBadges, lastSignInText, useSignInActions } from '@/components/people/SignInAccess';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +34,7 @@ import {
   api,
   ApiError,
   canDelete,
+  canSignIn,
   canWrite,
   errorMessage,
   formatDate,
@@ -44,6 +58,7 @@ export function PersonPage() {
   const [deleting, setDeleting] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [unassigning, setUnassigning] = useState<Gear | null>(null);
+  const signIn = useSignInActions();
 
   const rigById = useMemo(
     () => new Map((rigs.data ?? []).map((r) => [r._id, r] as const)),
@@ -106,6 +121,8 @@ export function PersonPage() {
   const p = person.data;
   const name = fullName(p);
   const writer = canWrite(user);
+  const admin = canDelete(user);
+  const isSelf = p._id === user?.id;
   const address = addressLine(p.address);
   const contacts = (p.emergencyContacts ?? []).filter((c) => c.name || c.phone);
 
@@ -114,15 +131,42 @@ export function PersonPage() {
       {back}
       <PageHeader
         title={name}
+        subtitle={
+          <span className="mt-1 flex flex-wrap items-center gap-2">
+            <AccessBadges person={p} isSelf={isSelf} />
+            {!p.roles?.length && admin && <span>No sign-in</span>}
+            {admin && !!p.roles?.length && <span className="text-xs">{lastSignInText(p)}</span>}
+          </span>
+        }
         action={
-          (writer || canDelete(user)) && (
+          (writer || admin) && (
             <>
               {writer && (
                 <Button variant="outline" onClick={() => setEditing(true)}>
                   <Pencil /> Edit
                 </Button>
               )}
-              {canDelete(user) && (
+              {admin && (
+                <RowMenu label={name}>
+                  <DropdownMenuItem onSelect={() => signIn.editAccess(p)}>
+                    <ShieldCheck /> Sign-in access…
+                  </DropdownMenuItem>
+                  {canSignIn(p) && (
+                    <>
+                      <DropdownMenuItem
+                        disabled={signIn.linkPending}
+                        onSelect={() => signIn.getLink(p)}
+                      >
+                        <KeyRound /> Get sign-in link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => signIn.signOut(p)}>
+                        <LogOut /> Sign out everywhere
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </RowMenu>
+              )}
+              {admin && !isSelf && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -137,6 +181,8 @@ export function PersonPage() {
           )
         }
       />
+
+      {signIn.error && <Alert variant="destructive">{signIn.error}</Alert>}
 
       <Card>
         <CardContent className="flex flex-col gap-4 pt-5">
@@ -275,6 +321,7 @@ export function PersonPage() {
       </Card>
 
       {editing && <PersonDialog person={p} onClose={() => setEditing(false)} />}
+      {signIn.dialogs}
       {assigning && (
         <AssignGearDialog
           person={p}

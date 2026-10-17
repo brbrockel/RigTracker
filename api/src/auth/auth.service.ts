@@ -1,7 +1,7 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
-import { User, UserDocument } from './user.schema'
+import { Person, PersonDocument } from '../people/person.schema'
 import { Session, SessionDocument } from './session.schema'
 import { SignInLink, SignInLinkDocument } from './sign-in-link.schema'
 import { SIGN_IN_LINK_TTL_MS, hashToken, newToken } from './tokens'
@@ -10,10 +10,14 @@ export const SESSION_COOKIE_NAME = 'rigtracker_session'
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30
 
+export const ROLES = ['admin', 'user', 'viewer'] as const
+export type Role = (typeof ROLES)[number]
+
+/** Signed-in people are people records with a role; sessions and links point at the person. */
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Person.name) private personModel: Model<PersonDocument>,
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     @InjectModel(SignInLink.name) private linkModel: Model<SignInLinkDocument>,
   ) {}
@@ -26,14 +30,19 @@ export class AuthService {
     return SESSION_COOKIE_NAME
   }
 
-  /** Makes a single-use sign-in link token for an active user. */
-  async createSignInLink(userId: string, createdByEmail?: string) {
-    const user = await this.userModel.findById(userId).lean()
-    if (!user || user.isActive === false) throw new NotFoundException('User not found')
+  private canSignIn(p: { roles?: string[]; isActive?: boolean; email?: string } | null | undefined) {
+    return !!p && !!p.roles?.length && p.isActive !== false && !!p.email
+  }
+
+  /** Makes a single-use sign-in link token for someone with sign-in access. */
+  async createSignInLink(personId: string, createdByEmail?: string) {
+    const person = await this.personModel.findById(personId).lean()
+    if (!person) throw new NotFoundException('Person not found')
+    if (!this.canSignIn(person)) throw new BadRequestException('Give this person sign-in access first')
     const token = newToken()
     const expiresAt = new Date(Date.now() + SIGN_IN_LINK_TTL_MS)
-    await this.linkModel.create({ tokenHash: hashToken(token), userId: user._id, expiresAt, createdByEmail })
-    return { token, expiresAt, user: this.mapUser(user) }
+    await this.linkModel.create({ tokenHash: hashToken(token), userId: person._id, expiresAt, createdByEmail })
+    return { token, expiresAt, user: this.mapUser(person) }
   }
 
   /** Who a link is for, without using it up (so a phone previewing the link can't spoil it). */
@@ -44,9 +53,10 @@ export class AuthService {
       expiresAt: { $gt: new Date() },
     }).lean()
     if (!link) return null
-    const user = await this.userModel.findById(link.userId).lean()
-    if (!user || user.isActive === false) return null
-    return { email: user.email || '', displayName: user.displayName || '' }
+    const person = await this.personModel.findById(link.userId).lean()
+    if (!this.canSignIn(person)) return null
+    const user = this.mapUser(person)
+    return { email: user.email, displayName: user.displayName }
   }
 
   /** Uses up a link and starts a session. Returns null for an unknown, used or expired link. */
@@ -57,27 +67,28 @@ export class AuthService {
       { new: true },
     ).lean()
     if (!link) return null
-    const user = await this.userModel.findById(link.userId)
-    if (!user || user.isActive === false) return null
-
-    user.lastLoginAt = new Date()
-    user.loginCount = (user.loginCount || 0) + 1
-    user.lastLoginIp = meta.ip
-    user.lastUserAgent = meta.userAgent
-    await user.save()
+    const person = await this.personModel.findByIdAndUpdate(
+      link.userId,
+      {
+        $set: { lastLoginAt: new Date(), lastLoginIp: meta.ip, lastUserAgent: meta.userAgent },
+        $inc: { loginCount: 1 },
+      },
+      { new: true },
+    ).lean()
+    if (!this.canSignIn(person)) return null
 
     const sessionToken = newToken()
-    const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
     const csrfToken = newToken()
+    const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
     await this.sessionModel.create({
       sessionId: hashToken(sessionToken),
-      userId: user._id as Types.ObjectId,
+      userId: person!._id as Types.ObjectId,
       expiresAt,
       csrfToken,
       ip: meta.ip,
       userAgent: meta.userAgent,
     })
-    return { sessionToken, csrfToken, expiresAt, user: this.mapUser(user) }
+    return { sessionToken, csrfToken, expiresAt, user: this.mapUser(person) }
   }
 
   async getAuthenticatedUser(sessionToken?: string) {
@@ -90,8 +101,8 @@ export class AuthService {
     }).lean()
     if (!session?.userId) return null
 
-    const user = await this.userModel.findById(session.userId).lean()
-    if (!user || user.isActive === false) return null
+    const person = await this.personModel.findById(session.userId).lean()
+    if (!this.canSignIn(person)) return null
 
     let csrfToken = session.csrfToken
     if (!csrfToken) {
@@ -101,7 +112,7 @@ export class AuthService {
     }
 
     return {
-      user: this.mapUser(user),
+      user: this.mapUser(person),
       expiresAt: session.expiresAt,
       csrfToken,
     }
@@ -117,33 +128,32 @@ export class AuthService {
   }
 
   /** Signs someone out on every device. */
-  async revokeAllSessions(userId: string) {
+  async revokeAllSessions(personId: string) {
     await this.sessionModel.updateMany(
-      { userId: new Types.ObjectId(userId), revokedAt: { $exists: false } },
+      { userId: new Types.ObjectId(personId), revokedAt: { $exists: false } },
       { $set: { revokedAt: new Date() } },
     )
   }
 
-  async listUsers() {
-    const users = await this.userModel.find({}).lean()
-    return users.map((u) => this.mapUser(u))
-  }
-
-  async setUserRole(userId: string, role: string) {
-    const user = await this.userModel.findByIdAndUpdate(
-      userId,
-      { $set: { roles: [role] } },
-      { new: true },
-    ).lean()
-    if (!user) throw new NotFoundException('User not found')
-    return this.mapUser(user)
-  }
-
-  async addUser(email: string, role: 'user' | 'admin', displayName?: string) {
-    const existing = await this.userModel.findOne({ email }).lean()
-    if (existing) throw new ConflictException('That email address has already been added')
-    const user = await this.userModel.create({ provider: 'link', email, displayName, roles: [role], isActive: true })
-    return this.mapUser(user)
+  /**
+   * Gives a person sign-in access with a role, or takes it away (null), which also signs them
+   * out everywhere. They need an email address that no one else who signs in uses.
+   */
+  async setAccess(personId: string, role: Role | null) {
+    const person = await this.personModel.findById(personId).lean()
+    if (!person) throw new NotFoundException('Person not found')
+    if (role) {
+      if (!person.email) throw new BadRequestException('Add an email address before giving sign-in access')
+      const other = await this.personModel
+        .findOne({ _id: { $ne: person._id }, email: person.email, 'roles.0': { $exists: true } })
+        .lean()
+      if (other) throw new ConflictException('Another person who signs in already uses that email')
+    }
+    const updated = await this.personModel
+      .findByIdAndUpdate(personId, { $set: { roles: role ? [role] : [], isActive: true } }, { new: true })
+      .lean()
+    if (!role) await this.revokeAllSessions(personId)
+    return updated
   }
 
   extractCookie(cookieHeader: string | undefined, name: string): string | undefined {
@@ -167,15 +177,15 @@ export class AuthService {
     return undefined
   }
 
-  private mapUser(user: any) {
+  private mapUser(person: any) {
     return {
-      id: String(user._id || user.id || ''),
-      email: user.email || '',
-      displayName: user.displayName || '',
-      roles: Array.isArray(user.roles) ? user.roles : [],
-      isActive: user.isActive !== false,
-      lastLoginAt: user.lastLoginAt || null,
-      loginCount: user.loginCount || 0,
+      id: String(person._id || person.id || ''),
+      email: person.email || '',
+      displayName: [person.firstName, person.lastName].filter(Boolean).join(' '),
+      roles: Array.isArray(person.roles) ? person.roles : [],
+      isActive: person.isActive !== false,
+      lastLoginAt: person.lastLoginAt || null,
+      loginCount: person.loginCount || 0,
     }
   }
 }
