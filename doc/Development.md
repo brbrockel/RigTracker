@@ -77,22 +77,24 @@ Environment variable reference:
 | `RIGTRACKER_API_BASE` | Optional | Web | API base URL override; keep empty for same-origin deployments behind nginx. | `` |
 | `GITHUB_GHCR_TOKEN` | Yes for deploy script | Build/deploy script | Auth token used by `./build.sh --deploy` to push to GHCR. | `ghp_xxx` |
 
-Implemented now for EH-001 starter (Google auth API + persisted sessions):
+Sign-in:
 
 | Variable | Required | Used By | Purpose | Example |
 | --- | --- | --- | --- | --- |
-| `GOOGLE_CLIENT_ID` | Yes (EH-001) | API auth module | Google OAuth client identifier for login redirects and token validation. | `1234567890-abc123.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` / `GOOGLE_CLIENT_SECRET_FILE` | Yes (EH-001) | API auth module | Google OAuth client secret used during callback token exchange. Use the `_FILE` form with a Docker secret in production. | `GOCSPX-...` |
-| `AUTH_GOOGLE_CALLBACK_URL` | Yes (EH-001) | API auth module | Exact callback URL registered in Google OAuth client config. | `https://rigtracker.bhbslp.org/api/auth/google/callback` |
-| `AUTH_SUCCESS_REDIRECT` | Optional | API auth module | Redirect target after successful Google login. | `/` |
-| `AUTH_FAILURE_REDIRECT` | Optional | API auth module | Redirect target after failed Google login. | `/?auth=failed` |
-| `AUTH_ALLOWED_EMAILS` | Optional | API auth module | Comma-separated emails that may sign in without being added first. Needed once, to let the first admin in on an empty database. | `you@gmail.com` |
-| `AUTH_ALLOWED_EMAIL_DOMAIN` | Optional | API auth module | Comma-separated domains whose verified Google accounts may sign in. | `example.org` |
+| `APP_URL` | Yes in production | API, `sign-in-link` script | Base URL that sign-in links point at. Without it, links made on Settings use the site the admin is on; the script refuses to run. | `https://rigtracker.bhbslp.org` |
 
 Access rules:
 
-- Every API route and every file under `/uploads` needs a signed-in session, except the sign-in routes (`/api/auth/google`, `/api/auth/google/callback`, `/api/auth/me`, `/api/auth/logout`).
-- Sign-in is closed by default. A Google account gets in only if an admin added its email on **Settings**, or it matches `AUTH_ALLOWED_EMAILS` / `AUTH_ALLOWED_EMAIL_DOMAIN`. The Google email must be verified.
+- Every API route and every file under `/uploads` needs a signed-in session, except the sign-in routes (`/api/auth/link/check`, `/api/auth/link/redeem`, `/api/auth/me`, `/api/auth/logout`).
+- There is no Google sign-in or password. An admin adds the person on **Settings**, then **Sign-in link** gives a single-use link (valid 72 hours) to copy, text or email. Opening the link shows who it's for; pressing **Sign in** uses it up and starts a 30-day session. Only hashes of link and session tokens are stored.
+- First admin, or if no admin can sign in:
+
+  ```bash
+  docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com --admin "Your Name"
+  ```
+
+  Without `--admin` it prints a link for an existing user. Locally: `APP_URL=http://localhost:5173 node api/dist/scripts/sign-in-link.js you@example.com`.
+- Sign-ins, sign-outs, links made and role changes are in the audit log. **Sign out everywhere** on Settings ends all of someone's sessions.
 - Writes (`POST`/`PUT`/`PATCH`/`DELETE`) from another site are refused (`Origin` must match the host).
 - Uploads are checked by content, not name: images are re-encoded to JPEG (no EXIF or GPS), and videos are kept only as MP4, MOV or WebM.
 

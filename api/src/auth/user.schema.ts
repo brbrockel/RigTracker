@@ -3,11 +3,9 @@ import { Document } from 'mongoose'
 
 @Schema({ timestamps: true, collection: 'users' })
 export class User {
-  @Prop({ default: 'google' }) provider?: string
-  @Prop({ unique: true, sparse: true }) googleId?: string
+  @Prop({ default: 'link' }) provider?: string
   @Prop({ unique: true, sparse: true }) email?: string
   @Prop() displayName?: string
-  @Prop() pictureUrl?: string
   @Prop({ type: [String], default: ['viewer'] }) roles?: string[]
   @Prop({ default: true }) isActive?: boolean
   @Prop() lastLoginAt?: Date

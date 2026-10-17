@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react'
-import { Alert, Layout, Button, Typography, Menu, Grid, Space, message } from 'antd'
+import { Layout, Button, Typography, Menu, Grid, Space, message } from 'antd'
 import {
   GithubOutlined,
   DashboardOutlined,
@@ -23,6 +23,7 @@ const EventsPage = lazy(() => import('./pages/EventsPage'))
 const EventDetailPage = lazy(() => import('./pages/EventDetailPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const AuditPage = lazy(() => import('./pages/AuditPage'))
+const SignInLinkPage = lazy(() => import('./pages/SignInLinkPage'))
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 
 // Static assets are served from /img (web/public/img)
@@ -47,22 +48,14 @@ function HomePage() {
   )
 }
 
-function SignInCard({ onSignIn }: { onSignIn: () => void }) {
-  const failed = new URLSearchParams(window.location.search).get('auth') === 'failed'
+function SignInCard() {
   return (
     <div className="rt-home-card">
       <Typography.Title level={3} style={{ marginTop: 0 }}>Sign in to RigTracker</Typography.Title>
-      {failed ? (
-        <Alert
-          type="error"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="Sign-in didn't work"
-          description="Your Google account may not have been added yet. Ask a RigTracker admin to add your email address."
-        />
-      ) : null}
       <Typography.Paragraph>Rigs, gear, events and people records are for signed-in members only.</Typography.Paragraph>
-      <Button type="primary" onClick={onSignIn}>Sign In with Google</Button>
+      <Typography.Paragraph style={{ marginBottom: 0 }}>
+        To sign in, ask a RigTracker admin for a sign-in link. Open it on this device; each link works once.
+      </Typography.Paragraph>
     </div>
   )
 }
@@ -152,9 +145,6 @@ export default function App() {
     }
   }
 
-  function startGoogleLogin() {
-    window.location.href = `${API_BASE}/api/auth/google`
-  }
 
   return (
     <Layout className="rt-app-shell" style={{ minHeight: '100vh' }}>
@@ -222,10 +212,14 @@ export default function App() {
         </Header>
 
         <Content style={{ padding: 20 }}>
-          {loadingAuth ? (
+          {location.pathname === '/sign-in' ? (
+            <Suspense fallback={<div className="rt-home-card"><Typography.Text>Loading...</Typography.Text></div>}>
+              <SignInLinkPage onSignedIn={() => { navigate('/', { replace: true }); loadAuthState() }} />
+            </Suspense>
+          ) : loadingAuth ? (
             <div className="rt-home-card"><Typography.Text>Loading...</Typography.Text></div>
           ) : !authUser ? (
-            <SignInCard onSignIn={startGoogleLogin} />
+            <SignInCard />
           ) : (
           <Suspense fallback={<div className="rt-home-card"><Typography.Text>Loading page...</Typography.Text></div>}>
             <Routes>

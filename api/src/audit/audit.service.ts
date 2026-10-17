@@ -11,7 +11,7 @@ export interface AuditActor {
 }
 
 export interface LogParams {
-  action: 'CREATE' | 'UPDATE' | 'DELETE'
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'SIGN_IN' | 'SIGN_OUT' | 'SIGN_IN_LINK'
   resource: string
   resourceId: string
   resourceName?: string

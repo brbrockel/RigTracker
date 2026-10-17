@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Button, Input, Space, Table, Select, Typography, message, Grid, Tag } from 'antd'
+import { Button, Input, Modal, Popconfirm, Space, Table, Select, Typography, message, Grid, Tag } from 'antd'
+import { smsHref } from '../lib/sms'
 
 const API_BASE = (window as any).__RIGTRACKER_API_BASE || (import.meta as any).env?.VITE_API_BASE || ''
 const { useBreakpoint } = Grid
@@ -8,7 +9,6 @@ type AppUser = {
   id: string
   email: string
   displayName: string
-  pictureUrl?: string
   roles: string[]
   isActive: boolean
   lastLoginAt: string | null
@@ -21,7 +21,10 @@ export default function SettingsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState('user')
+  const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
+  const [linkFor, setLinkFor] = useState<string | null>(null)
+  const [linkInfo, setLinkInfo] = useState<{ link: string; email: string; expiresAt: string } | null>(null)
   const screens = useBreakpoint()
   const isMobile = !screens.md
 
@@ -77,7 +80,7 @@ export default function SettingsPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail.trim(), role: newRole }),
+        body: JSON.stringify({ email: newEmail.trim(), role: newRole, displayName: newName.trim() }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -86,12 +89,54 @@ export default function SettingsPage() {
       const added: AppUser = await res.json()
       setUsers((prev) => [...prev, added])
       setNewEmail('')
-      message.success(`${added.email} can now sign in with Google`)
+      setNewName('')
+      message.success(`Added ${added.email}. Use Sign-in link to send them a link.`)
     } catch (err: any) {
       message.error(err?.message || 'Failed to add user')
     } finally {
       setAdding(false)
     }
+  }
+
+  async function getLink(u: AppUser) {
+    setLinkFor(u.id)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/users/${u.id}/link`, { method: 'POST', credentials: 'include' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.message || 'Failed to make a sign-in link')
+      setLinkInfo(data)
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to make a sign-in link')
+    } finally {
+      setLinkFor(null)
+    }
+  }
+
+  async function signOutEverywhere(u: AppUser) {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/users/${u.id}/sign-out`, { method: 'POST', credentials: 'include' })
+      if (!res.ok) throw new Error()
+      message.success(`${u.displayName || u.email} is signed out on every device`)
+    } catch {
+      message.error('Failed to sign out')
+    }
+  }
+
+  const linkMessage = linkInfo
+    ? `Your RigTracker sign-in link (works once, for 72 hours): ${linkInfo.link}`
+    : ''
+
+  const actionsColumn = {
+    title: 'Actions',
+    key: 'actions',
+    render: (_: any, u: AppUser) => (
+      <Space wrap size={4}>
+        <Button size="small" loading={linkFor === u.id} disabled={!u.isActive} onClick={() => getLink(u)}>Sign-in link</Button>
+        <Popconfirm title={`Sign ${u.displayName || u.email} out on every device?`} onConfirm={() => signOutEverywhere(u)}>
+          <Button size="small">Sign out everywhere</Button>
+        </Popconfirm>
+      </Space>
+    ),
   }
 
   const desktopColumns = [
@@ -158,6 +203,7 @@ export default function SettingsPage() {
       width: 80,
       sorter: (a: AppUser, b: AppUser) => Number(a.loginCount || 0) - Number(b.loginCount || 0),
     },
+    actionsColumn,
   ]
 
   const mobileColumns = [
@@ -193,15 +239,23 @@ export default function SettingsPage() {
         )
       },
     },
+    actionsColumn,
   ]
 
   return (
     <div style={{ background: 'rgba(255,255,255,0.95)', padding: isMobile ? 10 : 16, borderRadius: 8 }}>
       <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 8 }}>User Management</Typography.Title>
       <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-        Only people added here can sign in. Add their Google account email address.
+        Only people added here can sign in. Add them, then use <strong>Sign-in link</strong> to text or email them a link. Each link works once and expires after 72 hours.
       </Typography.Paragraph>
-      <Space.Compact style={{ width: '100%', maxWidth: 520, marginBottom: 16 }}>
+      <Space.Compact direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%', maxWidth: 680, marginBottom: 16 }}>
+        <Input
+          placeholder="Name (optional)"
+          aria-label="Name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          style={isMobile ? undefined : { maxWidth: 200 }}
+        />
         <Input
           type="email"
           placeholder="name@example.com"
@@ -232,6 +286,31 @@ export default function SettingsPage() {
         scroll={{ x: 'max-content' }}
         pagination={{ pageSize: 20, showSizeChanger: false, size: 'default' }}
       />
+      <Modal
+        open={!!linkInfo}
+        title={linkInfo ? `Sign-in link for ${linkInfo.email}` : ''}
+        onCancel={() => setLinkInfo(null)}
+        footer={<Button onClick={() => setLinkInfo(null)}>Done</Button>}
+      >
+        {linkInfo ? (
+          <>
+            <Typography.Paragraph type="secondary">
+              Works once, until {new Date(linkInfo.expiresAt).toLocaleString()}. Anyone with the link can sign in as this person, so send it only to them.
+            </Typography.Paragraph>
+            <Input.TextArea value={linkInfo.link} readOnly autoSize aria-label="Sign-in link" onFocus={(e) => e.target.select()} />
+            <Space wrap style={{ marginTop: 12 }}>
+              <Button
+                type="primary"
+                onClick={() => navigator.clipboard.writeText(linkInfo.link).then(() => message.success('Link copied'), () => message.error('Copy failed; select the link and copy it'))}
+              >
+                Copy link
+              </Button>
+              <Button href={smsHref([], linkMessage)}>Text</Button>
+              <Button href={`mailto:${encodeURIComponent(linkInfo.email)}?subject=${encodeURIComponent('Your RigTracker sign-in link')}&body=${encodeURIComponent(linkMessage)}`}>Email</Button>
+            </Space>
+          </>
+        ) : null}
+      </Modal>
     </div>
   )
 }

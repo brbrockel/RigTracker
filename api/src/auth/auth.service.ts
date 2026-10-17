@@ -1,146 +1,88 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common'
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
-import { randomBytes } from 'crypto'
 import { User, UserDocument } from './user.schema'
 import { Session, SessionDocument } from './session.schema'
-import { readSecret } from '../common/secrets'
+import { SignInLink, SignInLinkDocument } from './sign-in-link.schema'
+import { SIGN_IN_LINK_TTL_MS, hashToken, newToken } from './tokens'
 
 export const SESSION_COOKIE_NAME = 'rigtracker_session'
-export const OAUTH_STATE_COOKIE_NAME = 'rigtracker_oauth_state'
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30
-const OAUTH_STATE_DURATION_MS = 1000 * 60 * 10
-
-interface GoogleTokenResponse {
-  access_token?: string
-  id_token?: string
-  error?: string
-  error_description?: string
-}
-
-interface GoogleUserInfo {
-  sub?: string
-  email?: string
-  email_verified?: boolean
-  name?: string
-  picture?: string
-}
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
+    @InjectModel(SignInLink.name) private linkModel: Model<SignInLinkDocument>,
   ) {}
 
   getSessionDurationMs() {
     return SESSION_DURATION_MS
   }
 
-  getOAuthStateDurationMs() {
-    return OAUTH_STATE_DURATION_MS
-  }
-
   getSessionCookieName() {
     return SESSION_COOKIE_NAME
   }
 
-  getOAuthStateCookieName() {
-    return OAUTH_STATE_COOKIE_NAME
+  /** Makes a single-use sign-in link token for an active user. */
+  async createSignInLink(userId: string, createdByEmail?: string) {
+    const user = await this.userModel.findById(userId).lean()
+    if (!user || user.isActive === false) throw new NotFoundException('User not found')
+    const token = newToken()
+    const expiresAt = new Date(Date.now() + SIGN_IN_LINK_TTL_MS)
+    await this.linkModel.create({ tokenHash: hashToken(token), userId: user._id, expiresAt, createdByEmail })
+    return { token, expiresAt, user: this.mapUser(user) }
   }
 
-  createGoogleAuthRequest() {
-    const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
-    const callbackUrl = process.env.AUTH_GOOGLE_CALLBACK_URL?.trim()
-    if (!clientId || !callbackUrl) {
-      throw new InternalServerErrorException('Google auth is not configured')
-    }
-
-    const state = this.randomToken(24)
-    const scope = encodeURIComponent('openid email profile')
-    const redirectUri = encodeURIComponent(callbackUrl)
-    const url =
-      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}` +
-      `&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${encodeURIComponent(state)}` +
-      '&prompt=select_account'
-
-    return { url, state }
+  /** Who a link is for, without using it up (so a phone previewing the link can't spoil it). */
+  async peekSignInLink(token: string) {
+    const link = await this.linkModel.findOne({
+      tokenHash: hashToken(token),
+      usedAt: { $exists: false },
+      expiresAt: { $gt: new Date() },
+    }).lean()
+    if (!link) return null
+    const user = await this.userModel.findById(link.userId).lean()
+    if (!user || user.isActive === false) return null
+    return { email: user.email || '', displayName: user.displayName || '' }
   }
 
-  async exchangeGoogleCodeForSession(params: {
-    code?: string
-    state?: string
-    expectedState?: string
-    ip?: string
-    userAgent?: string
-  }) {
-    const code = params.code?.trim()
-    const state = params.state?.trim()
-    const expectedState = params.expectedState?.trim()
-    if (!code) {
-      throw new BadRequestException('Missing OAuth code')
-    }
-    if (!state || !expectedState || state !== expectedState) {
-      throw new UnauthorizedException('Invalid OAuth state')
-    }
+  /** Uses up a link and starts a session. Returns null for an unknown, used or expired link. */
+  async redeemSignInLink(token: string, meta: { ip?: string; userAgent?: string }) {
+    const link = await this.linkModel.findOneAndUpdate(
+      { tokenHash: hashToken(token), usedAt: { $exists: false }, expiresAt: { $gt: new Date() } },
+      { $set: { usedAt: new Date() } },
+      { new: true },
+    ).lean()
+    if (!link) return null
+    const user = await this.userModel.findById(link.userId)
+    if (!user || user.isActive === false) return null
 
-    const token = await this.fetchGoogleToken(code)
-    const accessToken = token.access_token?.trim()
-    if (!accessToken) {
-      throw new UnauthorizedException('Failed to obtain Google access token')
-    }
+    user.lastLoginAt = new Date()
+    user.loginCount = (user.loginCount || 0) + 1
+    user.lastLoginIp = meta.ip
+    user.lastUserAgent = meta.userAgent
+    await user.save()
 
-    const profile = await this.fetchGoogleUserInfo(accessToken)
-    const googleId = profile.sub?.trim()
-    const email = profile.email?.trim().toLowerCase()
-    if (!googleId || !email) {
-      throw new UnauthorizedException('Google profile data incomplete')
-    }
-    if (profile.email_verified !== true) {
-      throw new UnauthorizedException('Google email address is not verified')
-    }
-    const known = await this.findKnownUser(googleId, email)
-    if (known?.isActive === false) {
-      throw new UnauthorizedException('This account is disabled')
-    }
-    if (!known && !this.isEmailAllowed(email)) {
-      throw new UnauthorizedException('This account is not allowed to access RigTracker')
-    }
-
-    const user = await this.upsertUser({
-      googleId,
-      email,
-      displayName: profile.name?.trim(),
-      pictureUrl: profile.picture?.trim(),
-      ip: params.ip,
-      userAgent: params.userAgent,
-    })
-
-    const sessionId = this.randomToken(48)
-    const now = new Date()
-    const expiresAt = new Date(now.getTime() + SESSION_DURATION_MS)
-
+    const sessionToken = newToken()
+    const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
     await this.sessionModel.create({
-      sessionId,
+      sessionId: hashToken(sessionToken),
       userId: user._id as Types.ObjectId,
       expiresAt,
-      ip: params.ip,
-      userAgent: params.userAgent,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
     })
-
-    return {
-      sessionId,
-      expiresAt,
-      user: this.mapUser(user),
-    }
+    return { sessionToken, expiresAt, user: this.mapUser(user) }
   }
 
-  async getAuthenticatedUser(sessionId?: string) {
-    if (!sessionId) return null
+  async getAuthenticatedUser(sessionToken?: string) {
+    if (!sessionToken) return null
     const now = new Date()
     const session = await this.sessionModel.findOne({
-      sessionId,
+      sessionId: hashToken(sessionToken),
       revokedAt: { $exists: false },
       expiresAt: { $gt: now },
     }).lean()
@@ -155,13 +97,21 @@ export class AuthService {
     }
   }
 
-  async logout(sessionId?: string) {
-    if (!sessionId) return { ok: true }
+  async logout(sessionToken?: string) {
+    if (!sessionToken) return { ok: true }
     await this.sessionModel.updateOne(
-      { sessionId, revokedAt: { $exists: false } },
+      { sessionId: hashToken(sessionToken), revokedAt: { $exists: false } },
       { $set: { revokedAt: new Date() } },
     )
     return { ok: true }
+  }
+
+  /** Signs someone out on every device. */
+  async revokeAllSessions(userId: string) {
+    await this.sessionModel.updateMany(
+      { userId: new Types.ObjectId(userId), revokedAt: { $exists: false } },
+      { $set: { revokedAt: new Date() } },
+    )
   }
 
   async listUsers() {
@@ -179,18 +129,11 @@ export class AuthService {
     return this.mapUser(user)
   }
 
-  async addUser(email: string, role: 'user' | 'admin') {
+  async addUser(email: string, role: 'user' | 'admin', displayName?: string) {
     const existing = await this.userModel.findOne({ email }).lean()
     if (existing) throw new ConflictException('That email address has already been added')
-    const user = await this.userModel.create({ provider: 'google', email, roles: [role], isActive: true })
+    const user = await this.userModel.create({ provider: 'link', email, displayName, roles: [role], isActive: true })
     return this.mapUser(user)
-  }
-
-  /** A user already on file: by Google account, or by email for someone an admin added who hasn't signed in yet. */
-  private async findKnownUser(googleId: string, email: string) {
-    const byGoogleId = await this.userModel.findOne({ googleId })
-    if (byGoogleId) return byGoogleId
-    return this.userModel.findOne({ email, googleId: { $exists: false } })
   }
 
   extractCookie(cookieHeader: string | undefined, name: string): string | undefined {
@@ -214,126 +157,15 @@ export class AuthService {
     return undefined
   }
 
-  private randomToken(bytes: number) {
-    return randomBytes(bytes).toString('hex')
-  }
-
-  private async fetchGoogleToken(code: string): Promise<GoogleTokenResponse> {
-    const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
-    const clientSecret = readSecret('GOOGLE_CLIENT_SECRET')
-    const callbackUrl = process.env.AUTH_GOOGLE_CALLBACK_URL?.trim()
-    if (!clientId || !clientSecret || !callbackUrl) {
-      throw new InternalServerErrorException('Google auth is not configured')
-    }
-
-    const body = new URLSearchParams({
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: callbackUrl,
-      grant_type: 'authorization_code',
-    })
-
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
-    })
-    if (!response.ok) {
-      throw new UnauthorizedException('Google token exchange failed')
-    }
-    return (await response.json()) as GoogleTokenResponse
-  }
-
-  private async fetchGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
-    const response = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-    if (!response.ok) {
-      throw new UnauthorizedException('Google profile lookup failed')
-    }
-    return (await response.json()) as GoogleUserInfo
-  }
-
-  private async upsertUser(params: {
-    googleId: string
-    email: string
-    displayName?: string
-    pictureUrl?: string
-    ip?: string
-    userAgent?: string
-  }) {
-    const existing = await this.findKnownUser(params.googleId, params.email)
-
-    if (existing) {
-      existing.provider = 'google'
-      existing.googleId = params.googleId
-      existing.email = params.email
-      existing.displayName = params.displayName || existing.displayName
-      existing.pictureUrl = params.pictureUrl || existing.pictureUrl
-      existing.lastLoginAt = new Date()
-      existing.loginCount = (existing.loginCount || 0) + 1
-      existing.lastLoginIp = params.ip
-      existing.lastUserAgent = params.userAgent
-      if (existing.isActive === undefined) existing.isActive = true
-      if (!existing.roles || !existing.roles.length) existing.roles = ['user']
-      return existing.save()
-    }
-
-    const existingUsers = await this.userModel.countDocuments({})
-    const roles = existingUsers === 0 ? ['admin'] : ['user']
-
-    return this.userModel.create({
-      provider: 'google',
-      googleId: params.googleId,
-      email: params.email,
-      displayName: params.displayName,
-      pictureUrl: params.pictureUrl,
-      roles,
-      isActive: true,
-      lastLoginAt: new Date(),
-      loginCount: 1,
-      lastLoginIp: params.ip,
-      lastUserAgent: params.userAgent,
-    })
-  }
-
   private mapUser(user: any) {
     return {
       id: String(user._id || user.id || ''),
       email: user.email || '',
       displayName: user.displayName || '',
-      pictureUrl: user.pictureUrl || '',
       roles: Array.isArray(user.roles) ? user.roles : [],
       isActive: user.isActive !== false,
       lastLoginAt: user.lastLoginAt || null,
       loginCount: user.loginCount || 0,
     }
-  }
-
-  private isEmailAllowed(email: string): boolean {
-    const allowlistRaw = (process.env.AUTH_ALLOWED_EMAILS || '').trim()
-    const domainRaw = (process.env.AUTH_ALLOWED_EMAIL_DOMAIN || '').trim()
-    // Fail closed: with no allowlist, only people already added (by an admin) can sign in.
-    if (!allowlistRaw && !domainRaw) return false
-
-    const allowlist = new Set(
-      allowlistRaw
-        .split(',')
-        .map((item) => item.trim().toLowerCase())
-        .filter(Boolean),
-    )
-
-    const allowedDomains = domainRaw
-      .split(',')
-      .map((item) => item.trim().toLowerCase().replace(/^@+/, ''))
-      .filter(Boolean)
-
-    if (allowlist.has(email)) return true
-
-    const emailDomain = email.split('@')[1] || ''
-    if (allowedDomains.includes(emailDomain)) return true
-
-    return false
   }
 }
