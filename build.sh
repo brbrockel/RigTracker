@@ -46,5 +46,5 @@ docker push "$REPO:$VERSION"
 docker push "$REPO:latest"
 
 # A new tag means Swarm rolls the service onto it (no forced restarts needed).
-RIGTRACKER_TAG="$VERSION" docker stack deploy --prune -c "$STACK_FILE" rigtracker
+RIGTRACKER_TAG="$VERSION" docker stack deploy --prune --with-registry-auth -c "$STACK_FILE" rigtracker
 echo "Deployed $APP_VERSION"
