@@ -43,7 +43,7 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-40 border-b print:hidden bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <NavLink to="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <img src="/img/logo1.jpg" alt="" className="size-7 rounded-md object-cover" />
@@ -106,7 +106,7 @@ export function AppLayout() {
 
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden"
       >
         <div className="mx-auto flex max-w-md">
           {tabs.map((t) => (

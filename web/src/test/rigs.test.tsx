@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { asAdmin, asViewer, mockApi, renderAt } from './render';
 
 const DAY = 86_400_000;
@@ -27,6 +27,9 @@ const lists = {
 };
 
 describe('rigs list', () => {
+  // These check the card layout; the other layouts are covered in inventory.test.tsx.
+  beforeEach(() => localStorage.setItem('rigtracker.view.rigs', JSON.stringify({ view: 'cards' })));
+
   it('lists rigs with person and repack status, and search filters them', async () => {
     mockApi({ 'GET /api/auth/me': asAdmin, ...lists });
     renderAt('/rigs');

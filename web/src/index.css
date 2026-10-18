@@ -83,3 +83,55 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* Printing: black on white, no app chrome or controls (Tailwind's print:hidden or
+   data-print-hidden); list pages print their table. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  :root,
+  .dark {
+    color-scheme: light;
+    --background: #fff;
+    --foreground: #000;
+    --card: #fff;
+    --card-foreground: #000;
+    --popover: #fff;
+    --popover-foreground: #000;
+    --muted: #f2f2f2;
+    --muted-foreground: #333;
+    --secondary: #eee;
+    --secondary-foreground: #000;
+    --accent: #fff;
+    --accent-foreground: #000;
+    --border: #bbb;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  [data-print-hidden],
+  [role='menu'],
+  input[type='checkbox'] {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  table {
+    font-size: 10pt;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tr,
+  img {
+    break-inside: avoid;
+  }
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

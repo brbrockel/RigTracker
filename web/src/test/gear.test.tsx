@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { asAdmin, asUser, asViewer, mockApi, renderAt } from './render';
 
 const people = [{ _id: 'p1', firstName: 'Ann', lastName: 'Jumper' }];
@@ -17,6 +17,9 @@ const lists = {
 };
 
 describe('gear list', () => {
+  // These check the card layout; the other layouts are covered in inventory.test.tsx.
+  beforeEach(() => localStorage.setItem('rigtracker.view.gear', JSON.stringify({ view: 'cards' })));
+
   it('lists gear with its assignment, and search and filters narrow it', async () => {
     mockApi({ 'GET /api/auth/me': asUser, ...lists });
     renderAt('/gear');

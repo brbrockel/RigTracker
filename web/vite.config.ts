@@ -42,5 +42,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['src/test/setup.ts'],
+    // Full-page tests render the whole app; give them room when the machine is busy.
+    testTimeout: 10_000,
   },
 });

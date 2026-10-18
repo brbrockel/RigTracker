@@ -20,6 +20,7 @@ if (!window.matchMedia) {
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.restoreAllMocks();
 });
 

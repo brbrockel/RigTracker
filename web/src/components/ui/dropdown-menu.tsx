@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { DropdownMenu as Menu } from 'radix-ui';
 import type { ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
@@ -47,4 +48,28 @@ export function DropdownMenuSeparator({
   ...props
 }: ComponentProps<typeof Menu.Separator>) {
   return <Menu.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
+}
+
+/** A menu item with a check mark; keeps the menu open when toggled if onSelect prevents default. */
+export function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof Menu.CheckboxItem>) {
+  return (
+    <Menu.CheckboxItem
+      className={cn(
+        'relative flex cursor-default select-none items-center gap-2 rounded-md py-2 pl-8 pr-2 text-sm outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent',
+        className,
+      )}
+      {...props}
+    >
+      <span className="absolute left-2 flex size-4 items-center justify-center">
+        <Menu.ItemIndicator>
+          <Check className="size-4" />
+        </Menu.ItemIndicator>
+      </span>
+      {children}
+    </Menu.CheckboxItem>
+  );
 }
