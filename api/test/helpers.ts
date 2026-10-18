@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { expect } from 'vitest';
@@ -21,8 +21,11 @@ export interface TestApp {
 }
 
 /** Boots the real AppModule against the test database (DATABASE_URL from vitest.config.ts). */
-export async function createTestApp(): Promise<TestApp> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+/** The app as in production, with optional provider overrides (e.g. a fake issue tracker). */
+export async function createTestApp(
+  override: (m: TestingModuleBuilder) => TestingModuleBuilder = (m) => m,
+): Promise<TestApp> {
+  const moduleRef = await override(Test.createTestingModule({ imports: [AppModule] })).compile();
   const app = moduleRef.createNestApplication({ logger: ['error'] });
   configureApp(app);
   await app.init();
@@ -36,7 +39,7 @@ export async function createTestApp(): Promise<TestApp> {
  */
 export async function resetDb(t: TestApp): Promise<void> {
   await t.db.execute(sql`truncate table
-    audit_log, auth_attempts, notice_dismissals, notice_reads, notices, sessions, sign_in_links, media, gear, rigs, events, people
+    audit_log, auth_attempts, bug_reports, notice_dismissals, notice_reads, notices, sessions, sign_in_links, media, gear, rigs, events, people
     restart identity cascade`);
 }
 

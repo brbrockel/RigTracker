@@ -14,6 +14,7 @@ import { EventsModule } from './events/events.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { NoticesModule } from './notices/notices.module.js';
+import { BugReportsModule } from './bugs/bug-reports.js';
 import { MailModule } from './mail/mailer.js';
 import { HealthController } from './health/health.controller.js';
 
@@ -31,6 +32,7 @@ import { HealthController } from './health/health.controller.js';
     EventsModule,
     AuthModule,
     NoticesModule,
+    BugReportsModule,
   ],
   controllers: [HealthController],
   providers: [

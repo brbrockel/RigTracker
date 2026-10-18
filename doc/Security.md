@@ -89,6 +89,12 @@ It prints a password link (the script keeps its old name).
 - **Repack reminders** go to the rig's primary person, and a summary to admins; guests get none.
 - **Texting:** only admins get the mobile numbers a notice is for (`GET /api/notices/:id/phones`, and in the reply when posting), to open a text in their own Messages app. RigTracker sends nothing: no email, texts or push.
 
+## Problem reports
+
+- **Who:** anyone signed in, not guests, from **Report a problem** in the account menu; 5 a day per person. Admins see every report with who sent it (**Problem reports**).
+- **Where it goes:** a **public** GitHub issue on `brbrockel/RigTracker`, the server's only outbound request. It holds the title, what happened, what they expected, the page, the app version and the browser, signed with the reporter's **first name only**. `@` mentions are defused. The form asks people to leave out phone numbers, emails and other personal details.
+- **The token:** TeeMate's fine-grained GitHub token, limited to Issues on `brbrockel/teemate` and `brbrockel/RigTracker`, as the Docker secret `teemate_github_token` (`GITHUB_TOKEN_FILE`). Without it, or if GitHub fails, the report is kept in the app only, with the reason.
+
 ## Sessions
 
 - **The cookie:** a random 256-bit token, stored only as a hash, in an `HttpOnly`, `SameSite=Lax` cookie that is `Secure` in production. It lasts 30 days (12 hours for guests).
@@ -138,7 +144,7 @@ Admins see it under **Activity log**. Updates keep the record's values before an
 
 ## Secrets and infrastructure
 
-- **Secrets:** the database connection string (`DATABASE_URL_FILE`) and the authenticator key (`APP_SECRET_FILE`, 32+ random bytes, required in production) are Docker secrets. No secrets are kept in either repository.
+- **Secrets:** the database connection string (`DATABASE_URL_FILE`), the authenticator key (`APP_SECRET_FILE`, 32+ random bytes, required in production) and the GitHub issues token (`GITHUB_TOKEN_FILE`, shared with TeeMate) are Docker secrets. No secrets are kept in either repository.
 - **The database:** PostgreSQL runs with a password on an internal network, with no published ports.
 - **The container** runs as the unprivileged `node` user.
 - **Backups:** nightly. See [Deployment.md](Deployment.md).

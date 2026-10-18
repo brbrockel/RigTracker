@@ -105,6 +105,12 @@ Everything here works on real club data, so use a **"Test"** rig, gear item, eve
 - [ ] A change shows what it was before and after.
 - [ ] Nothing here can be edited or deleted.
 
+## 10b. Report a problem
+
+- [ ] **Account menu → Report a problem** (as the Test person): it says it becomes a public GitHub issue signed with your first name. Send one titled "Test report, please ignore". It shows "sent as issue #N" with **See it on GitHub**; the issue has only your first name, the page, the version and the browser.
+- [ ] Guests have no account menu, so no Report a problem.
+- [ ] **Account menu → Problem reports** (Admin): the report with who sent it and the issue link. Close the test issue on GitHub afterwards.
+
 ## 11. Installed app
 
 - [ ] Reopen it from the home screen after a deploy: it picks up the new version without reinstalling (it may take one reopen).

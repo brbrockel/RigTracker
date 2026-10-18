@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { isAdmin, isGuest } from '@/lib/api';
 import { AccountPage } from '@/pages/AccountPage';
 import { ActivityPage } from '@/pages/ActivityPage';
+import { ProblemReportsPage } from '@/pages/ProblemReportsPage';
 import { EventPage } from '@/pages/EventPage';
 import { EventsPage } from '@/pages/EventsPage';
 import { GearPage } from '@/pages/GearPage';
@@ -62,7 +63,10 @@ export const routes = [
               { path: 'users', element: <Navigate to="/people" replace /> },
               {
                 element: <RequireAdmin />,
-                children: [{ path: 'activity', element: <ActivityPage /> }],
+                children: [
+                  { path: 'activity', element: <ActivityPage /> },
+                  { path: 'problems', element: <ProblemReportsPage /> },
+                ],
               },
             ],
           },

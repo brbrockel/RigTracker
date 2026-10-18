@@ -211,6 +211,7 @@ describe('migrations', () => {
         expect(tables.map((r) => r.table_name)).toEqual([
           'audit_log',
           'auth_attempts',
+          'bug_reports',
           'events',
           'gear',
           'media',
@@ -229,7 +230,7 @@ describe('migrations', () => {
         const { rows: applied } = await check.query(
           'select count(*)::int as n from drizzle.__drizzle_migrations',
         );
-        expect(applied[0].n).toBe(8);
+        expect(applied[0].n).toBe(9);
       } finally {
         await check.end();
       }

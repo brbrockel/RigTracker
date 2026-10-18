@@ -49,6 +49,8 @@ openssl rand -hex 32 | tr -d '\n' | docker secret create rigtracker_app_secret -
 
 The stack gives it to the `rigtracker` service as `APP_SECRET_FILE=/run/secrets/rigtracker_app_secret`. Keep it: if it's lost or changed, everyone's authenticator codes stop working and an admin has to **Reset authenticator** for each person who had them. It isn't in the database backups, so store a copy with the other secrets (for example in the password manager).
 
+**Report a problem** (2.0.0-rc.2 and later) files GitHub issues with TeeMate's token, the existing `teemate_github_token` secret, given to the service as `GITHUB_TOKEN_FILE`. The token must include `brbrockel/RigTracker` with Issues: read and write (GitHub → Settings → Developer settings → Fine-grained tokens). On a server without TeeMate, create a `teemate_github_token` secret with such a token, or remove it from the stack: reports are then kept in the app only.
+
 The uploads folder must be writable by the container's `node` user (uid 1000):
 
 ```bash

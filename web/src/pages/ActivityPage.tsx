@@ -21,6 +21,7 @@ const RESOURCES = [
   ['events', 'Events'],
   ['user', 'Accounts and sign-in'],
   ['guests', 'Guests'],
+  ['bug_reports', 'Problem reports'],
 ] as const;
 
 const ACTIONS = [
@@ -49,6 +50,7 @@ const NOUNS: Record<string, string> = {
   people: 'person',
   events: 'event',
   user: 'account',
+  bug_reports: 'problem report',
 };
 
 /** A plain-English description of what was done, e.g. "added gear Foo". */

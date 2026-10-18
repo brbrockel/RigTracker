@@ -412,6 +412,31 @@ export const noticeDismissals = pgTable(
 
 export type Person = typeof people.$inferSelect;
 export type Rig = typeof rigs.$inferSelect;
+/**
+ * "Report a problem" (TeeMate's): what someone reported, and the GitHub issue it became. Kept
+ * whether or not GitHub took it. The public issue names the reporter by first name only; who
+ * sent it is kept here for admins.
+ */
+export const bugReports = pgTable(
+  'bug_reports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    personId: uuid('person_id').references(() => people.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    happened: text('happened').notNull(),
+    expected: text('expected'),
+    page: text('page'),
+    userAgent: text('user_agent'),
+    appVersion: text('app_version'),
+    issueNumber: integer('issue_number'),
+    issueUrl: text('issue_url'),
+    /** Why GitHub didn't take it (no token, an error); the report is kept either way. */
+    issueError: text('issue_error'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('bug_reports_person_created_idx').on(t.personId, t.createdAt)],
+);
+
 export type Gear = typeof gear.$inferSelect;
 export type Event = typeof events.$inferSelect;
 export type Media = typeof media.$inferSelect;

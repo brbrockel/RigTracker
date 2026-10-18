@@ -40,6 +40,10 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
 
+### 2.0.0-rc.2
+
+- **Report a problem** (TeeMate's), in the account menu for anyone signed in (not guests): a title, what happened and what they expected. It's filed as a public GitHub issue on `brbrockel/RigTracker` labelled `bug`, signed with their first name only, with the page, the app version and the browser, and they get a link to it. 5 a day per person. Admins see every report with who sent it under **Problem reports** (`/problems`); reports are kept even if GitHub is down or there's no token. Migration 0008 (`bug_reports`); `POST /api/bug-reports`, admins `GET /api/bug-reports`; in the Activity log as Problem reports.
+
 ### 2.0.0-rc.1
 
 - The release candidate: the same as beta.5. Only fixes from here until 2.0.0, after the [test plan](doc/TestPlan.md) is worked through.

@@ -31,6 +31,16 @@ const Env = z
     UPLOADS_DIR: z.string().optional(),
     RIGTRACKER_CORS_ORIGIN: z.string().optional(),
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).optional(),
+    /**
+     * "Report a problem" files a GitHub issue with this token (GITHUB_TOKEN_FILE in production:
+     * a fine-grained token limited to Issues on GITHUB_ISSUES_REPO). Without it, reports are
+     * only kept in the app.
+     */
+    GITHUB_TOKEN: z.string().min(20).optional(),
+    GITHUB_ISSUES_REPO: z
+      .string()
+      .regex(/^[\w.-]+\/[\w.-]+$/)
+      .default('brbrockel/RigTracker'),
     /** The release and commit, set at image build time: 2.0.0-alpha.2+abc1234 */
     APP_VERSION: z.string().default('dev'),
     /**
@@ -87,6 +97,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     DATABASE_URL: readSecret('DATABASE_URL', env),
     APP_SECRET: readSecret('APP_SECRET', env),
     SMTP_PASSWORD: readSecret('SMTP_PASSWORD', env),
+    GITHUB_TOKEN: readSecret('GITHUB_TOKEN', env),
   });
   if (!result.success) {
     const lines = result.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`);

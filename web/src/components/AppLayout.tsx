@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  Bug,
   ExternalLink,
   History,
   Home,
@@ -16,6 +17,7 @@ import { useMe, useSignOut } from '@/auth/session';
 import { NoticeBanners } from '@/components/NoticeBanners';
 import { NoticesButton } from '@/components/NoticesPanel';
 import { PasswordGate } from '@/components/PasswordGate';
+import { ReportProblemDialog } from '@/components/ReportProblem';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -42,6 +44,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [noticesOpen, setNoticesOpen] = useState(false);
+  const [reporting, setReporting] = useState(false);
   if (!me) return null;
   const admin = isAdmin(me.user);
   const guest = isGuest(me.user);
@@ -107,6 +110,14 @@ export function AppLayout() {
                       <History /> Activity log
                     </DropdownMenuItem>
                   )}
+                  {admin && (
+                    <DropdownMenuItem onSelect={() => navigate('/problems')}>
+                      <Bug /> Problem reports
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onSelect={() => setReporting(true)}>
+                    <Bug /> Report a problem
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <a
                       href="https://github.com/brbrockel/RigTracker"
@@ -125,6 +136,7 @@ export function AppLayout() {
           </div>
         </div>
       </header>
+      <ReportProblemDialog open={reporting} onClose={() => setReporting(false)} />
 
       <main
         key={pathname.split('/')[1]}

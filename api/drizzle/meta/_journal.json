@@ -57,6 +57,13 @@
       "when": 1792295477282,
       "tag": "0007_notices",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792337306527,
+      "tag": "0008_bug_reports",
+      "breakpoints": true
     }
   ]
 }

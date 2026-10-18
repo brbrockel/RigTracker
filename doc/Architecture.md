@@ -38,6 +38,7 @@ backup job (nightly) ── internal network ── PostgreSQL (pg_dump), upload
      - `auth`: passwords, lockouts, authenticator codes, password links, guest and member sessions, CSRF and roles;
      - `people`: people and their sign-in access;
      - `rigs`, `gear`, `events`, `audit`, `health`;
+     - `bugs`: **Report a problem**, filed as a GitHub issue (first name only) and kept for admins;
      - `notices`: admins' notices and their read state, and the automatic repack reminders (computed on each request from `rigs.repack_due`, not stored);
      - `media`: photos and videos of rigs, gear and events, through `uploads` (content checks, re-encoding, storage).
    - **Global guards, in order:**
@@ -46,7 +47,7 @@ backup job (nightly) ── internal network ── PostgreSQL (pg_dump), upload
      3. roles.
    - **Script:** `dist/scripts/sign-in-link.js` makes a password link for the first admin, or anyone locked out.
 
-3. **Data (PostgreSQL 18: `people`, `rigs`, `gear`, `events`, `media`, `notices`, `notice_reads`, `notice_dismissals`, `sessions`, `sign_in_links`, `auth_attempts`, `audit_log`; `api/src/db/schema.ts`)**
+3. **Data (PostgreSQL 18: `people`, `rigs`, `gear`, `events`, `media`, `notices`, `notice_reads`, `notice_dismissals`, `bug_reports`, `sessions`, `sign_in_links`, `auth_attempts`, `audit_log`; `api/src/db/schema.ts`)**
    - Records have UUID ids. Rows imported from MongoDB keep the old ObjectId in `legacy_id`.
    - A person may have sign-in access: a `role` (admin, user or viewer; the API shows it as `roles`), `is_active`, and their last sign-in. Emails are unique among people who sign in (a partial unique index).
    - Gear points at a rig and/or a person (`rig_id`, `person_id`; `assignedRigId`, `assignedPersonId` in the API), and a rig at its primary person, with foreign keys that clear the reference when the record is deleted. On a rig, gear goes with the rig's primary person. Serial numbers are unique. A rig's container, main, reserve and AAD are gear in its slots (`gear.slot`, one of each per rig, a partial unique index); rig responses list them as `components`.
