@@ -2,6 +2,7 @@
   "name": "rigtracker-api",
   "version": "2.0.0-beta.4",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",

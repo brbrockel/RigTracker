@@ -34,3 +34,7 @@ It provides a web UI and API for equipment records, assignment tracking, and ope
 - Operators running the homelab deployment
 - Developers extending API/UI behavior
 - Stakeholders tracking roadmap enhancements
+
+## License
+
+[MIT](LICENSE).

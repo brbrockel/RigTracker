@@ -42,7 +42,7 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 
 ### 2.0.0-beta.4
 
-- **A password is required.** Admins get a banner that can't be dismissed while anyone with sign-in access has no password ("Dana and Sam need a password"), saying who also needs an email address first; it opens People filtered to them (**Needs a password**, `/people?filter=password`) and goes away when each has a password or their access is turned off.
+- **A password is required.** Admins get a banner that can't be dismissed while anyone with sign-in access has no password ("Alex and Sam need a password"), saying who also needs an email address first; it opens People filtered to them (**Needs a password**, `/people?filter=password`) and goes away when each has a password or their access is turned off.
 - **People** shows a **Needs a password** badge (or **Needs an email and a password**), and a sign-in recorded without a password says "(before passwords)": it was with Google or an old link, in 1.x or the early betas.
 - **Anyone signed in without a password** (a session from before passwords) sets one before using anything else.
 
