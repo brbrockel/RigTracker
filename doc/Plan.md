@@ -124,6 +124,6 @@ Split in two on 2026-10-17:
 
 - **`TestPlan.md`:** a phone and desktop checklist for each page. Written 2026-10-18 ([TestPlan.md](TestPlan.md)); to be worked through before 2.0.0-rc.1.
 - **Docs:** `Architecture.md`, `README.md` and `Enhancements.md` brought up to date (2026-10-18).
-- **Retire** Mongo, the `users_merged` collection and the Google OAuth client in Google Cloud Console.
+- **Retire** Mongo and `users_merged`: done 2026-10-18 (final dump in the backups volume, service and secret removed). Still to do by hand: delete the Google OAuth client in Google Cloud Console.
 - **Go public:** GitHub Support purges the old commits (still served by SHA), then delete `~/backups/RigTracker-*` and switch the repo to public.
 - **Optional:** move the other homelab stacks' plaintext passwords (Grafana, Frigate, Komodo, Nextcloud) to Docker secrets.

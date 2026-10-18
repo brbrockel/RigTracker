@@ -7,7 +7,7 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 ### Breaking
 
 - **Google sign-in is removed.** People sign in with an email and password, set from a single-use password link an admin gives them (or from `dist/scripts/sign-in-link.js`).
-- **People and sign-in accounts are one record.** Access is a role on the person. The old `users` collection was migrated and kept as `users_merged`.
+- **People and sign-in accounts are one record.** Access is a role on the person. The old `users` collection was migrated, and kept as `users_merged` until Mongo was retired.
 - **Sign-in is required for everything,** including reading records and opening uploaded media, except a read-only guest view of rigs, gear and events.
 - **API:**
   - Every change needs the session's CSRF token (`x-csrf-token`).

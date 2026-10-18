@@ -49,8 +49,6 @@ openssl rand -hex 32 | tr -d '\n' | docker secret create rigtracker_app_secret -
 
 The stack gives it to the `rigtracker` service as `APP_SECRET_FILE=/run/secrets/rigtracker_app_secret`. Keep it: if it's lost or changed, everyone's authenticator codes stop working and an admin has to **Reset authenticator** for each person who had them. It isn't in the database backups, so store a copy with the other secrets (for example in the password manager).
 
-The stack also references `rigtracker_mongo_uri`, which is used only by the one-off import from the old Mongo database (see below). On a new server with no Mongo, create it with any placeholder value, or remove it from the stack.
-
 The uploads folder must be writable by the container's `node` user (uid 1000):
 
 ```bash
@@ -72,7 +70,7 @@ The `backup` service runs nightly at 07:00 UTC (about 3 AM Eastern):
 - a compressed `pg_dump`, checked with `pg_restore --list` and kept for 30 days;
 - one current tarball of the uploads.
 
-Both go to the `rigtracker_backups` volume. Copy that volume off this machine periodically. The last Mongo archives from before the cutover (`rigtracker-*.archive.gz`) are kept there too.
+Both go to the `rigtracker_backups` volume. Copy that volume off this machine periodically. The Mongo archives are kept there too: the ones from before the cutover (`rigtracker-*.archive.gz`) and the final one taken when Mongo was retired (`rigtracker-mongo-final-2026-10-18.archive.gz`).
 
 Take one now, for example before a deploy with a schema migration:
 
@@ -109,7 +107,7 @@ Done once, on 2026-10-18. Kept here as the record and for a re-run if a rollback
 
 On 2026-10-18 the app was stopped from 01:27 to 01:32 UTC. The import verified 10 people, 9 rigs, 112 gear, 2 events, 2 live sessions, 1 unused link and 146 audit entries, and cleared 6 placeholder dates.
 
-Mongo stays in the stack, untouched, for 30 days as the rollback: deploy the previous version (`RIGTRACKER_TAG=2.0.0-alpha.2`) and point it back at Mongo.
+Mongo was kept in the stack as the rollback, then retired early on 2026-10-18 (with the owner's OK): a final `mongodump` (10 people, 9 rigs, 112 gear, 2 events, 146 audit entries, 3 `users_merged`; checked with `mongorestore --dryRun`) went to the backups volume, and the `mongo` service and the `rigtracker_mongo_uri` secret were removed. Its data folder, `/srv/homelab-data/rigtracker/mongo-data`, is left on disk. Going back to 1.x now means restoring that archive into a new Mongo.
 
 ## Rig components into gear (2.0.0-alpha.4)
 
