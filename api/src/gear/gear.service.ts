@@ -15,7 +15,7 @@ import type { GearBody } from './gear.dto.js';
 
 /** Gear as the API returns it: no serialNumber key when it has none. */
 export function gearToApi(row: Gear) {
-  const rest = omit(row, 'legacyId', 'serialNumber', 'imageUrl');
+  const rest = omit(row, 'legacyId', 'serialNumber');
   return row.serialNumber == null ? rest : { ...rest, serialNumber: row.serialNumber };
 }
 

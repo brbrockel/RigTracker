@@ -8,28 +8,12 @@ import { fullName } from '../people/person-view.js';
 import { MediaService } from '../media/media.service.js';
 import type { RigBody } from './rig.dto.js';
 
-/** The 1.x component columns, kept until production is moved (scripts/rig-components.ts). */
-const OLD_COMPONENT_COLUMNS = [
-  'container',
-  'containerSerialNumber',
-  'containerDOM',
-  'mainSize',
-  'mainDOM',
-  'mainSerialNumber',
-  'reserveSize',
-  'reserveDOM',
-  'reserveSerialNumber',
-  'aadType',
-  'aadDOM',
-  'aadSerialNumber',
-] as const;
-
 /** A rig's own fields as the API returns them (and the audit log records them). */
 export function rigToApi(rig: Rig) {
-  return omit(rig, 'legacyId', 'imageUrl', ...OLD_COMPONENT_COLUMNS);
+  return omit(rig, 'legacyId');
 }
 
-const rigColumns = omit(getTableColumns(rigs), 'legacyId', 'imageUrl', ...OLD_COMPONENT_COLUMNS);
+const rigColumns = omit(getTableColumns(rigs), 'legacyId');
 
 const componentColumns = {
   rigId: gear.assignedRigId,

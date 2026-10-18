@@ -84,6 +84,8 @@ docker rm -f rt-restore
 
 ## Moving from Mongo (2.0.0-alpha.3 cutover)
 
+The import script (`dist/scripts/import-mongo.js`) and the later one-off moves (`rig-components.js`, the photo move) were removed in 2.0.0-alpha.6, after production was moved. To run them again, use the `2.0.0-alpha.5` image, which still has them.
+
 Done once, on 2026-10-18. Kept here as the record and for a re-run if a rollback is ever needed.
 
 1. Take a final Mongo backup into the backups volume (`mongodump --gzip --archive=…`).

@@ -16,7 +16,7 @@ From repo root:
 ```bash
 pnpm install
 cp .env.example .env    # local settings (never committed)
-pnpm dev:services       # Postgres 18 on 127.0.0.1:15433 (and the old MongoDB on :17017, for the import); stop: pnpm dev:services:stop
+pnpm dev:services       # Postgres 18 on 127.0.0.1:15433 (stop: pnpm dev:services:stop)
 pnpm dev:api            # API on :4000 (DATABASE_URL from .env); applies migrations at start-up
 pnpm dev:web            # web on http://localhost:5173; /api and /uploads are proxied to :4000
 ```
@@ -31,7 +31,6 @@ PostgreSQL 18 with Drizzle. The schema is `api/src/db/schema.ts`; migrations are
 - **A schema change:** edit `schema.ts`, then `pnpm --filter rigtracker-api db:generate` (drizzle-kit writes the next `drizzle/NNNN_*.sql`). SQL drizzle-kit can't express (like the audit log's trigger, `0001_audit_append_only.sql`) goes in a custom migration: `pnpm exec drizzle-kit generate --custom --name <name>` in `api/`.
 - **The audit log is append-only:** a trigger refuses `UPDATE` and `DELETE` on `audit_log`. `TRUNCATE` still works (the tests use it).
 - **Expired sessions and sign-in links** are deleted at start-up and every hour.
-- **Importing the old Mongo data** (one-off, re-runnable): `MONGO_URI=… node api/dist/scripts/import-mongo.js` is a dry run with counts; add `--apply` to write, in one transaction, followed by a Mongo-versus-Postgres check. See the comment at the top of `api/src/scripts/import-mongo.ts`.
 
 ## Checks
 
@@ -44,7 +43,6 @@ pnpm format             # fix formatting (Prettier)
 
 - Web tests (vitest + Testing Library, `web/src/test/`) stub the API with `mockApi`.
 - API tests (vitest + supertest, `api/test/*.e2e.test.ts`) boot the real app against a test database: `TEST_DATABASE_URL`, default `postgres://rigtracker:rigtracker@127.0.0.1:15433/rigtracker_test` (the `pnpm dev:services` Postgres). Each run drops and re-creates it and applies the migrations from empty; each test then empties the tables with `TRUNCATE`.
-- The import script's test (`api/test/import-mongo.test.ts`) also needs Mongo: `TEST_MONGO_URI`, default `mongodb://127.0.0.1:17017/rigtracker_import_test`, which it fills and drops.
 
 ## Build and deploy
 
@@ -63,7 +61,6 @@ Environment variable reference:
 | Variable | Required | Used By | Purpose | Example |
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` / `DATABASE_URL_FILE` | Yes in production | API, scripts | PostgreSQL connection string. `_FILE` reads it from a Docker secret. Without it (development), the `pnpm dev:services` database. | `postgres://rigtracker:…@postgres:5432/rigtracker` |
-| `MONGO_URI` / `MONGO_URI_FILE` | Import only | `import-mongo` script | The old MongoDB database to import from (the app no longer uses it). | `mongodb://mongo:27017/rigtracker` |
 | `RIGTRACKER_CORS_ORIGIN` | Rarely | API | Origins allowed to call the API from another site (exact, or patterns like `http://localhost:*`). Not needed for development (Vite proxies the API) or production (same origin); unset means no CORS at all. | `https://other.example.com` |
 | `HOST` / `PORT` | Optional | API | Listen address and port. | `0.0.0.0` / `4000` |
 | `WEB_DIST` | Container | API | The built web app to serve on the same origin (the image sets `/app/web`). | `/app/web` |

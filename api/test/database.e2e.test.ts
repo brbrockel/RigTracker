@@ -6,10 +6,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { copyUrlColumnsToMedia } from '../src/db/media-from-url-columns.js';
 import { MIGRATIONS_DIR, runMigrations } from '../src/db/migrate.js';
-import * as schema from '../src/db/schema.js';
-import { auditLog, gear, media, people, rigs } from '../src/db/schema.js';
+import { auditLog, gear, people, rigs } from '../src/db/schema.js';
 import {
   as,
   createPerson,
@@ -227,7 +225,7 @@ describe('migrations', () => {
         const { rows: applied } = await check.query(
           'select count(*)::int as n from drizzle.__drizzle_migrations',
         );
-        expect(applied[0].n).toBe(5);
+        expect(applied[0].n).toBe(6);
       } finally {
         await check.end();
       }
@@ -330,46 +328,15 @@ describe('migration 0004: photo URL columns into media', () => {
         ['event', '/uploads/events/y.jpg', 'photo', 1],
       ]);
       expect(rows.every((r) => r.caption === null)).toBe(true);
-      // The old columns are kept (a later release drops them).
-      expect((await q(`select image_url from rigs where id = $1`, [rigPhoto])).rows[0]).toEqual({
-        image_url: '/uploads/rigs/a.jpg',
-      });
-
-      // Running the data move again adds nothing for records that already have media.
-      const again = drizzle(db.pool, { schema });
-      expect(await copyUrlColumnsToMedia(again)).toBe(0);
-      expect((await q('select count(*)::int as n from media')).rows[0].n).toBe(8);
+      // Migration 0005 then drops the 1.x photo and rig component columns.
+      const { rows: cols } = await q(
+        `select table_name, column_name from information_schema.columns
+         where table_name in ('rigs', 'gear', 'events')
+           and column_name in ('image_url', 'event_photo_url', 'photo_urls', 'container', 'main_size', 'aad_serial_number')`,
+      );
+      expect(cols).toEqual([]);
     } finally {
       await db.drop();
     }
-  });
-
-  it('re-running it fills in only records without media (as after an import)', async () => {
-    const [withMedia] = await t.db
-      .insert(rigs)
-      .values({ name: 'Has media', imageUrl: '/uploads/rigs/old.jpg' })
-      .returning();
-    await as(user).post('/api/rigs', { name: 'x' }).expect(201);
-    await t.db.insert(media).values({
-      ownerType: 'rig',
-      ownerId: withMedia!.id,
-      url: '/uploads/rig/new.jpg',
-      kind: 'photo',
-    });
-    const [imported] = await t.db
-      .insert(gear)
-      .values({ name: 'Imported', imageUrl: '/uploads/gear/i.jpg' })
-      .returning();
-    expect(await copyUrlColumnsToMedia(t.db)).toBe(1);
-    const got = (await as(user).get(`/api/gear/${imported!.id}`).expect(200)).body;
-    expect(got).toMatchObject({
-      coverUrl: '/uploads/gear/i.jpg',
-      media: [{ url: '/uploads/gear/i.jpg', kind: 'photo', position: 0, caption: null }],
-    });
-    expect(got).not.toHaveProperty('imageUrl');
-    expect((await as(user).get(`/api/rigs/${withMedia!.id}`)).body.coverUrl).toBe(
-      '/uploads/rig/new.jpg',
-    );
-    expect(await copyUrlColumnsToMedia(t.db)).toBe(0);
   });
 });

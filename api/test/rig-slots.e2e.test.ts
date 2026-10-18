@@ -89,7 +89,6 @@ describe('rig components (gear slots)', () => {
 
   it('rig responses no longer include the old component fields', async () => {
     const rig = await createRig();
-    await t.db.update(rigs).set({ mainSize: 'Storm 150' }).where(eq(rigs.id, rig.id));
     for (const body of [rig, await getRig(rig.id), (await as(user).get('/api/rigs')).body[0]]) {
       expect(body).not.toHaveProperty('mainSize');
       expect(body).not.toHaveProperty('containerSerialNumber');

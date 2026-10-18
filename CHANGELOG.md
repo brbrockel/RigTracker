@@ -38,6 +38,11 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
 
+### 2.0.0-alpha.6
+
+- The 1.x columns are dropped: rigs' container, main, reserve and AAD text fields, and the old photo URL columns (`image_url`, `event_photo_url`, `photo_urls`). The data lives in gear slots and media.
+- The one-off scripts (the Mongo importer, the rig components move, the photo move) and the `mongodb` dependency are removed; the `2.0.0-alpha.5` image still has them.
+
 ### 2.0.0-alpha.5
 
 - **Breaking:** photos and videos are a `media` table with owners (a rig, gear or event), in order; the first is the cover (an event's main photo).

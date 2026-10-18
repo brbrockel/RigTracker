@@ -62,7 +62,6 @@ People:
 ## Environment
 
 - `DATABASE_URL` or `DATABASE_URL_FILE` (required in production; development defaults to the `pnpm dev:services` Postgres)
-- `MONGO_URI` or `MONGO_URI_FILE` (only for `dist/scripts/import-mongo.js`)
 - `RIGTRACKER_CORS_ORIGIN` (dev only: origins allowed cross-site; unset means same-origin, no CORS)
 - `HOST`, `PORT` (default `0.0.0.0`, `4000`)
 

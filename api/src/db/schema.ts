@@ -89,34 +89,17 @@ export const rigs = pgTable(
     id: id(),
     name: text('name'),
     number: text('number'),
-    // ── Components, the 1.x way (deprecated) ─────────────────────────────────
-    // A rig's container, main, reserve and AAD are now gear in the rig's slots (gear.slot).
-    // scripts/rig-components.ts moves these columns into gear; the API no longer reads or
-    // writes them, and a later release drops them once production has been moved.
-    container: text('container'),
-    containerSerialNumber: text('container_serial_number'),
-    containerDOM: day('container_dom'),
-    mainSize: text('main_size'),
-    mainDOM: day('main_dom'),
-    mainSerialNumber: text('main_serial_number'),
-    reserveSize: text('reserve_size'),
-    reserveDOM: day('reserve_dom'),
-    reserveSerialNumber: text('reserve_serial_number'),
+    // A rig's container, main, reserve and AAD are gear in the rig's slots (gear.slot).
     lastPacked: day('last_packed'),
     riggerINT: text('rigger_int'),
     repackDue: day('repack_due'),
-    aadType: text('aad_type'),
-    aadDOM: day('aad_dom'),
-    aadSerialNumber: text('aad_serial_number'),
-    // ─────────────────────────────────────────────────────────────────────────
     customFields: jsonb('custom_fields').$type<CustomFields>().notNull().default({}),
     /** The rig's primary person; gear on the rig goes with them. */
     primaryUserId: uuid('primary_person_id').references(() => people.id, {
       onDelete: 'set null',
     }),
     notes: text('notes'),
-    /** 1.x photo (deprecated): copied into media by migration 0004; unused, dropped later. */
-    imageUrl: text('image_url'),
+    // Photos are media rows (owner rig).
     legacyId: legacyId(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -138,8 +121,7 @@ export const gear = pgTable(
     type: text('type'),
     dateOfManufacture: day('date_of_manufacture'),
     notes: text('notes'),
-    /** 1.x photo (deprecated): copied into media by migration 0004; unused, dropped later. */
-    imageUrl: text('image_url'),
+    // Photos are media rows (owner gear).
     assignedRigId: uuid('rig_id').references(() => rigs.id, { onDelete: 'set null' }),
     assignedPersonId: uuid('person_id').references(() => people.id, { onDelete: 'set null' }),
     /**
@@ -167,12 +149,7 @@ export const events = pgTable('events', {
   name: text('name'),
   eventDate: day('event_date'),
   description: text('description'),
-  // 1.x photos (deprecated): copied into media by migration 0004; unused, dropped later.
-  eventPhotoUrl: text('event_photo_url'),
-  photoUrls: text('photo_urls')
-    .array()
-    .notNull()
-    .default(sql`'{}'::text[]`),
+  // Photos and videos are media rows (owner event); the cover is the main one.
   legacyId: legacyId(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),

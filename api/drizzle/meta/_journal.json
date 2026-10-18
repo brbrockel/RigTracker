@@ -36,6 +36,13 @@
       "when": 1792289546633,
       "tag": "0004_media_from_url_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792291940479,
+      "tag": "0005_drop_1x_columns",
+      "breakpoints": true
     }
   ]
 }

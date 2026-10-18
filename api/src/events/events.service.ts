@@ -9,7 +9,7 @@ import type { EventBody } from './event.dto.js';
 
 /** An event's own fields as the API returns them (and the audit log records them). */
 export function eventToApi(event: Event) {
-  return omit(event, 'legacyId', 'eventPhotoUrl', 'photoUrls');
+  return omit(event, 'legacyId');
 }
 
 @Injectable()
