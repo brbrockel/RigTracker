@@ -6,8 +6,15 @@ import { routes } from '@/router';
 
 type Handler = (init: RequestInit | undefined) => { status: number; body?: unknown };
 
+/** Every page asks for notices (the horn and the banners): none, unless a test says so. */
+const NOTICE_DEFAULTS: Record<string, Handler> = {
+  'GET /api/notices?limit=50': () => ({ status: 200, body: [] }),
+  'GET /api/notices/banners': () => ({ status: 200, body: [] }),
+};
+
 /** Stubs fetch with handlers keyed by "METHOD /api/path"; unmatched requests fail the test. */
-export function mockApi(handlers: Record<string, Handler>) {
+export function mockApi(given: Record<string, Handler>) {
+  const handlers = { ...NOTICE_DEFAULTS, ...given };
   const calls: { key: string; init: RequestInit | undefined }[] = [];
   vi.stubGlobal(
     'fetch',

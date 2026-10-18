@@ -8,10 +8,10 @@ Every person is a record on **People**. A person can be given sign-in access wit
 
 | Role | Can |
 |---|---|
-| **Admin** | Everything: people's private details, sign-in access, unlocking accounts, resetting authenticators, deleting, the Activity log |
-| **User** | Add and change rigs, gear, events and people; upload photos |
-| **Viewer** | Look at everything a signed-in member sees; change nothing |
-| **Guest** (no account) | Look at rigs, gear and events and their photos; people show as "First L." |
+| **Admin** | Everything: people's private details, sign-in access, unlocking accounts, resetting authenticators, deleting, the Activity log, posting notices |
+| **User** | Add and change rigs, gear, events and people; upload photos; read notices |
+| **Viewer** | Look at everything a signed-in member sees; read notices; change nothing |
+| **Guest** (no account) | Look at rigs, gear and events and their photos, and public notices; people show as "First L." |
 
 People without access can't sign in. Access needs an email address that no one else who signs in uses. An ordinary edit can never set someone's role, password or authenticator.
 
@@ -74,9 +74,20 @@ It prints a password link (the script keeps its old name).
 
 **Look around as a guest** on the sign-in page starts a guest session: a session row with no person, a CSRF token as usual, for 12 hours.
 
-- **Guests can only read** rigs, gear and events (`GET /api/rigs`, `/api/gear`, `/api/events`, each by id too, and `/api/media`), and the uploaded photos and videos of rigs, gear and events. Routes are closed to guests unless marked for them, so a new route never shows guests anything by accident.
+- **Guests can only read** rigs, gear and events (`GET /api/rigs`, `/api/gear`, `/api/events`, each by id too, and `/api/media`), the uploaded photos and videos of rigs, gear and events, and public notices (`GET /api/notices`, `/api/notices/banners`). Routes are closed to guests unless marked for them, so a new route never shows guests anything by accident.
 - **People are "First L."** (first name and last initial) in rigs and gear. Guests never get emails, phones, dates of birth, addresses, emergency contacts, People, the Activity log, uploads or any change.
 - **In the app** guests have Home, Rigs, Gear and Events, no New, Edit or Delete, and a **Sign in** button that ends the guest session.
+
+## Notices
+
+- **Posting:** only admins post, edit and delete notices (`POST`, `PATCH` and `DELETE /api/notices`), each recorded in the Activity log (resource `notices`, with the notice before and after).
+- **Who sees them:**
+  - *everyone*: every signed-in person (admins, users and viewers);
+  - *one person*: that person, and admins (who see every notice, but only get banners for their own);
+  - *public*: everyone signed in and guests. Guests get public notices only (`GET /api/notices` and `/api/notices/banners` are their only notice routes), without who wrote them.
+- **Read state:** each person marks only notices they can see as read or dismissed, for themselves. Guests have no person, so their dismissed banners are kept in their browser only.
+- **Repack reminders** go to the rig's primary person, and a summary to admins; guests get none.
+- **Texting:** only admins get the mobile numbers a notice is for (`GET /api/notices/:id/phones`, and in the reply when posting), to open a text in their own Messages app. RigTracker sends nothing: no email, texts or push.
 
 ## Sessions
 
@@ -115,7 +126,7 @@ RigTracker sends no email. TeeMate's mail guard is in place for later: `MAIL_MOD
 
 Recorded actions:
 
-- creating, changing and deleting rigs, gear, people and events;
+- creating, changing and deleting rigs, gear, people, events and notices;
 - sign-ins (by password, password link or authenticator code), failed sign-ins (the reason, never the password) and sign-outs;
 - lockouts and unlocks;
 - password links made, passwords set and changed;

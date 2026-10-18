@@ -1,4 +1,5 @@
 import { InstallHint } from '@/components/InstallHint';
+import { NoticeStrip } from '@/components/NoticeStrip';
 import { CalendarDays, ChevronRight, Package, Plus, Users, Wrench } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { Link } from 'react-router';
@@ -42,6 +43,8 @@ export function HomePage() {
             : "Repacks coming up and what's on next."}
         </p>
       </div>
+
+      {!guest && <NoticeStrip />}
 
       <InstallHint />
 

@@ -25,10 +25,11 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Passwords (Argon2id, NIST rules), lockouts, optional authenticator codes with recovery codes, and "Look around as a guest" (TeeMate's model).
 - Sign-in access and password links managed from People, "Unlock account", "Reset authenticator" and "Sign out everywhere".
 - The Activity log records sign-ins, failed sign-ins, lockouts, sign-outs, links, passwords, authenticator changes, guests and access changes.
+- Notices from admins as banners on every page, with automatic repack reminders.
 - Per-IP rate limits, security headers and a CSP.
 - `/api/health`, and the running version on Account.
 - Nightly verified backups.
-- 411 API tests, 87 web tests, `pnpm check` and CI.
+- 427 API tests, 99 web tests, `pnpm check` and CI.
 
 ### Fixed
 
@@ -38,6 +39,17 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Deleting a person left dangling references, and gear whose rig was deleted couldn't be edited.
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
+
+### 2.0.0-beta.3
+
+- **Notices** (TeeMate's, for one club). Admins post a notice (an optional title and up to 1,000 characters) to **everyone who signs in**, **one person**, or **the public** (guests too), from the horn in the top bar or **People → ⋯ → Send notice**. **Must see** keeps it a banner until each person dismisses it; **Banner until** picks when it stops (by default a week, two days for one person). It stays in the notices list after. Admins edit and delete them; each change is in the Activity log (`notices`).
+- **Banners** at the top of every page, stacked like phone notifications (the top one with a +N count; tap to fan them out), tinted in the primary colour: must-see first, then overdue repacks, then what's for you, then everyone's, newest first. Tap one for its text (that marks it read), ✕ to dismiss it. An edited notice shows again.
+- **Repack reminders:** a rig's primary person gets a banner when its repack is due within 14 days ("Rig #6 repack due Jun 8") or overdue ("…overdue since Jun 8"); admins get one summary ("2 rigs overdue, 1 due within 14 days") that opens Rigs filtered to them (`/rigs?filter=repack`, a new filter). Dismissing one keeps it away until the due date (or the list) changes. Placeholder dates before 1950 are ignored.
+- **The horn** shows how many notices are new that aren't already a banner, and opens every notice for you, with **Mark all read**. Home shows a one-line "New notice" strip only while something new isn't a banner.
+- **Texting a notice:** after posting (or with the text button on a notice) admins get **Also text it**, which opens their own Messages with the text and the mobile numbers of the people it's for (for everyone or the public: everyone with sign-in access that's on), and says how many have no number and are skipped. RigTracker itself sends nothing: no email, no texts, no push.
+- **Guests** see public notices as banners (dismissing them is kept in the browser) and in the horn, and nothing else.
+- **API:** `GET /api/notices` and `GET /api/notices/banners` (guests: public notices only), `POST /api/notices/read` and `/dismiss` (`ids`, or `keys` for repack reminders), and for admins `POST /api/notices`, `PATCH|DELETE /api/notices/:id`, `GET /api/notices/:id/phones`.
+- **Deploy:** migration 0007 only adds the `notices`, `notice_reads` and `notice_dismissals` tables.
 
 ### 2.0.0-beta.2
 

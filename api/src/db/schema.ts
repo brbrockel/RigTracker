@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -330,9 +331,89 @@ export const auditLog = pgTable(
   ],
 );
 
+/** Who a notice is for (notices.audience). */
+export const NOTICE_AUDIENCES = ['everyone', 'person', 'public'] as const;
+export type NoticeAudience = (typeof NOTICE_AUDIENCES)[number];
+
+/**
+ * Notices from admins: to everyone who signs in, one person, or the public (everyone signed
+ * in and guests). Each shows as a banner at the top of every page for a while (banner_until,
+ * or by default a week, two days for one person; pinned "must see" ones until each person
+ * dismisses them) and stays in the notices list. The author has no foreign key: notices
+ * outlive them, so their name is kept too.
+ */
+export const notices = pgTable(
+  'notices',
+  {
+    id: id(),
+    title: text('title'),
+    body: text('body').notNull(),
+    audience: text('audience').$type<NoticeAudience>().notNull(),
+    /** For audience 'person': who it's for (deleted with them). */
+    recipientId: uuid('recipient_id').references(() => people.id, { onDelete: 'cascade' }),
+    /** Must see: a banner until each person dismisses it. */
+    pinned: boolean('pinned').notNull().default(false),
+    /** When it stops showing as a banner (it stays in the list); null: the default. */
+    bannerUntil: timestamp('banner_until', { withTimezone: true }),
+    authorId: uuid('author_id'),
+    authorName: text('author_name'),
+    createdAt: createdAt(),
+    /** Set when edited: an edited notice is new (and a banner) again for everyone. */
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [
+    check('notices_audience_check', sql`${t.audience} in ('everyone', 'person', 'public')`),
+    check(
+      'notices_recipient_check',
+      sql`(${t.audience} = 'person') = (${t.recipientId} is not null)`,
+    ),
+    check('notices_title_length', sql`char_length(${t.title}) <= 100`),
+    check('notices_body_length', sql`char_length(${t.body}) between 1 and 1000`),
+    index('notices_created_idx').on(t.createdAt.desc()),
+    index('notices_recipient_idx').on(t.recipientId),
+  ],
+);
+
+/** Each person's read and dismissed state of a notice (guests keep theirs in the browser). */
+export const noticeReads = pgTable(
+  'notice_reads',
+  {
+    noticeId: uuid('notice_id')
+      .notNull()
+      .references(() => notices.id, { onDelete: 'cascade' }),
+    personId: uuid('person_id')
+      .notNull()
+      .references(() => people.id, { onDelete: 'cascade' }),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.noticeId, t.personId] }),
+    index('notice_reads_person_idx').on(t.personId),
+  ],
+);
+
+/**
+ * Automatic banners a person has dismissed, by a stable key: `repack:<rigId>:<due date>` for
+ * a rig's repack reminder, `repacks:<digest>` for the admins' summary. A new due date (or a
+ * changed summary) is a new key, so the banner comes back.
+ */
+export const noticeDismissals = pgTable(
+  'notice_dismissals',
+  {
+    personId: uuid('person_id')
+      .notNull()
+      .references(() => people.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    dismissedAt: timestamp('dismissed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.personId, t.key] })],
+);
+
 export type Person = typeof people.$inferSelect;
 export type Rig = typeof rigs.$inferSelect;
 export type Gear = typeof gear.$inferSelect;
 export type Event = typeof events.$inferSelect;
 export type Media = typeof media.$inferSelect;
+export type Notice = typeof notices.$inferSelect;
 export type AuditLogRow = typeof auditLog.$inferSelect;

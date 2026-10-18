@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Trash2, UserPlus } from 'lucide-react';
+import { Megaphone, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useUser } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { NoticeDialog } from '@/components/NoticesPanel';
 import { PageHeader } from '@/components/PageHeader';
 import { RowMenu } from '@/components/RowMenu';
 import { ContactLinks, fullName } from '@/components/people/ContactLinks';
@@ -35,6 +36,7 @@ export function PeoplePage() {
   const [filter, setFilter] = useState<Filter>('');
   const [editing, setEditing] = useState<Person | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Person | null>(null);
+  const [noticeFor, setNoticeFor] = useState<Person | null>(null);
   const signIn = useSignInActions();
 
   const remove = useMutation({
@@ -155,6 +157,11 @@ export function PeoplePage() {
                       </DropdownMenuItem>
                     )}
                     {admin && (
+                      <DropdownMenuItem onSelect={() => setNoticeFor(p)}>
+                        <Megaphone /> Send notice
+                      </DropdownMenuItem>
+                    )}
+                    {admin && (
                       <>
                         <DropdownMenuSeparator />
                         {signIn.menuItems(p)}
@@ -191,6 +198,12 @@ export function PeoplePage() {
         />
       )}
       {signIn.dialogs}
+      {noticeFor && (
+        <NoticeDialog
+          preset={{ recipientId: noticeFor.id, label: fullName(noticeFor) }}
+          onClose={() => setNoticeFor(null)}
+        />
+      )}
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}

@@ -36,7 +36,7 @@ export async function createTestApp(): Promise<TestApp> {
  */
 export async function resetDb(t: TestApp): Promise<void> {
   await t.db.execute(sql`truncate table
-    audit_log, auth_attempts, sessions, sign_in_links, media, gear, rigs, events, people
+    audit_log, auth_attempts, notice_dismissals, notice_reads, notices, sessions, sign_in_links, media, gear, rigs, events, people
     restart identity cascade`);
 }
 

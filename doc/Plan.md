@@ -42,6 +42,7 @@ Track the club's rigs, gear, events and people, with:
 | 2026-10-18 | Production cutover to Postgres: about 5 minutes of downtime, the import verified every collection, a backup was taken right after; Mongo kept as the rollback until about 2026-11-17 | 2.0.0-alpha.3 |
 | 2026-10-18 | Step 4a (2.0.0-alpha.3): PostgreSQL 18 + Drizzle, NestJS 12, Express 5, ESM, TS 6; UUID ids; FKs; append-only audit with before/after (shown in the Activity log); importer from Mongo with verification; `pg_dump` backups; 268 API tests | 2.0.0-alpha.3 |
 | 2026-10-18 | Step 4b: rig components as gear slots (alpha.4, the move matched 9 gear by serial and created 11), the media table for photos and videos (alpha.5, 61 photos moved), and the 1.x columns and one-off scripts removed (alpha.6) | 2.0.0-alpha.6 |
+| 2026-10-17 | Notices (2.0.0-beta.3, TeeMate's): admins post to everyone, one person or the public (guests too), as stacked banners on every page and in the horn's list, with must-see, banner end dates, read and dismissed state per person, an "Also text it" group text from the admin's phone, People → ⋯ → Send notice, and automatic repack reminders (the primary person within 14 days or overdue, a summary for admins); migration 0007; nothing is emailed or pushed | 2.0.0-beta.3 |
 
 ## Releases
 

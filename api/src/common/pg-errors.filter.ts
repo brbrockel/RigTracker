@@ -29,6 +29,7 @@ const MISSING_REFERENCE: Record<string, string> = {
   gear_person_id_people_id_fk: 'Assigned person not found',
   sessions_person_id_people_id_fk: 'Person not found',
   sign_in_links_person_id_people_id_fk: 'Person not found',
+  notices_recipient_id_people_id_fk: 'Person not found',
 };
 
 /**

@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useUser } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useBulkRunner } from '@/components/inventory/bulk';
@@ -20,6 +21,7 @@ import {
   api,
   canDelete,
   canWrite,
+  daysUntil,
   errorMessage,
   personName,
   rigLabel,
@@ -27,7 +29,10 @@ import {
 } from '@/lib/api';
 import { keys, usePeople, useRigs } from '@/lib/queries';
 
-type Filter = '' | 'overdue' | 'soon' | 'nobody';
+type Filter = '' | 'overdue' | 'soon' | 'repack' | 'nobody';
+const FILTERS: Filter[] = ['', 'overdue', 'soon', 'repack', 'nobody'];
+/** The repack reminders' window (as the admins' banner counts them). */
+const REMINDER_DAYS = 14;
 
 export function RigsPage() {
   const user = useUser();
@@ -35,7 +40,12 @@ export function RigsPage() {
   const people = usePeople();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<Filter>('');
+  const [params] = useSearchParams();
+  // ?filter=repack comes from the admins' repack banner.
+  const [filter, setFilter] = useState<Filter>(() => {
+    const f = params.get('filter') as Filter | null;
+    return f && FILTERS.includes(f) ? f : '';
+  });
   const [editing, setEditing] = useState<Rig | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState<Rig | null>(null);
@@ -56,6 +66,10 @@ export function RigsPage() {
     return (rigs.data ?? []).filter((r) => {
       if (filter === 'overdue' && repackState(r) !== 'overdue') return false;
       if (filter === 'soon' && repackState(r) !== 'soon') return false;
+      if (filter === 'repack') {
+        const days = daysUntil(r.repackDue);
+        if (days === null || days > REMINDER_DAYS) return false;
+      }
       if (filter === 'nobody' && r.primaryUserId) return false;
       if (!q) return true;
       return [
@@ -149,6 +163,7 @@ export function RigsPage() {
               <option value="">All rigs</option>
               <option value="overdue">Repack overdue</option>
               <option value="soon">Due in 30 days</option>
+              <option value="repack">Overdue or due in {REMINDER_DAYS} days</option>
               <option value="nobody">No primary person</option>
             </Select>
           </>

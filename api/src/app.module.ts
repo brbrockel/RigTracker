@@ -13,6 +13,7 @@ import { MediaModule } from './media/media.module.js';
 import { EventsModule } from './events/events.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AuditModule } from './audit/audit.module.js';
+import { NoticesModule } from './notices/notices.module.js';
 import { MailModule } from './mail/mailer.js';
 import { HealthController } from './health/health.controller.js';
 
@@ -29,6 +30,7 @@ import { HealthController } from './health/health.controller.js';
     MediaModule,
     EventsModule,
     AuthModule,
+    NoticesModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -50,6 +50,13 @@
       "when": 1792293345143,
       "tag": "0006_passwords_and_guests",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792295477282,
+      "tag": "0007_notices",
+      "breakpoints": true
     }
   ]
 }

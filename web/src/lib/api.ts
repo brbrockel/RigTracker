@@ -356,3 +356,57 @@ export function daysUntil(value?: string | null): number | null {
   const t = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   return Math.round((d.getTime() - t) / 86_400_000);
 }
+
+// ── Notices ─────────────────────────────────────────────────────────────────
+
+/** Everyone who signs in, one person, or the public (everyone signed in and guests). */
+export type NoticeAudience = 'everyone' | 'person' | 'public';
+
+/** GET /notices: a notice for you (admins see all of them), with your read state. */
+export interface Notice {
+  id: string;
+  title: string | null;
+  body: string;
+  audience: NoticeAudience;
+  recipientId: string | null;
+  /** Must see: a banner until each person dismisses it. */
+  pinned: boolean;
+  /** "Everyone", "Everyone and guests", "You", or the person's name (admins). */
+  to: string;
+  author: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  read: boolean;
+  dismissed: boolean;
+  /** Showing as a banner for you right now. */
+  banner: boolean;
+  dismissible: boolean;
+  urgent: boolean;
+  /** When it stops showing as a banner; null: until dismissed. */
+  bannerUntil: string | null;
+}
+
+/** GET /notices/banners: stored notices showing as banners, and automatic repack reminders. */
+export interface NoticeBanner {
+  /** A notice's id, or an automatic banner's key (repack:…, repacks:…). */
+  id: string;
+  automatic: boolean;
+  title: string;
+  body: string;
+  label: string;
+  urgent: boolean;
+  dismissible: boolean;
+  read: boolean;
+  link: string | null;
+  createdAt: string;
+}
+
+/** Who to text a notice to: their mobile numbers, and how many have none. */
+export interface NoticePhones {
+  phones: string[];
+  skipped: number;
+}
+
+/** A notice's one line: its title, or the start of its text. */
+export const noticeHeadline = (n: Pick<Notice, 'title' | 'body'>) =>
+  n.title || (n.body.split('\n')[0] ?? '');

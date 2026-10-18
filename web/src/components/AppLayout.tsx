@@ -10,8 +10,11 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
+import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useMe, useSignOut } from '@/auth/session';
+import { NoticeBanners } from '@/components/NoticeBanners';
+import { NoticesButton } from '@/components/NoticesPanel';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -37,6 +40,7 @@ export function AppLayout() {
   const signOut = useSignOut();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [noticesOpen, setNoticesOpen] = useState(false);
   if (!me) return null;
   const admin = isAdmin(me.user);
   const guest = isGuest(me.user);
@@ -73,6 +77,12 @@ export function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
+            <NoticesButton
+              admin={admin}
+              guest={guest}
+              open={noticesOpen}
+              onOpenChange={setNoticesOpen}
+            />
             {guest ? (
               // Ends the guest session, then the sign-in page.
               <Button size="sm" onClick={signOutAndLeave}>
@@ -119,6 +129,7 @@ export function AppLayout() {
         key={pathname.split('/')[1]}
         className="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-6 md:pb-10"
       >
+        <NoticeBanners guest={guest} />
         <Outlet />
       </main>
 
