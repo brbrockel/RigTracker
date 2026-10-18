@@ -4,7 +4,27 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { asAdmin, asUser, asViewer, mockApi, renderAt } from './render';
 
 const people = [{ id: 'p1', firstName: 'Ann', lastName: 'Jumper' }];
-const rigs = [{ id: 'r1', number: '3', name: 'Blue', primaryUserId: 'p1' }];
+const rigs = [
+  {
+    id: 'r1',
+    number: '3',
+    name: 'Blue',
+    primaryUserId: 'p1',
+    components: {
+      container: null,
+      main: {
+        id: 'g4',
+        name: 'Storm 150',
+        type: 'Main',
+        serialNumber: null,
+        dateOfManufacture: null,
+        imageUrl: null,
+      },
+      reserve: null,
+      aad: null,
+    },
+  },
+];
 const gear = [
   {
     id: 'g1',
@@ -16,6 +36,14 @@ const gear = [
   },
   { id: 'g2', name: 'Helmet', type: 'Helmet', serialNumber: 'HEL-1', assignedPersonId: 'p1' },
   { id: 'g3', name: 'Hook knife', type: 'Knife', serialNumber: 'KN-9' },
+  {
+    id: 'g4',
+    name: 'Storm 150',
+    type: 'Main',
+    assignedRigId: 'r1',
+    assignedPersonId: 'p1',
+    slot: 'main',
+  },
 ];
 const lists = {
   'GET /api/rigs': () => ({ status: 200, body: rigs }),
@@ -35,6 +63,8 @@ describe('gear list', () => {
       'href',
       '/rigs/r1',
     );
+    // A component shows its slot with the rig.
+    expect(screen.getByRole('link', { name: 'Rig: #3 · Blue · Main' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Person: Ann Jumper' })[0]).toHaveAttribute(
       'href',
       '/people/p1',
@@ -94,5 +124,73 @@ describe('gear list', () => {
     });
     // The dialog stays open so the serial can be fixed.
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+  });
+
+  it('puts gear in a rig position with the Position select', async () => {
+    let body: Record<string, unknown> = {};
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      ...lists,
+      'POST /api/gear': (init) => {
+        body = JSON.parse(init!.body as string);
+        return { status: 201, body: { id: 'g9' } };
+      },
+    });
+    renderAt('/gear');
+    await userEvent.click(await screen.findByRole('button', { name: /New gear/ }));
+    const dialog = await screen.findByRole('dialog');
+    // Only gear on a rig has a position.
+    expect(within(dialog).queryByLabelText('Position')).not.toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Smart 150');
+    await userEvent.type(within(dialog).getByLabelText('Type'), 'Reserve');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Rig'), 'r1');
+    const position = within(dialog).getByLabelText('Position');
+    expect(
+      within(position)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Not a component', 'Container', 'Main (now Storm 150)', 'Reserve', 'AAD']);
+    await userEvent.selectOptions(position, 'reserve');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add gear' }));
+    await waitFor(() =>
+      expect(body).toMatchObject({ name: 'Smart 150', assignedRigId: 'r1', slot: 'reserve' }),
+    );
+  });
+
+  it('shows the API’s message when the position is taken', async () => {
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      ...lists,
+      'POST /api/gear': () => ({ status: 409, body: { message: 'Rig #3 already has a main' } }),
+    });
+    renderAt('/gear');
+    await userEvent.click(await screen.findByRole('button', { name: /New gear/ }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Other main');
+    await userEvent.type(within(dialog).getByLabelText('Type'), 'Main');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Rig'), 'r1');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Position'), 'main');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add gear' }));
+    expect(await within(dialog).findByText('Rig #3 already has a main')).toBeInTheDocument();
+  });
+
+  it('a gear taken off its rig loses its position', async () => {
+    let body: Record<string, unknown> = {};
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      ...lists,
+      'PUT /api/gear/g4': (init) => {
+        body = JSON.parse(init!.body as string);
+        return { status: 200, body: {} };
+      },
+    });
+    renderAt('/gear');
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for Storm 150' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Edit/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Position')).toHaveValue('main');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Rig'), '');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(body).toMatchObject({ assignedRigId: null, slot: null }));
   });
 });

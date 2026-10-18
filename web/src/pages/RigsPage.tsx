@@ -15,7 +15,16 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Input, Select } from '@/components/ui/input';
-import { api, canDelete, canWrite, errorMessage, personName, rigLabel, type Rig } from '@/lib/api';
+import {
+  RIG_SLOTS,
+  api,
+  canDelete,
+  canWrite,
+  errorMessage,
+  personName,
+  rigLabel,
+  type Rig,
+} from '@/lib/api';
 import { keys, usePeople, useRigs } from '@/lib/queries';
 
 type Filter = '' | 'overdue' | 'soon' | 'nobody';
@@ -52,10 +61,10 @@ export function RigsPage() {
       return [
         r.name,
         r.number,
-        r.containerSerialNumber,
-        r.mainSerialNumber,
-        r.reserveSerialNumber,
-        r.aadSerialNumber,
+        ...RIG_SLOTS.flatMap((slot) => [
+          r.components?.[slot]?.name ?? undefined,
+          r.components?.[slot]?.serialNumber ?? undefined,
+        ]),
         r.primaryUserId ? nameById.get(r.primaryUserId) : '',
       ].some((v) => v?.toLowerCase().includes(q));
     });

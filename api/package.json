@@ -1,6 +1,6 @@
 {
   "name": "rigtracker-api",
-  "version": "2.0.0-alpha.3",
+  "version": "2.0.0-alpha.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=../.env dist/db/migrate.js",
     "sign-in-link": "node --env-file-if-exists=../.env dist/scripts/sign-in-link.js",
-    "import:mongo": "node --env-file-if-exists=../.env dist/scripts/import-mongo.js"
+    "import:mongo": "node --env-file-if-exists=../.env dist/scripts/import-mongo.js",
+    "rig-components": "node --env-file-if-exists=../.env dist/scripts/rig-components.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.3",

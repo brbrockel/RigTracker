@@ -89,6 +89,10 @@ export const rigs = pgTable(
     id: id(),
     name: text('name'),
     number: text('number'),
+    // ── Components, the 1.x way (deprecated) ─────────────────────────────────
+    // A rig's container, main, reserve and AAD are now gear in the rig's slots (gear.slot).
+    // scripts/rig-components.ts moves these columns into gear; the API no longer reads or
+    // writes them, and a later release drops them once production has been moved.
     container: text('container'),
     containerSerialNumber: text('container_serial_number'),
     containerDOM: day('container_dom'),
@@ -104,6 +108,7 @@ export const rigs = pgTable(
     aadType: text('aad_type'),
     aadDOM: day('aad_dom'),
     aadSerialNumber: text('aad_serial_number'),
+    // ─────────────────────────────────────────────────────────────────────────
     customFields: jsonb('custom_fields').$type<CustomFields>().notNull().default({}),
     /** The rig's primary person; gear on the rig goes with them. */
     primaryUserId: uuid('primary_person_id').references(() => people.id, {
@@ -118,6 +123,10 @@ export const rigs = pgTable(
   (t) => [index('rigs_primary_person_idx').on(t.primaryUserId)],
 );
 
+/** The four places on a rig a piece of gear can fill (gear.slot). */
+export const RIG_SLOTS = ['container', 'main', 'reserve', 'aad'] as const;
+export type RigSlot = (typeof RIG_SLOTS)[number];
+
 export const gear = pgTable(
   'gear',
   {
@@ -131,6 +140,11 @@ export const gear = pgTable(
     imageUrl: text('image_url'),
     assignedRigId: uuid('rig_id').references(() => rigs.id, { onDelete: 'set null' }),
     assignedPersonId: uuid('person_id').references(() => people.id, { onDelete: 'set null' }),
+    /**
+     * Which of its rig's components this gear is (container, main, reserve or AAD); null for
+     * other gear. Only gear on a rig has one, and a rig has at most one of each.
+     */
+    slot: text('slot').$type<RigSlot>(),
     legacyId: legacyId(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -139,6 +153,10 @@ export const gear = pgTable(
     check('gear_notes_length', sql`char_length(${t.notes}) <= 1000`),
     index('gear_rig_idx').on(t.assignedRigId),
     index('gear_person_idx').on(t.assignedPersonId),
+    check('gear_slot_check', sql`${t.slot} in ('container', 'main', 'reserve', 'aad')`),
+    uniqueIndex('gear_rig_slot_unique')
+      .on(t.assignedRigId, t.slot)
+      .where(sql`${t.slot} is not null`),
   ],
 );
 

@@ -54,7 +54,7 @@ export class RigsController {
       before,
       after,
     });
-    return after;
+    return { ...after, components: await this.rigsService.componentsOf(id) };
   }
 
   @Delete(':id')

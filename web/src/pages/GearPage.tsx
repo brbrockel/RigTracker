@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Input, Select } from '@/components/ui/input';
 import { api, canDelete, canWrite, errorMessage, personName, type Gear } from '@/lib/api';
-import { keys, useGear, usePeople, useRigs } from '@/lib/queries';
+import { invalidateGear, keys, useGear, usePeople, useRigs } from '@/lib/queries';
 
 type Assignment = '' | 'rig' | 'person' | 'none';
 
@@ -297,7 +297,7 @@ export function GearPage() {
         description="This can't be undone."
         onConfirm={async () => {
           await api(`/gear/${deleting!.id}`, { method: 'DELETE' });
-          await qc.invalidateQueries({ queryKey: keys.gear });
+          await invalidateGear(qc);
         }}
       />
       <ConfirmDialog

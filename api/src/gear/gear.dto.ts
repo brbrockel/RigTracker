@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RIG_SLOTS } from '../db/schema.js';
 import { date, mediaUrl, queryId, queryString, ref, text } from '../common/validation.js';
 
 export const GearBody = z
@@ -12,6 +13,8 @@ export const GearBody = z
     imageUrl: mediaUrl(),
     assignedRigId: ref(),
     assignedPersonId: ref(),
+    /** Which of its rig's components it is; needs a rig. '' or null: not a component. */
+    slot: z.preprocess((v) => (v === '' ? null : v), z.enum(RIG_SLOTS).nullable().optional()),
   })
   .strict();
 export type GearBody = z.infer<typeof GearBody>;

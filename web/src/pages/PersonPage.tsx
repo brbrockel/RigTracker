@@ -39,12 +39,13 @@ import {
   errorMessage,
   formatDate,
   rigLabel,
+  rigSlotLabel,
   type Gear,
   type Person,
   type Rig,
 } from '@/lib/api';
 import { formatPhone } from '@/lib/phone';
-import { keys, usePeople, usePerson, useGear, useRigs } from '@/lib/queries';
+import { invalidateGear, keys, usePeople, usePerson, useGear, useRigs } from '@/lib/queries';
 
 export function PersonPage() {
   const { id = '' } = useParams();
@@ -80,7 +81,7 @@ export function PersonPage() {
         method: 'PUT',
         body: { assignedRigId: null, assignedPersonId: null },
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.gear }),
+    onSuccess: () => invalidateGear(qc),
   });
 
   const back = (
@@ -301,7 +302,7 @@ export function PersonPage() {
                       <div className="truncate font-medium">{g.name || 'Unnamed gear'}</div>
                       <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                         {g.assignedRigId ? (
-                          <Badge>Via rig: {rig ? rigLabel(rig) : 'unknown rig'}</Badge>
+                          <Badge>Via rig: {rigSlotLabel(rig, g.slot)}</Badge>
                         ) : (
                           <Badge>Direct</Badge>
                         )}
@@ -397,7 +398,7 @@ function AssignGearDialog({
         body: { assignedRigId: null, assignedPersonId: person.id },
       }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: keys.gear });
+      await invalidateGear(qc);
       onClose();
     },
   });

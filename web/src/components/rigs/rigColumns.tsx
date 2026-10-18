@@ -4,7 +4,15 @@ import { timeOf } from '@/components/inventory/sort';
 import type { ColumnDef, GroupOption, ItemSummary, SortOption } from '@/components/inventory/types';
 import { RepackBadge, repackState } from '@/components/rigs/RepackBadge';
 import { Thumb } from '@/components/Thumb';
-import { formatDate, mediaUrl, parseDate, rigLabel, type Rig } from '@/lib/api';
+import {
+  formatDate,
+  mediaUrl,
+  parseDate,
+  rigLabel,
+  type Rig,
+  type RigComponent,
+  type RigSlot,
+} from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 /** Looks up the primary person's name. */
@@ -16,6 +24,27 @@ const join = (...parts: (string | undefined)[]) =>
     .filter(Boolean)
     .join(' · ');
 const withSerial = (what?: string, serial?: string) => join(what, serial && `S/N ${serial}`);
+
+/** The gear in one of the rig's slots. */
+export const componentOf = (r: Rig, slot: RigSlot): RigComponent | null =>
+  r.components?.[slot] ?? null;
+/** "Storm 150 · S/N 123" for a slot, or ''. */
+export const componentText = (r: Rig, slot: RigSlot) => {
+  const c = componentOf(r, slot);
+  return c ? withSerial(c.name || 'Unnamed gear', c.serialNumber ?? undefined) : '';
+};
+const componentColumn = (slot: RigSlot, label: string): ColumnDef<Rig> => ({
+  id: slot,
+  label,
+  render: (r) => {
+    const c = componentOf(r, slot);
+    return (
+      <TwoLine main={c ? c.name || 'Unnamed gear' : undefined} sub={c?.serialNumber ?? undefined} />
+    );
+  },
+  text: (r) => componentText(r, slot),
+  sortValue: (r) => componentOf(r, slot)?.name?.trim(),
+});
 
 function TwoLine({ main, sub }: { main?: string; sub?: string }) {
   if (!main && !sub) return <span className="text-muted-foreground">—</span>;
@@ -92,34 +121,10 @@ export function rigColumns(nameOf: NameOf): ColumnDef<Rig>[] {
       text: (r) => r.riggerINT ?? '',
       sortValue: (r) => r.riggerINT,
     },
-    {
-      id: 'container',
-      label: 'Container',
-      render: (r) => <TwoLine main={r.container} sub={r.containerSerialNumber} />,
-      text: (r) => withSerial(r.container, r.containerSerialNumber),
-      sortValue: (r) => r.container,
-    },
-    {
-      id: 'main',
-      label: 'Main',
-      render: (r) => <TwoLine main={r.mainSize} sub={r.mainSerialNumber} />,
-      text: (r) => withSerial(r.mainSize, r.mainSerialNumber),
-      sortValue: (r) => r.mainSize,
-    },
-    {
-      id: 'reserve',
-      label: 'Reserve',
-      render: (r) => <TwoLine main={r.reserveSize} sub={r.reserveSerialNumber} />,
-      text: (r) => withSerial(r.reserveSize, r.reserveSerialNumber),
-      sortValue: (r) => r.reserveSize,
-    },
-    {
-      id: 'aad',
-      label: 'AAD',
-      render: (r) => <TwoLine main={r.aadType} sub={r.aadSerialNumber} />,
-      text: (r) => withSerial(r.aadType, r.aadSerialNumber),
-      sortValue: (r) => r.aadType,
-    },
+    componentColumn('container', 'Container'),
+    componentColumn('main', 'Main'),
+    componentColumn('reserve', 'Reserve'),
+    componentColumn('aad', 'AAD'),
     {
       id: 'notes',
       label: 'Notes',
@@ -185,7 +190,7 @@ export function rigSummary(r: Rig, nameOf: NameOf): ItemSummary {
     href: `/rigs/${r.id}`,
     subtitle: join(
       r.primaryUserId ? nameOf(r.primaryUserId) || 'Unknown person' : 'No primary person',
-      r.container,
+      componentOf(r, 'container')?.name ?? undefined,
     ),
     imageUrl: r.imageUrl,
     badges: repackState(r) === 'none' ? undefined : <RepackBadge rig={r} />,

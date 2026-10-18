@@ -45,8 +45,7 @@ describe('rigs', () => {
     const rig = await createRig({
       name: 'Javelin',
       number: '7',
-      mainSize: '170',
-      containerDOM: '2020-05-01',
+      repackDue: '2020-05-01',
       lastPacked: '2024-01-02T03:04:05Z',
       primaryUserId: p.id,
       customFields: { color: 'blue', jumps: 300, checked: true },
@@ -58,7 +57,8 @@ describe('rigs', () => {
       primaryUserId: p.id,
       customFields: { color: 'blue', jumps: 300, checked: true },
     });
-    expect(rig.containerDOM).toBe('2020-05-01');
+    expect(rig.repackDue).toBe('2020-05-01');
+    expect(rig.components).toEqual({ container: null, main: null, reserve: null, aad: null });
     // A full timestamp keeps its (UTC) date.
     expect(rig.lastPacked).toBe('2024-01-02');
 

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { api, type Gear, type Person, type Rig, type RigEvent } from '@/lib/api';
 
 /** Query keys; invalidate the list key after a change (detail keys sit under it). */
@@ -13,6 +13,13 @@ export const keys = {
   event: (id: string) => ['events', id] as const,
   audit: ['audit'] as const,
 };
+
+/** After a gear change: rigs list their components (the gear in their slots), so both. */
+export const invalidateGear = (qc: QueryClient) =>
+  Promise.all([
+    qc.invalidateQueries({ queryKey: keys.gear }),
+    qc.invalidateQueries({ queryKey: keys.rigs }),
+  ]);
 
 export const useRigs = () => useQuery({ queryKey: keys.rigs, queryFn: () => api<Rig[]>('/rigs') });
 export const useRig = (id: string) =>

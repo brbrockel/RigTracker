@@ -219,7 +219,7 @@ describe('migrations', () => {
         const { rows: applied } = await check.query(
           'select count(*)::int as n from drizzle.__drizzle_migrations',
         );
-        expect(applied[0].n).toBe(2);
+        expect(applied[0].n).toBe(3);
       } finally {
         await check.end();
       }

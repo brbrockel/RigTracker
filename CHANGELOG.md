@@ -38,6 +38,14 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
 
+### 2.0.0-alpha.4
+
+- **Breaking:** a rig's container, main, reserve and AAD are gear, the single source of truth for serials and dates.
+  - Gear has a `slot` (`container`, `main`, `reserve` or `aad`). Only gear on a rig has one, and a rig has one of each: a taken slot is 409 ("Rig #7 already has a reserve"). Taking gear off its rig, giving it to a person or deleting the rig clears it.
+  - Rig responses have `components: { container, main, reserve, aad }` (the gear in each slot, or null) instead of the component fields. Rig bodies refuse those fields (`container`, `mainSize`, `aadSerialNumber`, …). The old columns stay in the database until a later release.
+- The rig page has a **Components** card: add, change or take off each component, choosing existing gear or making new gear. The gear form has a **Position** select. Inventory columns, CSV, print and search use the components, and gear shows its slot with its rig ("#4 · Blue · Main").
+- `dist/scripts/rig-components.js` moves the old rig fields into gear (matched by serial, or new gear), keeps conflicts in the rig's custom fields as "Unplaced …", fills missing dates and tidies gear types (`Aad` → `AAD`, trailing spaces, case variants). Dry run by default, `--apply` in one transaction, and safe to re-run.
+
 ### 2.0.0-alpha.3
 
 - **Breaking:** PostgreSQL 18 + Drizzle replaces MongoDB.

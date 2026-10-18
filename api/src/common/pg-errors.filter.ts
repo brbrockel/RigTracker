@@ -19,6 +19,7 @@ export function pgError(err: unknown): PgError | undefined {
 
 const UNIQUE_MESSAGES: Record<string, string> = {
   gear_serial_number_unique: 'That serial number is already in use',
+  gear_rig_slot_unique: 'That rig already has gear in that position',
   people_sign_in_email_unique: 'Another person who signs in already uses that email',
 };
 

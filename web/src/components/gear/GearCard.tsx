@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { GearSummary } from '@/components/gear/GearSummary';
 import { Card } from '@/components/ui/card';
-import { rigLabel, type Gear, type Rig } from '@/lib/api';
+import { rigSlotLabel, type Gear, type Rig } from '@/lib/api';
 
 const pill = 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs hover:bg-accent';
 
@@ -28,7 +28,7 @@ export function GearCard({
           <div className="mt-2 flex flex-wrap gap-1.5">
             {g.assignedRigId && (
               <Link to={`/rigs/${g.assignedRigId}`} className={pill}>
-                Rig: {rig ? rigLabel(rig) : 'Unknown rig'}
+                Rig: {rigSlotLabel(rig, g.slot)}
               </Link>
             )}
             {g.assignedPersonId && (

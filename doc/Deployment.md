@@ -99,6 +99,32 @@ On 2026-10-18 the app was stopped from 01:27 to 01:32 UTC. The import verified 1
 
 Mongo stays in the stack, untouched, for 30 days as the rollback: deploy the previous version (`RIGTRACKER_TAG=2.0.0-alpha.2`) and point it back at Mongo.
 
+## Rig components into gear (2.0.0-alpha.4)
+
+Done once, after deploying 2.0.0-alpha.4 (its migration adds `gear.slot`). Until the script has run, rigs show empty components; the old rig columns are untouched, so rolling back to 2.0.0-alpha.3 still works.
+
+1. Take a Postgres backup (see Backups).
+2. Deploy: `./build.sh --deploy`.
+3. A dry run, as a one-off service on the internal network. It prints a plan per rig (match, new, conflict), then the conflicts, date differences, type changes and a summary:
+
+   ```bash
+   run_components() {
+     docker service create --name rigtracker-components --restart-condition none --detach \
+       --network rigtracker_rigtracker-internal \
+       --secret rigtracker_database_url -e DATABASE_URL_FILE=/run/secrets/rigtracker_database_url \
+       ghcr.io/brbrockel/rigtracker:2.0.0-alpha.4 node dist/scripts/rig-components.js "$@"
+     until docker service ps rigtracker-components --format '{{.CurrentState}}' | grep -qE 'Complete|Failed|Rejected'; do sleep 2; done
+     docker service ps rigtracker-components --format '{{.CurrentState}} {{.Error}}'
+     docker service logs --raw rigtracker-components; docker service rm rigtracker-components
+   }
+   run_components            # dry run
+   run_components --apply    # one transaction; exits non-zero (nothing written) on an error
+   run_components            # check: every slot "already", 0 matched, 0 created
+   ```
+
+   (`docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/rig-components.js [--apply]` does the same from the running container.)
+4. Check a few rigs on their pages, and look at any "Unplaced …" custom fields the conflicts left (for example rig #12's container shares serial 12376 with rig #11's).
+
 ## Logs and status
 
 ```bash

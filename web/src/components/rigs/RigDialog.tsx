@@ -9,28 +9,9 @@ import { Input, Select } from '@/components/ui/input';
 import { api, dateInputValue, errorMessage, personName, type Rig } from '@/lib/api';
 import { keys, usePeople } from '@/lib/queries';
 
-const TEXT = [
-  'name',
-  'number',
-  'container',
-  'containerSerialNumber',
-  'mainSize',
-  'mainSerialNumber',
-  'reserveSize',
-  'reserveSerialNumber',
-  'aadType',
-  'aadSerialNumber',
-  'riggerINT',
-  'notes',
-] as const;
-const DATES = [
-  'containerDOM',
-  'mainDOM',
-  'reserveDOM',
-  'aadDOM',
-  'lastPacked',
-  'repackDue',
-] as const;
+// The container, main, reserve and AAD are gear, set on the rig's page (Components).
+const TEXT = ['name', 'number', 'riggerINT', 'notes'] as const;
+const DATES = ['lastPacked', 'repackDue'] as const;
 
 type Key = (typeof TEXT)[number] | (typeof DATES)[number] | 'primaryUserId';
 type Values = Record<Key, string>;
@@ -75,7 +56,9 @@ export function RigDialog({
       <DialogContent
         title={rig ? 'Edit rig' : 'New rig'}
         description={
-          rig ? undefined : 'Only the name is required; fill in the rest as you know it.'
+          rig
+            ? 'Its container, main, reserve and AAD are set under Components on the rig’s page.'
+            : 'Only the name is required. Add its container, main, reserve and AAD on the rig’s page.'
         }
         className="sm:max-w-2xl"
       >
@@ -154,26 +137,6 @@ function RigForm({ rig, onDone }: { rig?: Rig | null; onDone: () => void }) {
             ))}
           </Select>
         </Field>
-      </Section>
-      <Section title="Container">
-        {text('container', 'Container')}
-        {text('containerSerialNumber', 'Serial number')}
-        {date('containerDOM', 'Date of manufacture')}
-      </Section>
-      <Section title="Main">
-        {text('mainSize', 'Size')}
-        {text('mainSerialNumber', 'Serial number')}
-        {date('mainDOM', 'Date of manufacture')}
-      </Section>
-      <Section title="Reserve">
-        {text('reserveSize', 'Size')}
-        {text('reserveSerialNumber', 'Serial number')}
-        {date('reserveDOM', 'Date of manufacture')}
-      </Section>
-      <Section title="AAD">
-        {text('aadType', 'Type')}
-        {text('aadSerialNumber', 'Serial number')}
-        {date('aadDOM', 'Date of manufacture')}
       </Section>
       <Section title="Packing">
         {date('lastPacked', 'Last packed')}

@@ -1,7 +1,13 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, asc, eq, isNull, ne, type SQL } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.js';
-import { gear, people, rigs, type Gear } from '../db/schema.js';
+import { gear, people, rigs, type Gear, type RigSlot } from '../db/schema.js';
 import { defined } from '../common/validation.js';
 import { omit } from '../common/omit.js';
 import type { GearBody } from './gear.dto.js';
@@ -13,6 +19,13 @@ export function gearToApi(row: Gear) {
 }
 
 type GearChanges = Partial<typeof gear.$inferInsert>;
+
+export const SLOT_LABELS: Record<RigSlot, string> = {
+  container: 'container',
+  main: 'main',
+  reserve: 'reserve',
+  aad: 'AAD',
+};
 
 @Injectable()
 export class GearService {
@@ -65,6 +78,53 @@ export class GearService {
     return { ok: true };
   }
 
+  /**
+   * Where gear goes (see normalizeRigAndPerson), then its slot: only gear on a rig has one (a
+   * slot without a rig is 400); off its rig, or moved to another rig without a slot sent, it
+   * has none; a slot another gear on that rig already fills is 409.
+   */
+  private async normalizeAssignment(
+    existing: Gear | undefined,
+    mapped: GearChanges,
+    rawDto: GearBody,
+  ): Promise<GearChanges> {
+    const next = await this.normalizeRigAndPerson(existing, mapped, rawDto);
+    const rigId = next.assignedRigId !== undefined ? next.assignedRigId : existing?.assignedRigId;
+    const rigChanged = (rigId ?? null) !== (existing?.assignedRigId ?? null);
+    const slot = rawDto.slot !== undefined ? rawDto.slot : rigChanged ? null : existing?.slot;
+
+    if (!rigId) {
+      if (rawDto.slot)
+        throw new BadRequestException('Only gear on a rig can be one of its components');
+      if (existing?.slot || rawDto.slot !== undefined) next.slot = null;
+      return next;
+    }
+    if (rawDto.slot !== undefined || rigChanged) next.slot = slot ?? null;
+    if (slot) {
+      const taken = await this.db
+        .select({ id: gear.id })
+        .from(gear)
+        .where(
+          and(
+            eq(gear.assignedRigId, rigId),
+            eq(gear.slot, slot),
+            existing ? ne(gear.id, existing.id) : undefined,
+          ),
+        );
+      if (taken.length) {
+        const [rig] = await this.db
+          .select({ number: rigs.number, name: rigs.name })
+          .from(rigs)
+          .where(eq(rigs.id, rigId));
+        const which = rig?.number ? `Rig #${rig.number}` : rig?.name ? rig.name : 'That rig';
+        throw new ConflictException(
+          `${which} already has ${slot === 'aad' ? 'an' : 'a'} ${SLOT_LABELS[slot]}`,
+        );
+      }
+    }
+    return next;
+  }
+
   private normalizeId(value: string | null | undefined): string | null | undefined {
     if (value === undefined) return undefined;
     if (value === null) return null;
@@ -77,7 +137,7 @@ export class GearService {
    * is ignored); taken off a rig without a person, it has none; given a person, it comes off
    * its rig. A rig or person that doesn't exist is 400.
    */
-  private async normalizeAssignment(
+  private async normalizeRigAndPerson(
     existing: Gear | undefined,
     mapped: GearChanges,
     rawDto: GearBody,

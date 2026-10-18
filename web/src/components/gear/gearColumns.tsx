@@ -4,7 +4,15 @@ import { timeOf } from '@/components/inventory/sort';
 import type { ColumnDef, GroupOption, ItemSummary, SortOption } from '@/components/inventory/types';
 import { Thumb } from '@/components/Thumb';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, mediaUrl, parseDate, rigLabel, type Gear, type Rig } from '@/lib/api';
+import {
+  formatDate,
+  mediaUrl,
+  parseDate,
+  rigLabel,
+  rigSlotLabel,
+  type Gear,
+  type Rig,
+} from '@/lib/api';
 
 export interface GearLookups {
   rigOf: (id?: string) => Rig | undefined;
@@ -17,8 +25,7 @@ const gearName = (g: Gear) => g.name || 'Unnamed gear';
 export function gearColumns({ rigOf, nameOf }: GearLookups): ColumnDef<Gear>[] {
   const rigText = (g: Gear) => {
     if (!g.assignedRigId) return '';
-    const rig = rigOf(g.assignedRigId);
-    return rig ? rigLabel(rig) : 'Unknown rig';
+    return rigSlotLabel(rigOf(g.assignedRigId), g.slot);
   };
   const personText = (g: Gear) =>
     g.assignedPersonId ? (nameOf(g.assignedPersonId) ?? 'Unknown person') : '';
@@ -174,7 +181,7 @@ export function gearSummary(g: Gear, { rigOf, nameOf }: GearLookups): ItemSummar
     title: gearName(g),
     subtitle: [
       g.type,
-      g.assignedRigId && (rig ? rigLabel(rig) : 'Unknown rig'),
+      g.assignedRigId && rigSlotLabel(rig, g.slot),
       g.assignedPersonId && (nameOf(g.assignedPersonId) ?? 'Unknown person'),
     ]
       .filter(Boolean)

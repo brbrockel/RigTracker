@@ -46,7 +46,7 @@ backup job (nightly) ── internal network ── MongoDB, uploads (read-only)
 3. **Data (PostgreSQL 18: `people`, `rigs`, `gear`, `events`, `sessions`, `sign_in_links`, `audit_log`; `api/src/db/schema.ts`)**
    - Records have UUID ids. Rows imported from MongoDB keep the old ObjectId in `legacy_id`.
    - A person may have sign-in access: a `role` (admin, user or viewer; the API shows it as `roles`), `is_active`, and their last sign-in. Emails are unique among people who sign in (a partial unique index).
-   - Gear points at a rig and/or a person (`rig_id`, `person_id`; `assignedRigId`, `assignedPersonId` in the API), and a rig at its primary person, with foreign keys that clear the reference when the record is deleted. On a rig, gear goes with the rig's primary person. Serial numbers are unique.
+   - Gear points at a rig and/or a person (`rig_id`, `person_id`; `assignedRigId`, `assignedPersonId` in the API), and a rig at its primary person, with foreign keys that clear the reference when the record is deleted. On a rig, gear goes with the rig's primary person. Serial numbers are unique. A rig's container, main, reserve and AAD are gear in its slots (`gear.slot`, one of each per rig, a partial unique index); rig responses list them as `components`. The rig's old component columns are unused and are dropped in a later release.
    - Sessions and sign-in links store only SHA-256 hashes of their tokens, and are deleted with their person.
    - The audit log is append-only (a trigger refuses UPDATE and DELETE) and keeps the record before and after each update.
 

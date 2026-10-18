@@ -114,29 +114,39 @@ export interface Person {
   updatedAt?: string;
 }
 
+/** The four places on a rig a piece of gear can fill. */
+export type RigSlot = 'container' | 'main' | 'reserve' | 'aad';
+export const RIG_SLOTS: RigSlot[] = ['container', 'main', 'reserve', 'aad'];
+export const SLOT_LABELS: Record<RigSlot, string> = {
+  container: 'Container',
+  main: 'Main',
+  reserve: 'Reserve',
+  aad: 'AAD',
+};
+
+/** The gear in one of a rig's slots, as rig responses include it. */
+export interface RigComponent {
+  id: string;
+  name: string | null;
+  type: string | null;
+  serialNumber: string | null;
+  dateOfManufacture: string | null;
+  imageUrl: string | null;
+}
+
 export interface Rig {
   id: string;
   name?: string;
   number?: string;
-  container?: string;
-  containerSerialNumber?: string;
-  containerDOM?: string;
-  mainSize?: string;
-  mainDOM?: string;
-  mainSerialNumber?: string;
-  reserveSize?: string;
-  reserveDOM?: string;
-  reserveSerialNumber?: string;
   lastPacked?: string;
   riggerINT?: string;
   repackDue?: string;
-  aadType?: string;
-  aadDOM?: string;
-  aadSerialNumber?: string;
   customFields?: Record<string, unknown>;
   primaryUserId?: string;
   notes?: string;
   imageUrl?: string;
+  /** Its container, main, reserve and AAD: the gear in each slot, or null. */
+  components?: Record<RigSlot, RigComponent | null>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -151,6 +161,8 @@ export interface Gear {
   imageUrl?: string;
   assignedRigId?: string;
   assignedPersonId?: string;
+  /** Which of its rig's components it is; null or missing for other gear. */
+  slot?: RigSlot | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -221,6 +233,12 @@ export function rigLabel(r?: Pick<Rig, 'number' | 'name'> | null): string {
   if (!r) return '';
   if (r.number && r.name) return `#${r.number} · ${r.name}`;
   return r.name || (r.number ? `Rig #${r.number}` : 'Unnamed rig');
+}
+
+/** "#4 · Four · Main": the rig, and the slot when the gear is one of its components. */
+export function rigSlotLabel(rig: Pick<Rig, 'number' | 'name'> | undefined, slot?: RigSlot | null) {
+  const r = rig ? rigLabel(rig) : 'Unknown rig';
+  return slot ? `${r} · ${SLOT_LABELS[slot]}` : r;
 }
 
 const VIDEO = /\.(mp4|mov|webm|m4v)$/i;

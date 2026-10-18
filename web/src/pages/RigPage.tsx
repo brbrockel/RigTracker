@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Field } from '@/components/Field';
 import { GearSummary } from '@/components/gear/GearSummary';
 import { RepackBadge } from '@/components/rigs/RepackBadge';
+import { ComponentsCard } from '@/components/rigs/RigComponents';
 import { RigDialog } from '@/components/rigs/RigDialog';
 import { RowMenu } from '@/components/RowMenu';
 import { Thumb } from '@/components/Thumb';
@@ -28,7 +29,7 @@ import {
   type Gear,
   type Rig,
 } from '@/lib/api';
-import { keys, useGear, usePeople, useRig, useRigs } from '@/lib/queries';
+import { invalidateGear, keys, useGear, usePeople, useRig, useRigs } from '@/lib/queries';
 
 export function RigPage() {
   const { id = '' } = useParams();
@@ -86,7 +87,8 @@ export function RigPage() {
     return p ? personName(p) || 'Unnamed person' : undefined;
   };
   const primary = nameOf(r.primaryUserId);
-  const onRig = (gear.data ?? []).filter((g) => g.assignedRigId === r.id);
+  // Its container, main, reserve and AAD are in the Components card.
+  const onRig = (gear.data ?? []).filter((g) => g.assignedRigId === r.id && !g.slot);
 
   return (
     <div className="flex flex-col gap-5">
@@ -142,21 +144,16 @@ export function RigPage() {
           <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
             <Item term="Name">{r.name}</Item>
             <Item term="Number">{r.number}</Item>
-            <Item term="Container">{r.container}</Item>
-            <Item term="Container serial">{r.containerSerialNumber}</Item>
-            <Item term="Container made">{formatDate(r.containerDOM)}</Item>
-            <Item term="Main size">{r.mainSize}</Item>
-            <Item term="Main serial">{r.mainSerialNumber}</Item>
-            <Item term="Main made">{formatDate(r.mainDOM)}</Item>
-            <Item term="Reserve size">{r.reserveSize}</Item>
-            <Item term="Reserve serial">{r.reserveSerialNumber}</Item>
-            <Item term="Reserve made">{formatDate(r.reserveDOM)}</Item>
-            <Item term="AAD type">{r.aadType}</Item>
-            <Item term="AAD serial">{r.aadSerialNumber}</Item>
-            <Item term="AAD made">{formatDate(r.aadDOM)}</Item>
             <Item term="Last packed">{formatDate(r.lastPacked)}</Item>
             <Item term="Repack due">{formatDate(r.repackDue)}</Item>
             <Item term="Rigger">{r.riggerINT}</Item>
+            {Object.entries(r.customFields ?? {})
+              .filter(([, v]) => v != null && v !== '')
+              .map(([k, v]) => (
+                <Item key={k} term={k}>
+                  {v == null ? '' : String(v)}
+                </Item>
+              ))}
           </dl>
           {r.notes && (
             <div className="mt-4 text-sm">
@@ -167,10 +164,12 @@ export function RigPage() {
         </CardContent>
       </Card>
 
+      <ComponentsCard rig={r} gear={gear.data ?? []} nameOf={nameOf} writer={writer} />
+
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold">Gear on this rig</h2>
+            <h2 className="text-lg font-semibold">Other gear on this rig</h2>
             <p className="text-sm text-muted-foreground">
               {r.primaryUserId
                 ? `Gear here goes with ${primary ?? 'the primary person'}.`
@@ -200,7 +199,7 @@ export function RigPage() {
           </Card>
         ))}
         {gear.data && onRig.length === 0 && (
-          <p className="text-sm text-muted-foreground">No gear on this rig yet.</p>
+          <p className="text-sm text-muted-foreground">No other gear on this rig.</p>
         )}
       </div>
 
@@ -231,7 +230,7 @@ export function RigPage() {
             method: 'PUT',
             body: { assignedRigId: null, assignedPersonId: null },
           });
-          await qc.invalidateQueries({ queryKey: keys.gear });
+          await invalidateGear(qc);
         }}
       />
       {assigning && (
@@ -285,7 +284,7 @@ function AssignGearDialog({
     mutationFn: () =>
       api<Gear>(`/gear/${gearId}`, { method: 'PUT', body: { assignedRigId: rig.id } }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: keys.gear });
+      await invalidateGear(qc);
       onClose();
     },
   });

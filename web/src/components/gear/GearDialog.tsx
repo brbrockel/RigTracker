@@ -11,12 +11,15 @@ import {
   dateInputValue,
   errorMessage,
   personName,
+  RIG_SLOTS,
   rigLabel,
+  SLOT_LABELS,
   type Gear,
   type Person,
   type Rig,
+  type RigSlot,
 } from '@/lib/api';
-import { keys } from '@/lib/queries';
+import { invalidateGear } from '@/lib/queries';
 
 const NOTES_MAX = 1000;
 
@@ -76,6 +79,7 @@ function GearForm({
   const [notes, setNotes] = useState(gear?.notes ?? '');
   const [imageUrl, setImageUrl] = useState<string | undefined>(gear?.imageUrl || undefined);
   const [rigId, setRigId] = useState(gear?.assignedRigId ?? '');
+  const [slot, setSlot] = useState<RigSlot | ''>(gear?.slot ?? '');
   const [personId, setPersonId] = useState(
     gear?.assignedRigId ? '' : (gear?.assignedPersonId ?? ''),
   );
@@ -101,6 +105,8 @@ function GearForm({
         // On a rig, the gear goes with the rig's primary person (the API sets it).
         assignedRigId: rigId || null,
         assignedPersonId: rigId ? null : personId || null,
+        // Which of the rig's components it is; only gear on a rig has one.
+        slot: (rigId && slot) || null,
       };
       // Serial numbers are unique, so a blank one is left out rather than saved as "".
       if (serialNumber.trim()) body.serialNumber = serialNumber.trim();
@@ -113,7 +119,7 @@ function GearForm({
         : api<Gear>('/gear', { method: 'POST', body });
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: keys.gear });
+      await invalidateGear(qc);
       onDone();
     },
   });
@@ -197,6 +203,31 @@ function GearForm({
         </p>
       )}
 
+      {rigId && (
+        <Field
+          id="gear-slot"
+          label="Position"
+          hint="A rig has one container, main, reserve and AAD."
+        >
+          <Select
+            id="gear-slot"
+            value={slot}
+            onChange={(e) => setSlot(e.target.value as RigSlot | '')}
+          >
+            <option value="">Not a component</option>
+            {RIG_SLOTS.map((s) => {
+              const there = rig?.components?.[s];
+              const other = there && there.id !== gear?.id ? there : undefined;
+              return (
+                <option key={s} value={s}>
+                  {SLOT_LABELS[s]}
+                  {other ? ` (now ${other.name || 'other gear'})` : ''}
+                </option>
+              );
+            })}
+          </Select>
+        </Field>
+      )}
       <Field id="gear-notes" label="Notes" hint={`${notes.length}/${NOTES_MAX}`}>
         <textarea
           id="gear-notes"
