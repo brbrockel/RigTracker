@@ -6,8 +6,9 @@ import * as fs from 'fs'
 import { defined } from '../common/validation'
 import type { EventBody } from './event.dto'
 import * as path from 'path'
+import { uploadsDir } from '../common/uploads-dir'
 
-const baseUploadDir = path.resolve(process.cwd(), 'uploads')
+const baseUploadDir = uploadsDir()
 
 @Injectable()
 export class EventsService {
@@ -24,12 +25,16 @@ export class EventsService {
   }
 
   async create(dto: EventBody) {
-    const created = new this.eventModel(this.mapDto(dto))
+    const data = this.mapDto(dto)
+    if (dto.eventPhotoUrl && !dto.photoUrls) data.photoUrls = [dto.eventPhotoUrl]
+    const created = new this.eventModel(data)
     return created.save()
   }
 
   async update(id: string, dto: EventBody) {
-    const updated = await this.eventModel.findByIdAndUpdate(id, { $set: this.mapDto(dto) }, { new: true, runValidators: true }).lean()
+    // A new main photo sent without the photo list joins the existing photos.
+    const addMain = dto.eventPhotoUrl && !dto.photoUrls ? { $addToSet: { photoUrls: dto.eventPhotoUrl } } : {}
+    const updated = await this.eventModel.findByIdAndUpdate(id, { $set: this.mapDto(dto), ...addMain }, { new: true, runValidators: true }).lean()
     if (!updated) throw new NotFoundException('Event not found')
     return updated
   }

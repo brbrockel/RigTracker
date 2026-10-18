@@ -1,0 +1,20 @@
+# Local development services. Start with `pnpm dev:services`.
+# An uncommon host port, bound to localhost only, so nothing collides with apps on this machine.
+name: rigtracker-dev
+
+services:
+  mongo:
+    image: mongo:6.0
+    ports:
+      - '127.0.0.1:17017:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      interval: 5s
+      retries: 10
+
+volumes:
+  mongo-data:
+    # Explicit dev-only name; the production stack uses /srv/homelab-data/rigtracker/mongo-data.
+    name: rigtracker_dev_mongo-data

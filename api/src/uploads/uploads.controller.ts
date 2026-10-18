@@ -8,8 +8,9 @@ import sharp from 'sharp'
 import { RequireRoles } from '../auth/roles.decorator'
 import { Throttle } from '@nestjs/throttler'
 import { UPLOAD_LIMIT } from '../common/throttle'
+import { uploadsDir } from '../common/uploads-dir'
 
-const baseUploadDir = path.resolve(process.cwd(), 'uploads')
+const baseUploadDir = uploadsDir()
 const tmpUploadDir = path.join(baseUploadDir, '.incoming')
 
 /** Top-level folders uploads may go in; the web app sends e.g. "gear/<name>". */

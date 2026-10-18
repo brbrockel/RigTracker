@@ -129,6 +129,7 @@ export class AuthService {
 
   /** Signs someone out on every device. */
   async revokeAllSessions(personId: string) {
+    if (!/^[a-f0-9]{24}$/i.test(personId)) throw new BadRequestException('Invalid id')
     await this.sessionModel.updateMany(
       { userId: new Types.ObjectId(personId), revokedAt: { $exists: false } },
       { $set: { revokedAt: new Date() } },

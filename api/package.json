@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "build": "rm -rf dist && tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p test/tsconfig.json",
     "fix:rig-names": "ts-node scripts/fix_rig_names.ts",
     "normalize:people-names": "ts-node scripts/normalize_people_names.ts",
     "migrate:primary-user": "ts-node scripts/migrate_primary_user.ts",
@@ -28,12 +30,18 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@nestjs/testing": "^10.4.22",
+    "@swc/core": "^1.16.18",
     "@types/express": "^4.17.17",
     "@types/multer": "^2.1.0",
     "@types/node": "^20.0.0",
+    "@types/supertest": "^7.2.1",
     "@types/validator": "^13.7.0",
+    "supertest": "^7.3.1",
     "ts-node": "^10.0.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "^5.0.5"
   }
 }
