@@ -93,6 +93,9 @@ Done once, on 2026-10-18. Kept here as the record and for a re-run if a rollback
    - `node dist/scripts/import-mongo.js`, a dry run that prints the counts
    - `node dist/scripts/import-mongo.js --apply`, one transaction, which ends with a Mongo-vs-Postgres verification table and exits non-zero on any mismatch
 4. Deploy the new version (`./build.sh --deploy`).
+5. Take a Postgres backup straight away (see Backups). The backup job's first run happens when the stack deploys Postgres, before the import, so it backs up an empty database.
+
+On 2026-10-18 the app was stopped from 01:27 to 01:32 UTC. The import verified 10 people, 9 rigs, 112 gear, 2 events, 2 live sessions, 1 unused link and 146 audit entries, and cleared 6 placeholder dates.
 
 Mongo stays in the stack, untouched, for 30 days as the rollback: deploy the previous version (`RIGTRACKER_TAG=2.0.0-alpha.2`) and point it back at Mongo.
 
