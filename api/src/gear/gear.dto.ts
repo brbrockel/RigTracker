@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { date, mediaUrl, queryString, ref, text } from '../common/validation';
+import { date, mediaUrl, queryId, queryString, ref, text } from '../common/validation.js';
 
 export const GearBody = z
   .object({
     name: text(),
     type: text(60),
-    // Serial numbers are unique (sparse), so a blank one is removed rather than stored.
+    // Serial numbers are unique; a blank one is stored as null (any number of gear can have none).
     serialNumber: text(60),
     dateOfManufacture: date(),
     notes: text(1000),
@@ -17,7 +17,7 @@ export const GearBody = z
 export type GearBody = z.infer<typeof GearBody>;
 
 export const GearQuery = z.object({
-  rigId: queryString(),
-  personId: queryString(),
+  rigId: queryId(),
+  personId: queryId(),
   unassigned: queryString(),
 });

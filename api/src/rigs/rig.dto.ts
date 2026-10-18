@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { customFields, date, mediaUrl, ref, text } from '../common/validation';
+import { customFields, date, mediaUrl, ref, text } from '../common/validation.js';
 
 /** Every field a rig can have; all optional so the same schema serves create and update. */
 export const RigBody = z

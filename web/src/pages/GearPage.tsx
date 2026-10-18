@@ -50,9 +50,9 @@ export function GearPage() {
   const [bulkError, setBulkError] = useState('');
   const bulk = useBulkRunner();
 
-  const rigById = useMemo(() => new Map((rigs.data ?? []).map((r) => [r._id, r])), [rigs.data]);
+  const rigById = useMemo(() => new Map((rigs.data ?? []).map((r) => [r.id, r])), [rigs.data]);
   const nameById = useMemo(
-    () => new Map((people.data ?? []).map((p) => [p._id, personName(p) || 'Unnamed person'])),
+    () => new Map((people.data ?? []).map((p) => [p.id, personName(p) || 'Unnamed person'])),
     [people.data],
   );
   const lookups = useMemo(
@@ -98,7 +98,7 @@ export function GearPage() {
       verb: 'Updating',
       past: 'Updated',
       label: gearLabel,
-      each: (g) => api(`/gear/${g._id}`, { method: 'PUT', body: assignmentBody('none', '') }),
+      each: (g) => api(`/gear/${g.id}`, { method: 'PUT', body: assignmentBody('none', '') }),
     });
     await invalidate();
     if (result.ok) clear();
@@ -152,7 +152,7 @@ export function GearPage() {
         sortOptions={gearSorts}
         groupOptions={groups}
         defaultSort={{ by: 'name', dir: 'asc' }}
-        getId={(g) => g._id}
+        getId={(g) => g.id}
         getLabel={gearLabel}
         summary={(g) => gearSummary(g, lookups)}
         renderCard={(g, { select, menu }) => (
@@ -296,7 +296,7 @@ export function GearPage() {
         title={`Delete ${deleting?.name || 'this gear'}?`}
         description="This can't be undone."
         onConfirm={async () => {
-          await api(`/gear/${deleting!._id}`, { method: 'DELETE' });
+          await api(`/gear/${deleting!.id}`, { method: 'DELETE' });
           await qc.invalidateQueries({ queryKey: keys.gear });
         }}
       />
@@ -312,7 +312,7 @@ export function GearPage() {
             verb: 'Deleting',
             past: 'Deleted',
             label: gearLabel,
-            each: (g) => api(`/gear/${g._id}`, { method: 'DELETE' }),
+            each: (g) => api(`/gear/${g.id}`, { method: 'DELETE' }),
           });
           await invalidate();
           if (!result.ok) {

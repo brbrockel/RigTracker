@@ -34,7 +34,7 @@ export function RigsPage() {
   const bulk = useBulkRunner();
 
   const nameById = useMemo(
-    () => new Map((people.data ?? []).map((p) => [p._id, personName(p)])),
+    () => new Map((people.data ?? []).map((p) => [p.id, personName(p)])),
     [people.data],
   );
   const nameOf = useCallback((id?: string) => (id ? nameById.get(id) : undefined), [nameById]);
@@ -115,7 +115,7 @@ export function RigsPage() {
         sortOptions={sorts}
         groupOptions={groups}
         defaultSort={{ by: 'number', dir: 'asc' }}
-        getId={(r) => r._id}
+        getId={(r) => r.id}
         getLabel={rigLabel}
         summary={(r) => rigSummary(r, nameOf)}
         renderCard={(r, { select, menu }) => (
@@ -180,7 +180,7 @@ export function RigsPage() {
         title={`Delete ${rigLabel(deleting)}?`}
         description="Its gear stays in the list, unassigned. This can't be undone."
         onConfirm={async () => {
-          await api(`/rigs/${deleting!._id}`, { method: 'DELETE' });
+          await api(`/rigs/${deleting!.id}`, { method: 'DELETE' });
           await invalidate();
         }}
       />
@@ -196,7 +196,7 @@ export function RigsPage() {
             verb: 'Deleting',
             past: 'Deleted',
             label: rigLabel,
-            each: (r) => api(`/rigs/${r._id}`, { method: 'DELETE' }),
+            each: (r) => api(`/rigs/${r.id}`, { method: 'DELETE' }),
           });
           await invalidate();
           if (!result.ok) {

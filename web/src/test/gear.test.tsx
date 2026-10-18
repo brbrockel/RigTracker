@@ -3,19 +3,19 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asAdmin, asUser, asViewer, mockApi, renderAt } from './render';
 
-const people = [{ _id: 'p1', firstName: 'Ann', lastName: 'Jumper' }];
-const rigs = [{ _id: 'r1', number: '3', name: 'Blue', primaryUserId: 'p1' }];
+const people = [{ id: 'p1', firstName: 'Ann', lastName: 'Jumper' }];
+const rigs = [{ id: 'r1', number: '3', name: 'Blue', primaryUserId: 'p1' }];
 const gear = [
   {
-    _id: 'g1',
+    id: 'g1',
     name: 'Altimeter',
     type: 'Altimeter',
     serialNumber: 'ALT-1',
     assignedRigId: 'r1',
     assignedPersonId: 'p1',
   },
-  { _id: 'g2', name: 'Helmet', type: 'Helmet', serialNumber: 'HEL-1', assignedPersonId: 'p1' },
-  { _id: 'g3', name: 'Hook knife', type: 'Knife', serialNumber: 'KN-9' },
+  { id: 'g2', name: 'Helmet', type: 'Helmet', serialNumber: 'HEL-1', assignedPersonId: 'p1' },
+  { id: 'g3', name: 'Hook knife', type: 'Knife', serialNumber: 'KN-9' },
 ];
 const lists = {
   'GET /api/rigs': () => ({ status: 200, body: rigs }),

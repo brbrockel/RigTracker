@@ -71,7 +71,7 @@ const currentChoice = (p: Person): Choice => {
 function AccessDialog({ person, onClose }: { person: Person; onClose: () => void }) {
   const me = useUser();
   const qc = useQueryClient();
-  const isSelf = person._id === me?.id;
+  const isSelf = person.id === me?.id;
   const current = currentChoice(person);
   const [choice, setChoice] = useState<Choice>(current);
   // An admin can't remove their own admin role (the API refuses it too).
@@ -80,7 +80,7 @@ function AccessDialog({ person, onClose }: { person: Person; onClose: () => void
 
   const save = useMutation({
     mutationFn: () =>
-      api<Person>(`/auth/people/${person._id}/access`, {
+      api<Person>(`/auth/people/${person.id}/access`, {
         method: 'PATCH',
         body: { role: choice === 'none' ? null : choice },
       }),
@@ -163,7 +163,7 @@ export function useSignInActions() {
   const [signingOut, setSigningOut] = useState<Person | null>(null);
 
   const getLink = useMutation({
-    mutationFn: (p: Person) => api<SignInLink>(`/auth/people/${p._id}/link`, { method: 'POST' }),
+    mutationFn: (p: Person) => api<SignInLink>(`/auth/people/${p.id}/link`, { method: 'POST' }),
     onSuccess: (info, p) => setLink({ name: fullName(p), info }),
   });
 
@@ -182,7 +182,7 @@ export function useSignInActions() {
         confirmLabel="Sign out everywhere"
         onConfirm={async () => {
           if (!signingOut) return;
-          await api(`/auth/people/${signingOut._id}/sign-out`, { method: 'POST' });
+          await api(`/auth/people/${signingOut.id}/sign-out`, { method: 'POST' });
           await qc.invalidateQueries({ queryKey: keys.people });
         }}
       />

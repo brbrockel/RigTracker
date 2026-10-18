@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildCsv, csvCell, csvDate, csvFilename } from '@/components/inventory/csv';
 import { asUser, asViewer, mockApi, renderAt } from './render';
 
-const people = [{ _id: 'p1', firstName: 'Ann', lastName: 'Jumper' }];
-const rigs = [{ _id: 'r1', number: '3', name: 'Blue', primaryUserId: 'p1' }];
+const people = [{ id: 'p1', firstName: 'Ann', lastName: 'Jumper' }];
+const rigs = [{ id: 'r1', number: '3', name: 'Blue', primaryUserId: 'p1' }];
 const gear = [
   {
-    _id: 'g1',
+    id: 'g1',
     name: 'Altimeter',
     type: 'Altimeter',
     serialNumber: 'ALT-1',
@@ -16,16 +16,16 @@ const gear = [
     assignedPersonId: 'p1',
   },
   {
-    _id: 'g2',
+    id: 'g2',
     name: 'Helmet',
     type: 'Helmet',
     serialNumber: 'HEL-1',
     assignedPersonId: 'p1',
     dateOfManufacture: '2024-05-06T00:00:00.000Z',
   },
-  { _id: 'g3', name: 'Hook knife', type: 'Knife', serialNumber: 'KN-9' },
+  { id: 'g3', name: 'Hook knife', type: 'Knife', serialNumber: 'KN-9' },
   {
-    _id: 'g4',
+    id: 'g4',
     name: 'Spare helmet',
     type: 'Helmet',
     serialNumber: 'HEL-10',
@@ -289,7 +289,7 @@ describe('rigs layouts', () => {
     new Date(Date.now() + days * DAY).toISOString().slice(0, 10) + 'T00:00:00.000Z';
   const rigList = [
     {
-      _id: 'r1',
+      id: 'r1',
       number: '10',
       name: 'Blue',
       primaryUserId: 'p1',
@@ -297,8 +297,8 @@ describe('rigs layouts', () => {
       container: 'Javelin',
       containerSerialNumber: 'J-1',
     },
-    { _id: 'r2', number: '2', name: 'Green', repackDue: isoIn(10) },
-    { _id: 'r3', name: 'Spare' },
+    { id: 'r2', number: '2', name: 'Green', repackDue: isoIn(10) },
+    { id: 'r3', name: 'Spare' },
   ];
   const rigApi = { ...lists, 'GET /api/rigs': () => ({ status: 200, body: rigList }) };
 

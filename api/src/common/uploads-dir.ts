@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 
 /** Where uploaded media is stored: UPLOADS_DIR, or ./uploads under the working directory. */
 export function uploadsDir(): string {

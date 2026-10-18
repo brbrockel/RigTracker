@@ -132,12 +132,12 @@ export function PersonDialog({
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       person
-        ? api<Person>(`/people/${person._id}`, { method: 'PUT', body })
+        ? api<Person>(`/people/${person.id}`, { method: 'PUT', body })
         : api<Person>('/people', { method: 'POST', body }),
     onSuccess: async (saved) => {
       await qc.invalidateQueries({ queryKey: keys.people });
       // Your own name shows in the account menu.
-      if (person && person._id === me?.id) await qc.invalidateQueries({ queryKey: ME_KEY });
+      if (person && person.id === me?.id) await qc.invalidateQueries({ queryKey: ME_KEY });
       onSaved?.(saved);
       onClose();
     },

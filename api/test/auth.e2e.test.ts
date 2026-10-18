@@ -1,7 +1,8 @@
-import { Types } from 'mongoose';
+import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { hashToken } from '../src/auth/tokens';
+import { hashToken } from '../src/auth/tokens.js';
+import { people, sessions, signInLinks } from '../src/db/schema.js';
 import {
   MISSING_ID,
   SESSION_COOKIE,
@@ -15,7 +16,7 @@ import {
   signIn,
   signInAs,
   type TestApp,
-} from './helpers';
+} from './helpers.js';
 
 let t: TestApp;
 beforeAll(async () => {
@@ -106,9 +107,7 @@ describe('sign-in links', () => {
 
   it('disabling a signed-in person ends their access', async () => {
     const user = await signInAs(t, 'user');
-    await t.db
-      .collection('people')
-      .updateOne({ _id: new Types.ObjectId(user.id) }, { $set: { isActive: false } });
+    await t.db.update(people).set({ isActive: false }).where(eq(people.id, user.id));
     await as(user).get('/api/rigs').expect(401);
   });
 
@@ -117,7 +116,7 @@ describe('sign-in links', () => {
     const token = await createLinkToken(t, p.id);
     const res = await anon(t).post('/api/auth/link/redeem', { token }).expect(201);
     const cookie = ([] as string[])
-      .concat(res.headers['set-cookie'])
+      .concat(res.headers['set-cookie'] ?? [])
       .find((c) => c.startsWith(`${SESSION_COOKIE}=`))!;
     expect(cookie).toMatch(/;\s*HttpOnly/i);
     expect(cookie).toMatch(/;\s*SameSite=Lax/i);
@@ -128,16 +127,16 @@ describe('sign-in links', () => {
     const p = await createPerson(t, { roles: ['user'] });
     const token = await createLinkToken(t, p.id);
     const who = await signIn(t, p.id);
-    const links = await t.db.collection('sign_in_links').find().toArray();
+    const links = await t.db.select().from(signInLinks);
     for (const link of links) {
       expect(link.tokenHash).toMatch(HASH);
       expect(JSON.stringify(link)).not.toContain(token);
     }
-    const sessions = await t.db.collection('sessions').find().toArray();
-    expect(sessions).toHaveLength(1);
-    expect(sessions[0].sessionId).toMatch(HASH);
-    expect(sessions[0].sessionId).toBe(hashToken(who.sessionToken));
-    expect(JSON.stringify(sessions[0])).not.toContain(who.sessionToken);
+    const stored = await t.db.select().from(sessions);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.tokenHash).toMatch(HASH);
+    expect(stored[0]!.tokenHash).toBe(hashToken(who.sessionToken));
+    expect(JSON.stringify(stored[0])).not.toContain(who.sessionToken);
   });
 
   it('a link made by an admin stores only its hash and puts the token in the URL fragment', async () => {
@@ -148,9 +147,7 @@ describe('sign-in links', () => {
     expect(new Date(res.body.expiresAt).getTime()).toBeGreaterThan(Date.now() + 71 * 3600_000);
     const token = res.body.link.match(/\/sign-in#token=([A-Za-z0-9_-]{43})$/)?.[1];
     expect(token).toBeTruthy();
-    const row = await t.db
-      .collection('sign_in_links')
-      .findOne({ userId: new Types.ObjectId(p.id) });
+    const [row] = await t.db.select().from(signInLinks).where(eq(signInLinks.personId, p.id));
     expect(row!.tokenHash).toBe(hashToken(token));
     expect(row!.createdByEmail).toBe(admin.email);
     await anon(t).post('/api/auth/link/redeem', { token }).expect(201);
@@ -174,7 +171,7 @@ describe('sign-in links', () => {
     const user = await signInAs(t, 'user');
     const admin = await signInAs(t, 'admin');
     const res = await as(admin).get('/api/audit?action=SIGN_IN').expect(200);
-    const entry = res.body.logs.find((l: any) => l.resourceId === user.id);
+    const entry = res.body.logs.find((l: { resourceId: string }) => l.resourceId === user.id);
     expect(entry).toMatchObject({
       action: 'SIGN_IN',
       resource: 'people',

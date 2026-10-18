@@ -7,7 +7,7 @@ import {
   signInAs,
   type SignedIn,
   type TestApp,
-} from './helpers';
+} from './helpers.js';
 
 let t: TestApp;
 let admin: SignedIn;
@@ -22,8 +22,25 @@ beforeEach(async () => {
   user = await signInAs(t, 'user');
 });
 
+interface AuditEntry {
+  id: string;
+  action: string;
+  resource: string;
+  resourceId: string;
+  resourceName: string | null;
+  userId: string | null;
+  userEmail: string | null;
+  userDisplayName: string | null;
+  details: Record<string, unknown> | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  createdAt: string;
+}
 const audit = async (q = '') =>
-  (await as(admin).get(`/api/audit${q}`).expect(200)).body as { total: number; logs: any[] };
+  (await as(admin).get(`/api/audit${q}`).expect(200)).body as {
+    total: number;
+    logs: AuditEntry[];
+  };
 
 describe('audit log', () => {
   it.each([
@@ -32,16 +49,61 @@ describe('audit log', () => {
     ['events', { name: 'Audited event' }, { name: 'Audited event 2' }],
     ['people', { firstName: 'Audited', lastName: 'Person' }, { lastName: 'Person 2' }],
   ])('records who created, updated and deleted %s', async (resource, create, update) => {
-    const id = (await as(user).post(`/api/${resource}`, create).expect(201)).body._id;
+    const id = (await as(user).post(`/api/${resource}`, create).expect(201)).body.id;
     await as(user).put(`/api/${resource}/${id}`, update).expect(200);
     await as(admin).delete(`/api/${resource}/${id}`).expect(200);
     const { logs } = await audit(`?resource=${resource}`);
     const mine = logs.filter((l) => l.resourceId === id);
     expect(mine.map((l) => l.action)).toEqual(['DELETE', 'UPDATE', 'CREATE']);
     expect(mine[2]).toMatchObject({ resource, userId: user.id, userEmail: user.email });
-    expect(mine[2].resourceName).toBeTruthy();
+    expect(mine[2]!.resourceName).toBeTruthy();
     expect(mine[0]).toMatchObject({ userId: admin.id });
-    expect(mine[0].createdAt).toBeTruthy();
+    expect(mine[0]!.createdAt).toBeTruthy();
+  });
+
+  it('updates keep the record before and after the change', async () => {
+    const rig = (await as(user).post('/api/rigs', { name: 'Before', number: '1' }).expect(201))
+      .body;
+    await as(user).put(`/api/rigs/${rig.id}`, { name: 'After' }).expect(200);
+    const { logs } = await audit('?resource=rigs');
+    const [update, create] = logs;
+    expect(update).toMatchObject({ action: 'UPDATE', resourceId: rig.id });
+    expect(update!.before).toMatchObject({ id: rig.id, name: 'Before', number: '1' });
+    expect(update!.after).toMatchObject({ id: rig.id, name: 'After', number: '1' });
+    expect(create).toMatchObject({ action: 'CREATE', before: null, after: null });
+    // Every entry has the same fields.
+    for (const entry of logs)
+      expect(Object.keys(entry).sort()).toEqual(
+        [
+          'action',
+          'after',
+          'before',
+          'createdAt',
+          'details',
+          'id',
+          'resource',
+          'resourceId',
+          'resourceName',
+          'userDisplayName',
+          'userEmail',
+          'userId',
+        ].sort(),
+      );
+
+    const p = await createPerson(t, { firstName: 'Pat' });
+    await as(admin).patch(`/api/auth/people/${p.id}/access`, { role: 'viewer' }).expect(200);
+    await as(user).put(`/api/people/${p.id}`, { phone: '(415) 555-2671' }).expect(200);
+    const people = (await audit('?resource=people&action=UPDATE')).logs.filter(
+      (l) => l.resourceId === p.id,
+    );
+    expect(people[0]!.before).toMatchObject({ phone: null, roles: ['viewer'] });
+    expect(people[0]!.after).toMatchObject({ phone: '+14155552671' });
+    expect(people[1]!.before).toMatchObject({ roles: [] });
+    expect(people[1]!.after).toMatchObject({ roles: ['viewer'] });
+    for (const entry of people) {
+      expect(entry.after).not.toHaveProperty('lastLoginIp');
+      expect(entry.after).not.toHaveProperty('lastUserAgent');
+    }
   });
 
   it('records sign-in access changes, links and sign-outs', async () => {

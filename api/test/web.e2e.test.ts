@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { anon, createTestApp, type TestApp } from './helpers';
+import { anon, createTestApp, type TestApp } from './helpers.js';
 
 // The container serves the built web app from WEB_DIST on the same origin as the API.
 const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'rigtracker-web-'));
@@ -34,7 +34,7 @@ describe('health', () => {
 
 describe('web app', () => {
   it('serves index.html at / and for client-side routes, always revalidated', async () => {
-    for (const p of ['/', '/rigs', '/people/0123456789abcdef01234567', '/sign-in']) {
+    for (const p of ['/', '/rigs', '/people/00000000-0000-4000-8000-000000000000', '/sign-in']) {
       const res = await anon(t).get(p);
       expect(res.status, p).toBe(200);
       expect(res.text).toContain('<title>RigTracker</title>');

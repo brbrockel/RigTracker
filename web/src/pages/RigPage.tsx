@@ -82,11 +82,11 @@ export function RigPage() {
   const writer = canWrite(user);
   const admin = canDelete(user);
   const nameOf = (pid?: string) => {
-    const p = pid ? people.data?.find((x) => x._id === pid) : undefined;
+    const p = pid ? people.data?.find((x) => x.id === pid) : undefined;
     return p ? personName(p) || 'Unnamed person' : undefined;
   };
   const primary = nameOf(r.primaryUserId);
-  const onRig = (gear.data ?? []).filter((g) => g.assignedRigId === r._id);
+  const onRig = (gear.data ?? []).filter((g) => g.assignedRigId === r.id);
 
   return (
     <div className="flex flex-col gap-5">
@@ -186,7 +186,7 @@ export function RigPage() {
         {gear.isError && <Alert variant="destructive">{errorMessage(gear.error)}</Alert>}
         {gear.isPending && <p className="text-sm text-muted-foreground">Loading gear…</p>}
         {onRig.map((g) => (
-          <Card key={g._id} className="p-4">
+          <Card key={g.id} className="p-4">
             <div className="flex items-start gap-3">
               <GearSummary gear={g} />
               {writer && (
@@ -211,8 +211,8 @@ export function RigPage() {
         title={`Delete ${rigLabel(r)}?`}
         description="Its gear stays in the list, unassigned. This can't be undone."
         onConfirm={async () => {
-          await api(`/rigs/${r._id}`, { method: 'DELETE' });
-          qc.removeQueries({ queryKey: keys.rig(r._id) });
+          await api(`/rigs/${r.id}`, { method: 'DELETE' });
+          qc.removeQueries({ queryKey: keys.rig(r.id) });
           navigate('/rigs', { replace: true });
           await Promise.all([
             qc.invalidateQueries({ queryKey: keys.rigs }),
@@ -227,7 +227,7 @@ export function RigPage() {
         description="It stays in the gear list, unassigned."
         confirmLabel="Unassign"
         onConfirm={async () => {
-          await api(`/gear/${unassigning!._id}`, {
+          await api(`/gear/${unassigning!.id}`, {
             method: 'PUT',
             body: { assignedRigId: null, assignedPersonId: null },
           });
@@ -271,20 +271,19 @@ function AssignGearDialog({
   const rigs = useRigs();
   const [gearId, setGearId] = useState('');
   const others = gear
-    .filter((g) => g.assignedRigId !== rig._id)
+    .filter((g) => g.assignedRigId !== rig.id)
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
   const unassigned = others.filter((g) => !g.assignedRigId && !g.assignedPersonId);
   const withPerson = others.filter((g) => !g.assignedRigId && g.assignedPersonId);
   const onOtherRig = others.filter((g) => g.assignedRigId);
   const label = (g: Gear) =>
     [g.name || 'Unnamed gear', g.type, g.serialNumber].filter(Boolean).join(' · ');
-  const rigName = (rid?: string) =>
-    rigLabel(rigs.data?.find((x) => x._id === rid)) || 'another rig';
-  const selected = others.find((g) => g._id === gearId);
+  const rigName = (rid?: string) => rigLabel(rigs.data?.find((x) => x.id === rid)) || 'another rig';
+  const selected = others.find((g) => g.id === gearId);
 
   const assign = useMutation({
     mutationFn: () =>
-      api<Gear>(`/gear/${gearId}`, { method: 'PUT', body: { assignedRigId: rig._id } }),
+      api<Gear>(`/gear/${gearId}`, { method: 'PUT', body: { assignedRigId: rig.id } }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: keys.gear });
       onClose();
@@ -329,7 +328,7 @@ function AssignGearDialog({
                 {unassigned.length > 0 && (
                   <optgroup label="Unassigned">
                     {unassigned.map((g) => (
-                      <option key={g._id} value={g._id}>
+                      <option key={g.id} value={g.id}>
                         {label(g)}
                       </option>
                     ))}
@@ -338,7 +337,7 @@ function AssignGearDialog({
                 {withPerson.length > 0 && (
                   <optgroup label="With a person">
                     {withPerson.map((g) => (
-                      <option key={g._id} value={g._id}>
+                      <option key={g.id} value={g.id}>
                         {label(g)} ({nameOf(g.assignedPersonId) ?? 'Unknown person'})
                       </option>
                     ))}
@@ -347,7 +346,7 @@ function AssignGearDialog({
                 {onOtherRig.length > 0 && (
                   <optgroup label="On another rig">
                     {onOtherRig.map((g) => (
-                      <option key={g._id} value={g._id}>
+                      <option key={g.id} value={g.id}>
                         {label(g)} ({rigName(g.assignedRigId)})
                       </option>
                     ))}

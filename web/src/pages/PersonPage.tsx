@@ -61,7 +61,7 @@ export function PersonPage() {
   const signIn = useSignInActions();
 
   const rigById = useMemo(
-    () => new Map((rigs.data ?? []).map((r) => [r._id, r] as const)),
+    () => new Map((rigs.data ?? []).map((r) => [r.id, r] as const)),
     [rigs.data],
   );
   const myRigs = (rigs.data ?? []).filter((r) => r.primaryUserId === id);
@@ -76,7 +76,7 @@ export function PersonPage() {
   });
   const unassign = useMutation({
     mutationFn: (g: Gear) =>
-      api(`/gear/${g._id}`, {
+      api(`/gear/${g.id}`, {
         method: 'PUT',
         body: { assignedRigId: null, assignedPersonId: null },
       }),
@@ -122,7 +122,7 @@ export function PersonPage() {
   const name = fullName(p);
   const writer = canWrite(user);
   const admin = canDelete(user);
-  const isSelf = p._id === user?.id;
+  const isSelf = p.id === user?.id;
   const address = addressLine(p.address);
   const contacts = (p.emergencyContacts ?? []).filter((c) => c.name || c.phone);
 
@@ -246,9 +246,9 @@ export function PersonPage() {
           ) : (
             <ul className="flex flex-col gap-2">
               {myRigs.map((r) => (
-                <li key={r._id}>
+                <li key={r.id}>
                   <Link
-                    to={`/rigs/${r._id}`}
+                    to={`/rigs/${r.id}`}
                     className="flex min-h-11 items-center gap-3 rounded-lg p-2 hover:bg-accent"
                   >
                     <Thumb url={r.imageUrl} alt={rigLabel(r)} className="size-11" />
@@ -295,7 +295,7 @@ export function PersonPage() {
               {myGear.map((g) => {
                 const rig = g.assignedRigId ? rigById.get(g.assignedRigId) : undefined;
                 return (
-                  <li key={g._id} className="flex items-center gap-3 rounded-lg border p-2">
+                  <li key={g.id} className="flex items-center gap-3 rounded-lg border p-2">
                     <Thumb url={g.imageUrl} alt={g.name || 'Gear'} className="size-11" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{g.name || 'Unnamed gear'}</div>
@@ -374,15 +374,15 @@ function AssignGearDialog({
   const [gearId, setGearId] = useState('');
   const free = gear.filter((g) => !g.assignedRigId && !g.assignedPersonId);
   const elsewhere = gear.filter(
-    (g) => (g.assignedRigId || g.assignedPersonId) && g.assignedPersonId !== person._id,
+    (g) => (g.assignedRigId || g.assignedPersonId) && g.assignedPersonId !== person.id,
   );
-  const picked = gear.find((g) => g._id === gearId);
+  const picked = gear.find((g) => g.id === gearId);
   const holder = (g: Gear) => {
     if (g.assignedRigId) {
       const r = rigById.get(g.assignedRigId);
       return `on ${r ? rigLabel(r) : 'a rig'}`;
     }
-    const p = people.data?.find((x) => x._id === g.assignedPersonId);
+    const p = people.data?.find((x) => x.id === g.assignedPersonId);
     return `with ${p ? fullName(p) : 'someone else'}`;
   };
   const label = (g: Gear) =>
@@ -394,7 +394,7 @@ function AssignGearDialog({
     mutationFn: () =>
       api(`/gear/${gearId}`, {
         method: 'PUT',
-        body: { assignedRigId: null, assignedPersonId: person._id },
+        body: { assignedRigId: null, assignedPersonId: person.id },
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: keys.gear });
@@ -418,7 +418,7 @@ function AssignGearDialog({
               <option value="">Choose gear…</option>
               <optgroup label="Unassigned">
                 {free.map((g) => (
-                  <option key={g._id} value={g._id}>
+                  <option key={g.id} value={g.id}>
                     {label(g)}
                   </option>
                 ))}
@@ -426,7 +426,7 @@ function AssignGearDialog({
               {elsewhere.length > 0 && (
                 <optgroup label="Assigned elsewhere">
                   {elsewhere.map((g) => (
-                    <option key={g._id} value={g._id}>
+                    <option key={g.id} value={g.id}>
                       {label(g)} ({holder(g)})
                     </option>
                   ))}

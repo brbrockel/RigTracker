@@ -5,19 +5,19 @@ import { asAdmin, asUser, asViewer, mockApi, renderAt } from './render';
 
 const people = [
   {
-    _id: 'p1',
+    id: 'p1',
     firstName: 'Ada',
     lastName: 'Lovelace',
     email: 'ada@example.com',
     phone: '+18605551234',
   },
-  { _id: 'p2', firstName: 'Grace', lastName: 'Hopper', email: 'grace@navy.mil' },
+  { id: 'p2', firstName: 'Grace', lastName: 'Hopper', email: 'grace@navy.mil' },
 ];
 const ok = (body: unknown) => () => ({ status: 200, body });
 
 // Brian (u1) is the signed-in admin; Sam can sign in; Kim has no email and no sign-in.
 const self = {
-  _id: 'u1',
+  id: 'u1',
   firstName: 'Brian',
   lastName: 'B',
   email: 'brian@example.com',
@@ -27,7 +27,7 @@ const self = {
   loginCount: 4,
 };
 const sam = {
-  _id: 'p3',
+  id: 'p3',
   firstName: 'Sam',
   lastName: 'Jones',
   email: 'sam@example.com',
@@ -36,7 +36,7 @@ const sam = {
   lastLoginAt: null,
   loginCount: 0,
 };
-const kim = { _id: 'p4', firstName: 'Kim', lastName: 'Lee', roles: [] };
+const kim = { id: 'p4', firstName: 'Kim', lastName: 'Lee', roles: [] };
 const everyone = [...people, self, sam, kim];
 const card = (name: string) => screen.getByRole('link', { name }).closest('li')!;
 
@@ -83,7 +83,7 @@ describe('people', () => {
     const calls = mockApi({
       'GET /api/auth/me': asAdmin,
       'GET /api/people': () => ({ status: 200, body: people }),
-      'POST /api/people': () => ({ status: 201, body: { _id: 'p3', firstName: 'Kay' } }),
+      'POST /api/people': () => ({ status: 201, body: { id: 'p3', firstName: 'Kay' } }),
     });
     renderAt('/people');
     await userEvent.click(await screen.findByRole('button', { name: /New person/ }));
@@ -149,15 +149,15 @@ describe('people', () => {
       'GET /api/rigs': () => ({
         status: 200,
         body: [
-          { _id: 'r1', name: 'Javelin', number: '7', primaryUserId: 'p1' },
-          { _id: 'r2', name: 'Other', primaryUserId: 'p2' },
+          { id: 'r1', name: 'Javelin', number: '7', primaryUserId: 'p1' },
+          { id: 'r2', name: 'Other', primaryUserId: 'p2' },
         ],
       }),
       'GET /api/gear': () => ({
         status: 200,
         body: [
-          { _id: 'g1', name: 'Altimeter', assignedPersonId: 'p1' },
-          { _id: 'g2', name: 'Helmet' },
+          { id: 'g1', name: 'Altimeter', assignedPersonId: 'p1' },
+          { id: 'g2', name: 'Helmet' },
         ],
       }),
       'PUT /api/gear/g2': () => ({ status: 200, body: {} }),

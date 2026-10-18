@@ -1,6 +1,6 @@
 # RigTracker API
 
-NestJS + Mongoose API for RigTracker.
+NestJS + Drizzle (PostgreSQL) API for RigTracker. ESM, built to `dist/`; migrations in `drizzle/` are applied at start-up.
 
 ## Run
 
@@ -8,13 +8,13 @@ From monorepo root:
 
 ```bash
 pnpm install
-pnpm --filter api dev
+pnpm --filter rigtracker-api dev
 ```
 
 Build:
 
 ```bash
-pnpm --filter api build
+pnpm --filter rigtracker-api build
 ```
 
 ## Base Path
@@ -61,7 +61,8 @@ People:
 
 ## Environment
 
-- `MONGO_URI` or `MONGO_URI_FILE` (default fallback is localhost)
+- `DATABASE_URL` or `DATABASE_URL_FILE` (required in production; development defaults to the `pnpm dev:services` Postgres)
+- `MONGO_URI` or `MONGO_URI_FILE` (only for `dist/scripts/import-mongo.js`)
 - `RIGTRACKER_CORS_ORIGIN` (dev only: origins allowed cross-site; unset means same-origin, no CORS)
 - `HOST`, `PORT` (default `0.0.0.0`, `4000`)
 

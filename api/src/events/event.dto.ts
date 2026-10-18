@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { date, mediaUrl, mediaUrlSchema, text } from '../common/validation';
+import { date, mediaUrl, mediaUrlSchema, text } from '../common/validation.js';
 
 export const EventBody = z
   .object({

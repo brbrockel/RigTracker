@@ -8,31 +8,31 @@ const isoIn = (days: number) =>
   new Date(Date.now() + days * DAY).toISOString().slice(0, 10) + 'T00:00:00.000Z';
 
 const people = [
-  { _id: 'p1', firstName: 'Ann', lastName: 'Jumper' },
-  { _id: 'p2', firstName: 'Bob', lastName: 'Flyer' },
+  { id: 'p1', firstName: 'Ann', lastName: 'Jumper' },
+  { id: 'p2', firstName: 'Bob', lastName: 'Flyer' },
 ];
 const rigs = [
   {
-    _id: 'r1',
+    id: 'r1',
     number: '3',
     name: 'Blue',
     primaryUserId: 'p1',
     repackDue: isoIn(-5),
     reserveSerialNumber: 'RES-111',
   },
-  { _id: 'r2', number: '4', name: 'Green', primaryUserId: 'p2', repackDue: isoIn(10) },
-  { _id: 'r3', name: 'Spare', repackDue: isoIn(120) },
+  { id: 'r2', number: '4', name: 'Green', primaryUserId: 'p2', repackDue: isoIn(10) },
+  { id: 'r3', name: 'Spare', repackDue: isoIn(120) },
 ];
 const gear = [
   {
-    _id: 'g1',
+    id: 'g1',
     name: 'Altimeter',
     type: 'Altimeter',
     serialNumber: 'ALT-1',
     assignedRigId: 'r1',
     assignedPersonId: 'p1',
   },
-  { _id: 'g2', name: 'Helmet', type: 'Helmet', serialNumber: 'HEL-1' },
+  { id: 'g2', name: 'Helmet', type: 'Helmet', serialNumber: 'HEL-1' },
 ];
 
 const lists = {
@@ -84,7 +84,7 @@ describe('rigs list', () => {
       ...lists,
       'POST /api/rigs': () => {
         created = true;
-        return { status: 201, body: { _id: 'r9', name: 'Red' } };
+        return { status: 201, body: { id: 'r9', name: 'Red' } };
       },
     });
     renderAt('/rigs');

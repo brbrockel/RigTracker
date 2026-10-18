@@ -92,7 +92,7 @@ export const canDelete = isAdmin;
 // ── Records ─────────────────────────────────────────────────────────────────
 
 export interface Person {
-  _id: string;
+  id: string;
   firstName?: string;
   middleName?: string;
   lastName?: string;
@@ -115,7 +115,7 @@ export interface Person {
 }
 
 export interface Rig {
-  _id: string;
+  id: string;
   name?: string;
   number?: string;
   container?: string;
@@ -142,7 +142,7 @@ export interface Rig {
 }
 
 export interface Gear {
-  _id: string;
+  id: string;
   serialNumber?: string;
   name?: string;
   type?: string;
@@ -156,7 +156,7 @@ export interface Gear {
 }
 
 export interface RigEvent {
-  _id: string;
+  id: string;
   name?: string;
   eventDate?: string;
   description?: string;
@@ -168,7 +168,7 @@ export interface RigEvent {
 }
 
 export interface AuditEntry {
-  _id: string;
+  id: string;
   action: string;
   resource: string;
   resourceId: string;
@@ -176,7 +176,10 @@ export interface AuditEntry {
   userId?: string;
   userEmail?: string;
   userDisplayName?: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | null;
+  /** For changes: the record before and after (2.0.0-alpha.3 and later). */
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
   createdAt: string;
 }
 

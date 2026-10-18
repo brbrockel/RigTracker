@@ -13,20 +13,20 @@ describe('home', () => {
       'GET /api/rigs': () => ({
         status: 200,
         body: [
-          { _id: 'r1', number: '7', name: 'Javelin', repackDue: day(-10), lastPacked: day(-190) },
-          { _id: 'r2', name: 'Vector', repackDue: day(12) },
-          { _id: 'r3', name: 'Mirage', repackDue: day(120) },
+          { id: 'r1', number: '7', name: 'Javelin', repackDue: day(-10), lastPacked: day(-190) },
+          { id: 'r2', name: 'Vector', repackDue: day(12) },
+          { id: 'r3', name: 'Mirage', repackDue: day(120) },
         ],
       }),
       'GET /api/events': () => ({
         status: 200,
         body: [
-          { _id: 'e1', name: 'Boogie', eventDate: day(5) },
-          { _id: 'e2', name: 'Last year', eventDate: day(-300) },
+          { id: 'e1', name: 'Boogie', eventDate: day(5) },
+          { id: 'e2', name: 'Last year', eventDate: day(-300) },
         ],
       }),
-      'GET /api/gear': () => ({ status: 200, body: [{ _id: 'g1' }, { _id: 'g2' }] }),
-      'GET /api/people': () => ({ status: 200, body: [{ _id: 'p1' }] }),
+      'GET /api/gear': () => ({ status: 200, body: [{ id: 'g1' }, { id: 'g2' }] }),
+      'GET /api/people': () => ({ status: 200, body: [{ id: 'p1' }] }),
     });
     renderAt('/');
 
@@ -48,7 +48,7 @@ describe('home', () => {
   it('says when every rig is in date', async () => {
     mockApi({
       'GET /api/auth/me': asUser,
-      'GET /api/rigs': () => ({ status: 200, body: [{ _id: 'r1', repackDue: day(90) }] }),
+      'GET /api/rigs': () => ({ status: 200, body: [{ id: 'r1', repackDue: day(90) }] }),
       'GET /api/events': () => ({ status: 200, body: [] }),
       'GET /api/gear': () => ({ status: 200, body: [] }),
       'GET /api/people': () => ({ status: 200, body: [] }),

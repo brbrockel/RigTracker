@@ -12,15 +12,18 @@ import {
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
-import { AuthService, ROLES, type Role } from './auth.service';
-import { Public } from './public.decorator';
+import type { Request, Response } from 'express';
+import { AuthService, ROLES, type Role } from './auth.service.js';
+import type { AuthedRequest } from './auth-user.js';
+import { Public } from './public.decorator.js';
 import { Throttle } from '@nestjs/throttler';
-import { SIGN_IN_LIMIT } from '../common/throttle';
-import { RequireRoles } from './roles.decorator';
-import { signInLinkUrl } from './tokens';
-import { clientIp } from '../common/client-ip';
-import { AuditService } from '../audit/audit.service';
+import { SIGN_IN_LIMIT } from '../common/throttle.js';
+import { IdPipe } from '../common/validation.js';
+import { RequireRoles } from './roles.decorator.js';
+import { signInLinkUrl } from './tokens.js';
+import { clientIp } from '../common/client-ip.js';
+import { AuditService } from '../audit/audit.service.js';
+import { shortName } from '../people/person-view.js';
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
@@ -143,7 +146,11 @@ export class AuthController {
   /** Gives a person sign-in access with a role, or removes it (role: null). */
   @Patch('people/:id/access')
   @RequireRoles('admin')
-  async setAccess(@Req() req: any, @Param('id') id: string, @Body() body: { role?: unknown }) {
+  async setAccess(
+    @Req() req: AuthedRequest,
+    @Param('id', IdPipe) id: string,
+    @Body() body: { role?: unknown },
+  ) {
     const role =
       body?.role === null
         ? null
@@ -155,22 +162,24 @@ export class AuthController {
     if (req.authUser?.id === id && role !== 'admin') {
       throw new ForbiddenException('You cannot remove your own admin role');
     }
-    const person = await this.authService.setAccess(id, role);
+    const { before, after } = await this.authService.setAccess(id, role);
     await this.auditService.log({
       action: 'UPDATE',
       resource: 'people',
       resourceId: id,
-      resourceName: [person?.firstName, person?.lastName].filter(Boolean).join(' '),
+      resourceName: shortName(after),
       actor: req.authUser,
       details: { signInAccess: role ?? 'none' },
+      before,
+      after,
     });
-    return person;
+    return after;
   }
 
   /** A single-use sign-in link (72 hours) for the admin to text or email to the person. */
   @Post('people/:id/link')
   @RequireRoles('admin')
-  async createLink(@Req() req: any, @Param('id') id: string) {
+  async createLink(@Req() req: AuthedRequest, @Param('id', IdPipe) id: string) {
     const { token, expiresAt, user } = await this.authService.createSignInLink(
       id,
       req.authUser?.email,
@@ -189,7 +198,7 @@ export class AuthController {
   /** Signs the person out on every device. */
   @Post('people/:id/sign-out')
   @RequireRoles('admin')
-  async signOutEverywhere(@Req() req: any, @Param('id') id: string) {
+  async signOutEverywhere(@Req() req: AuthedRequest, @Param('id', IdPipe) id: string) {
     await this.authService.revokeAllSessions(id);
     await this.auditService.log({
       action: 'SIGN_OUT',

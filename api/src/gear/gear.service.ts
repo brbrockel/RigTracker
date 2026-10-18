@@ -1,94 +1,88 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Gear, GearDocument } from './gear.schema';
-import { Rig } from '../rigs/rig.schema';
-import { Person } from '../people/person.schema';
-import { defined } from '../common/validation';
-import type { GearBody } from './gear.dto';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
+import { DB, type Database } from '../db/db.js';
+import { gear, people, rigs, type Gear } from '../db/schema.js';
+import { defined } from '../common/validation.js';
+import { omit } from '../common/omit.js';
+import type { GearBody } from './gear.dto.js';
 
-type AnyModel = Model<any>;
+/** Gear as the API returns it: no serialNumber key when it has none. */
+export function gearToApi(row: Gear) {
+  const rest = omit(row, 'legacyId', 'serialNumber');
+  return row.serialNumber == null ? rest : { ...rest, serialNumber: row.serialNumber };
+}
+
+type GearChanges = Partial<typeof gear.$inferInsert>;
 
 @Injectable()
 export class GearService {
-  constructor(
-    @InjectModel(Gear.name) private gearModel: Model<GearDocument>,
-    @InjectModel(Rig.name) private rigModel: AnyModel,
-    @InjectModel(Person.name) private personModel: AnyModel,
-  ) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
   async findAll(filters?: { rigId?: string; personId?: string; unassigned?: string }) {
-    const query: any = {};
-    if (filters?.rigId) query.assignedRigId = filters.rigId;
-    if (filters?.personId) query.assignedPersonId = filters.personId;
-    if (filters?.unassigned === 'true') {
-      query.$and = [
-        {
-          $or: [
-            { assignedRigId: null },
-            { assignedRigId: { $exists: false } },
-            { assignedRigId: '' },
-          ],
-        },
-        {
-          $or: [
-            { assignedPersonId: null },
-            { assignedPersonId: { $exists: false } },
-            { assignedPersonId: '' },
-          ],
-        },
-      ];
-    }
-    return this.gearModel.find(query).lean();
+    const where: SQL[] = [];
+    if (filters?.rigId) where.push(eq(gear.assignedRigId, filters.rigId));
+    if (filters?.personId) where.push(eq(gear.assignedPersonId, filters.personId));
+    if (filters?.unassigned === 'true')
+      where.push(isNull(gear.assignedRigId), isNull(gear.assignedPersonId));
+    const rows = await this.db
+      .select()
+      .from(gear)
+      .where(where.length ? and(...where) : undefined)
+      .orderBy(asc(gear.createdAt));
+    return rows.map(gearToApi);
+  }
+
+  private async get(id: string) {
+    const [row] = await this.db.select().from(gear).where(eq(gear.id, id));
+    if (!row) throw new NotFoundException('Gear not found');
+    return row;
   }
 
   async findOne(id: string) {
-    const gear = await this.gearModel.findById(id).lean();
-    if (!gear) throw new NotFoundException('Gear not found');
-    return gear;
+    return gearToApi(await this.get(id));
   }
 
   async create(dto: GearBody) {
-    const normalized = await this.normalizeAssignment(undefined, defined(dto), dto);
-    if (!normalized.serialNumber) delete normalized.serialNumber;
-    const created = new this.gearModel(normalized);
-    return created.save();
+    const values = await this.normalizeAssignment(undefined, defined(dto), dto);
+    const [created] = await this.db.insert(gear).values(values).returning();
+    return gearToApi(created!);
   }
 
+  /** Returns the gear before and after (for the audit log). */
   async update(id: string, dto: GearBody) {
-    const current = await this.gearModel.findById(id).lean();
-    if (!current) throw new NotFoundException('Gear not found');
-    const normalized = await this.normalizeAssignment(current, defined(dto), dto);
-    // A cleared serial is removed: the unique (sparse) index would treat every null as the same value.
-    const unset =
-      'serialNumber' in normalized && !normalized.serialNumber ? { serialNumber: 1 } : undefined;
-    if (unset) delete normalized.serialNumber;
-    const updated = await this.gearModel
-      .findByIdAndUpdate(
-        id,
-        { $set: normalized, ...(unset ? { $unset: unset } : {}) },
-        { new: true, runValidators: true },
-      )
-      .lean();
+    const current = await this.get(id);
+    const changes = await this.normalizeAssignment(current, defined(dto), dto);
+    const [updated] = Object.keys(changes).length
+      ? await this.db.update(gear).set(changes).where(eq(gear.id, id)).returning()
+      : [current];
     if (!updated) throw new NotFoundException('Gear not found');
-    return updated;
+    return { before: gearToApi(current), after: gearToApi(updated) };
   }
 
   async remove(id: string) {
-    const deleted = await this.gearModel.findByIdAndDelete(id).lean();
-    if (!deleted) throw new NotFoundException('Gear not found');
+    const deleted = await this.db.delete(gear).where(eq(gear.id, id)).returning({ id: gear.id });
+    if (!deleted.length) throw new NotFoundException('Gear not found');
     return { ok: true };
   }
 
-  private normalizeId(value: any): string | null | undefined {
+  private normalizeId(value: string | null | undefined): string | null | undefined {
     if (value === undefined) return undefined;
     if (value === null) return null;
     const normalized = String(value).trim();
     return normalized ? normalized : null;
   }
 
-  private async normalizeAssignment(existing: any | undefined, mapped: any, rawDto: any) {
-    const next: any = { ...mapped };
+  /**
+   * Where gear goes: on a rig, it goes with the rig's primary person (a person sent alongside
+   * is ignored); taken off a rig without a person, it has none; given a person, it comes off
+   * its rig. A rig or person that doesn't exist is 400.
+   */
+  private async normalizeAssignment(
+    existing: Gear | undefined,
+    mapped: GearChanges,
+    rawDto: GearBody,
+  ): Promise<GearChanges> {
+    const next: GearChanges = { ...mapped };
     const existingRigId = this.normalizeId(existing?.assignedRigId) ?? null;
     const existingPersonId = this.normalizeId(existing?.assignedPersonId) ?? null;
 
@@ -101,7 +95,10 @@ export class GearService {
     const effectiveRigId = hasAssignedRigField ? requestedRigId : existingRigId;
 
     if (effectiveRigId) {
-      const rig = (await this.rigModel.findById(effectiveRigId).lean()) as any;
+      const [rig] = await this.db
+        .select({ primaryUserId: rigs.primaryUserId })
+        .from(rigs)
+        .where(eq(rigs.id, effectiveRigId));
       if (rig) {
         // On a rig, the gear goes with the rig's primary person.
         next.assignedRigId = effectiveRigId;
@@ -109,7 +106,8 @@ export class GearService {
         return next;
       }
       if (hasAssignedRigField) throw new BadRequestException('Assigned rig not found');
-      // Its rig was deleted: the gear is no longer on a rig, and stays editable.
+      // Its rig is gone (with foreign keys this can't happen, but stay safe): the gear is no
+      // longer on a rig, and stays editable.
       next.assignedRigId = null;
       if (!hasAssignedPersonField) return next;
     }
@@ -128,7 +126,10 @@ export class GearService {
     }
 
     if (effectivePersonId) {
-      const person = (await this.personModel.findById(effectivePersonId).lean()) as any;
+      const [person] = await this.db
+        .select({ id: people.id })
+        .from(people)
+        .where(eq(people.id, effectivePersonId));
       if (!person) throw new BadRequestException('Assigned person not found');
       next.assignedPersonId = effectivePersonId;
       if (hasAssignedRigField) {

@@ -1,31 +1,30 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { AuthSessionGuard } from './auth/auth-session.guard';
-import { RolesGuard } from './auth/roles.guard';
-import { ClientIpThrottlerGuard, DEFAULT_LIMIT } from './common/throttle';
-import { GearModule } from './gear/gear.module';
-import { MongooseModule } from '@nestjs/mongoose';
-import { RigsModule } from './rigs/rigs.module';
-import { PeopleModule } from './people/people.module';
-import { UploadsModule } from './uploads/uploads.module';
-import { EventsModule } from './events/events.module';
-import { AuthModule } from './auth/auth.module';
-import { AuditModule } from './audit/audit.module';
-import { HealthController } from './health/health.controller';
-import { readSecret } from './common/secrets';
+import { AuthSessionGuard } from './auth/auth-session.guard.js';
+import { RolesGuard } from './auth/roles.guard.js';
+import { ClientIpThrottlerGuard, DEFAULT_LIMIT } from './common/throttle.js';
+import { DbModule } from './db/db.module.js';
+import { GearModule } from './gear/gear.module.js';
+import { RigsModule } from './rigs/rigs.module.js';
+import { PeopleModule } from './people/people.module.js';
+import { UploadsModule } from './uploads/uploads.module.js';
+import { EventsModule } from './events/events.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { AuditModule } from './audit/audit.module.js';
+import { HealthController } from './health/health.controller.js';
 
 @Module({
   imports: [
     ThrottlerModule.forRoot([DEFAULT_LIMIT]),
-    MongooseModule.forRoot(readSecret('MONGO_URI') || 'mongodb://localhost:27017/rigtracker'),
+    DbModule,
+    AuditModule,
     GearModule,
     RigsModule,
     PeopleModule,
     UploadsModule,
     EventsModule,
     AuthModule,
-    AuditModule,
   ],
   controllers: [HealthController],
   providers: [

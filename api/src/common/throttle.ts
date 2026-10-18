@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { clientIp } from './client-ip';
+import { clientIp } from './client-ip.js';
 
 /** Requests per minute per visitor IP for most routes (RATE_LIMIT_PER_MINUTE, default 300). */
 export const DEFAULT_LIMIT = {
@@ -15,7 +15,7 @@ export const UPLOAD_LIMIT = { default: { ttl: 60_000, limit: 30 } };
 /** Rate-limits by the real visitor IP (CF-Connecting-IP behind Cloudflare). */
 @Injectable()
 export class ClientIpThrottlerGuard extends ThrottlerGuard {
-  protected override getTracker(req: Record<string, any>): Promise<string> {
-    return Promise.resolve(clientIp(req) ?? 'unknown');
+  protected override getTracker(req: Record<string, unknown>): Promise<string> {
+    return Promise.resolve(clientIp(req as Parameters<typeof clientIp>[0]) ?? 'unknown');
   }
 }

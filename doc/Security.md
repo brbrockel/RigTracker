@@ -74,12 +74,12 @@ Recorded actions:
 - sign-in links made;
 - sign-in access changes.
 
-Admins see it under **Activity log**. It becomes append-only (enforced by the database) in step 4.
+Admins see it under **Activity log**. Updates keep the record's values before and after the change. It is append-only: a database trigger refuses any change or removal of an entry.
 
 ## Secrets and infrastructure
 
-- **Secrets:** the Mongo connection string is a Docker secret (`MONGO_URI_FILE`). No secrets are kept in either repository.
-- **The database:** MongoDB runs with authentication on an internal network, with no published ports.
+- **Secrets:** the database connection string is a Docker secret (`DATABASE_URL_FILE`; `MONGO_URI_FILE` only for the one-off import). No secrets are kept in either repository.
+- **The database:** PostgreSQL runs with a password on an internal network, with no published ports.
 - **The container** runs as the unprivileged `node` user.
 - **Backups:** nightly. See [Deployment.md](Deployment.md).
 
@@ -90,4 +90,3 @@ Admins see it under **Activity log**. It becomes append-only (enforced by the da
   - per-account lockout and per-IP limits;
   - optional authenticator codes with recovery codes.
 - **A read-only guest view:** people shown by first name and last initial only.
-- **An append-only audit log,** with before and after values.

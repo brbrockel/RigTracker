@@ -39,6 +39,7 @@ Track the club's rigs, gear, events and people, with:
 | 2026-10-17 | Rigs and Gear inventory layouts: Table, List, Gallery and Cards (remembered per device and page), sort, group by, column picker, multi-select (assign, unassign, delete), CSV export, print sheet | `bf97d3f` |
 | 2026-10-17 | Step 2: 247 API end-to-end tests (the contract for step 4), Prettier, ESLint, `.nvmrc`, `.env.example`, docker compose Mongo, `pnpm check`, GitHub Actions CI; unused `packages/shared` removed | `152641b` |
 | 2026-10-17 | Step 3: one Node process (no nginx), `USER node`, `/api/health` + healthcheck, validated config, helmet CSP, versioned images with `build.sh` rolling deploys, `Deployment.md`, `Security.md`, `CHANGELOG.md`; `v1.0.0` tagged on the pre-review app | 2.0.0-alpha.2 |
+| 2026-10-18 | Step 4a (2.0.0-alpha.3): PostgreSQL 18 + Drizzle, NestJS 12, Express 5, ESM, TS 6; UUID ids; FKs; append-only audit with before/after (shown in the Activity log); importer from Mongo with verification; `pg_dump` backups; 268 API tests | 2.0.0-alpha.3 |
 
 ## Releases
 
@@ -78,6 +79,11 @@ Do this before the bigger changes:
 - Write `Deployment.md` (secrets, deploy, rollback, backup and restore drill) and `Security.md`.
 
 ### 4. PostgreSQL + Drizzle, NestJS 12 (L)
+
+Split in two on 2026-10-17:
+
+- **4a: the database and framework move,** with the same API behaviour (the 252 tests as the contract). Done in 2.0.0-alpha.3.
+- **4b: the model changes,** still to do: rig components as gear rows, and a media table for photos and videos with owners. These change the rig and event screens.
 
 - **Upgrade:** ESM, NestJS 12, Express 5 and TypeScript 6, which clears the last audit finding.
 - **Schema:**

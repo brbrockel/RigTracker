@@ -7,6 +7,19 @@ jobs:
   check:
     runs-on: ubuntu-latest
     services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: rigtracker
+          POSTGRES_PASSWORD: rigtracker
+          POSTGRES_DB: rigtracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rigtracker"
+          --health-interval 5s
+          --health-retries 10
+      # Only for the Mongo import script's test (api/test/import-mongo.test.ts).
       mongo:
         image: mongo:6.0
         ports:
@@ -16,7 +29,8 @@ jobs:
           --health-interval 5s
           --health-retries 10
     env:
-      TEST_MONGO_URI: mongodb://127.0.0.1:27017/rigtracker_test
+      TEST_DATABASE_URL: postgres://rigtracker:rigtracker@127.0.0.1:5432/rigtracker_test
+      TEST_MONGO_URI: mongodb://127.0.0.1:27017/rigtracker_import_test
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6

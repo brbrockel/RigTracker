@@ -1,87 +1,121 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { PERSON_PROFILE_FIELDS, Person, PersonDocument } from './person.schema';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
-import isEmail from 'validator/lib/isEmail';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { asc, eq } from 'drizzle-orm';
+import { parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
+import validator from 'validator';
+import { DB, type Database } from '../db/db.js';
+import { people, type Person } from '../db/schema.js';
+import { dateOnly } from '../common/validation.js';
+import { personToApi } from './person-view.js';
+
+/** Fields an ordinary create or edit may set. Sign-in fields are left out on purpose. */
+export const PERSON_PROFILE_FIELDS = [
+  'firstName',
+  'middleName',
+  'lastName',
+  'email',
+  'phone',
+  'address',
+  'dob',
+  'emergencyContacts',
+  'customFields',
+] as const;
+
+type Profile = Partial<Pick<typeof people.$inferInsert, (typeof PERSON_PROFILE_FIELDS)[number]>>;
+type Body = Record<string, unknown>;
+
+const TEXT_FIELDS = new Set(['firstName', 'middleName', 'lastName', 'email', 'phone']);
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
 
 @Injectable()
 export class PeopleService {
-  constructor(@InjectModel(Person.name) private personModel: Model<PersonDocument>) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
-  /** Only profile fields, validated; sign-in fields (roles etc.) can't be set this way. */
-  private profile(dto: any): Record<string, any> {
-    const out: Record<string, any> = {};
+  /**
+   * Only profile fields, checked; sign-in fields (roles etc.) and anything else sent are ignored.
+   * Values of the wrong type (e.g. operator objects such as {"$gt": ""}) are refused.
+   */
+  private profile(dto: unknown): Profile {
+    const body: Body = isPlainObject(dto) ? dto : {};
+    const out: Record<string, unknown> = {};
     for (const key of PERSON_PROFILE_FIELDS) {
-      if (dto && Object.prototype.hasOwnProperty.call(dto, key)) out[key] = dto[key];
+      if (!Object.prototype.hasOwnProperty.call(body, key)) continue;
+      const v = body[key];
+      if (TEXT_FIELDS.has(key)) {
+        if (v === null || typeof v === 'string') out[key] = v;
+        else if (typeof v === 'number' || typeof v === 'boolean') out[key] = String(v);
+        else throw new BadRequestException(`Invalid ${key}`);
+      } else if (key === 'dob') {
+        if (v === null || v === '') out.dob = null;
+        else {
+          const d = dateOnly.safeParse(v);
+          if (!d.success) throw new BadRequestException('Invalid dob: use yyyy-mm-dd');
+          out.dob = d.data;
+        }
+      } else if (key === 'emergencyContacts') {
+        if (v === null) out[key] = [];
+        else if (Array.isArray(v) && v.every(isPlainObject)) out[key] = v;
+        else throw new BadRequestException('Invalid emergencyContacts');
+      } else {
+        // address, customFields
+        if (v === null) out[key] = {};
+        else if (isPlainObject(v)) out[key] = v;
+        else throw new BadRequestException(`Invalid ${key}`);
+      }
     }
     if (out.email) {
       const e = String(out.email).trim().toLowerCase();
-      if (!isEmail(e)) throw new BadRequestException('Invalid email');
+      if (!validator.isEmail(e)) throw new BadRequestException('Invalid email');
       out.email = e;
-    }
+    } else if ('email' in out) out.email = null;
     if (out.phone) {
-      const pn = parsePhoneNumberFromString(String(out.phone), dto.country || 'US');
+      const country = typeof body.country === 'string' ? body.country : 'US';
+      const pn = parsePhoneNumberFromString(String(out.phone), country as CountryCode);
       if (!pn || !pn.isValid()) throw new BadRequestException('Invalid phone');
       out.phone = pn.format('E.164');
-    }
-    return out;
+    } else if ('phone' in out) out.phone = null;
+    return out as Profile;
   }
 
-  /** Someone who signs in needs an email address no one else who signs in uses. */
-  private async checkSignInEmail(id: string, email: unknown) {
-    const person = await this.personModel.findById(id).lean();
-    if (!person) throw new NotFoundException('Person not found');
-    if (!person.roles?.length) return;
-    const e = typeof email === 'string' ? email : '';
-    if (!e) throw new BadRequestException('This person signs in, so they need an email address');
-    const other = await this.personModel
-      .findOne({ _id: { $ne: id }, email: e, 'roles.0': { $exists: true } })
-      .lean();
-    if (other) throw new ConflictException('Another person who signs in already uses that email');
-  }
-
-  async create(dto: any) {
-    const created = new this.personModel(this.profile(dto));
-    return created.save();
-  }
-
-  async findAll() {
-    return this.personModel.find().lean();
-  }
-
-  async findOne(id: string) {
-    const p = await this.personModel.findById(id).lean();
+  private async get(id: string): Promise<Person> {
+    const [p] = await this.db.select().from(people).where(eq(people.id, id));
     if (!p) throw new NotFoundException('Person not found');
     return p;
   }
 
-  async update(id: string, dto: any) {
-    const changes = this.profile(dto);
-    if ('email' in changes) await this.checkSignInEmail(id, changes.email);
-    const updated = await this.personModel
-      .findByIdAndUpdate(id, { $set: changes }, { new: true, runValidators: true })
-      .lean();
-    if (!updated) throw new NotFoundException('Person not found');
-    return updated;
+  async create(dto: unknown) {
+    const [created] = await this.db.insert(people).values(this.profile(dto)).returning();
+    return personToApi(created!);
   }
 
+  async findAll() {
+    const rows = await this.db.select().from(people).orderBy(asc(people.createdAt));
+    return rows.map(personToApi);
+  }
+
+  async findOne(id: string) {
+    return personToApi(await this.get(id));
+  }
+
+  /** Returns the person before and after (for the audit log). */
+  async update(id: string, dto: unknown) {
+    const changes = this.profile(dto);
+    const before = await this.get(id);
+    // Someone who signs in needs an email address; the unique index (lower(email) for people
+    // with a role) refuses one another person who signs in uses: 409, see PgErrorsFilter.
+    if ('email' in changes && before.role && !changes.email)
+      throw new BadRequestException('This person signs in, so they need an email address');
+    const [after] = Object.keys(changes).length
+      ? await this.db.update(people).set(changes).where(eq(people.id, id)).returning()
+      : [before];
+    if (!after) throw new NotFoundException('Person not found');
+    return { before: personToApi(before), after: personToApi(after) };
+  }
+
+  /** Rigs and gear stop pointing at them (ON DELETE SET NULL); their sessions and links go too. */
   async remove(id: string) {
-    const res = await this.personModel.findByIdAndDelete(id).lean();
-    if (!res) throw new NotFoundException('Person not found');
-    // Nothing keeps pointing at someone who's gone.
-    const db = this.personModel.db;
-    await db
-      .collection('rigs')
-      .updateMany({ primaryUserId: id }, { $set: { primaryUserId: null } });
-    await db
-      .collection('gear')
-      .updateMany({ assignedPersonId: id }, { $set: { assignedPersonId: null } });
+    const deleted = await this.db.delete(people).where(eq(people.id, id)).returning();
+    if (!deleted.length) throw new NotFoundException('Person not found');
     return { deleted: true };
   }
 }

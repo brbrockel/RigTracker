@@ -1,39 +1,47 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { AuditLog, AuditLogDocument } from './audit-log.schema';
+import { Inject, Injectable } from '@nestjs/common';
+import { and, count, desc, eq, type SQL } from 'drizzle-orm';
+import { DB, type Database } from '../db/db.js';
+import { auditLog } from '../db/schema.js';
+import { omit } from '../common/omit.js';
 
 export interface AuditActor {
   id: string;
   email: string;
   displayName: string;
-  roles: string[];
 }
 
 export interface LogParams {
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'SIGN_IN' | 'SIGN_OUT' | 'SIGN_IN_LINK';
   resource: string;
   resourceId: string;
-  resourceName?: string;
-  actor?: AuditActor | null;
-  details?: Record<string, any>;
+  resourceName?: string | null | undefined;
+  actor?: AuditActor | null | undefined;
+  details?: Record<string, unknown> | undefined;
+  /** For updates: the record before and after the change. */
+  before?: unknown;
+  after?: unknown;
 }
+
+/** Drops values JSON can't hold (undefined) and turns Dates into ISO strings. */
+const json = (v: unknown) => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
 
 @Injectable()
 export class AuditService {
-  constructor(@InjectModel(AuditLog.name) private readonly auditModel: Model<AuditLogDocument>) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
   async log(params: LogParams): Promise<void> {
     try {
-      await this.auditModel.create({
+      await this.db.insert(auditLog).values({
         action: params.action,
         resource: params.resource,
         resourceId: params.resourceId,
-        resourceName: params.resourceName,
-        userId: params.actor?.id,
-        userEmail: params.actor?.email,
-        userDisplayName: params.actor?.displayName,
-        details: params.details,
+        resourceName: params.resourceName ?? null,
+        userId: params.actor?.id ?? null,
+        userEmail: params.actor?.email ?? null,
+        userDisplayName: params.actor?.displayName ?? null,
+        details: params.details ?? null,
+        before: json(params.before),
+        after: json(params.after),
       });
     } catch (err) {
       // Never let audit failures break the main request
@@ -42,20 +50,22 @@ export class AuditService {
   }
 
   async findAll(opts: { resource?: string; action?: string; skip?: number; limit?: number }) {
-    const filter: Record<string, any> = {};
-    if (opts.resource) filter.resource = opts.resource;
-    if (opts.action) filter.action = opts.action;
+    const filters: SQL[] = [];
+    if (opts.resource) filters.push(eq(auditLog.resource, opts.resource));
+    if (opts.action) filters.push(eq(auditLog.action, opts.action));
+    const where = filters.length ? and(...filters) : undefined;
 
-    const [total, logs] = await Promise.all([
-      this.auditModel.countDocuments(filter),
-      this.auditModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(opts.skip ?? 0)
-        .limit(opts.limit ?? 50)
-        .lean(),
+    const [totalRow, rows] = await Promise.all([
+      this.db.select({ n: count() }).from(auditLog).where(where),
+      this.db
+        .select()
+        .from(auditLog)
+        .where(where)
+        .orderBy(desc(auditLog.createdAt))
+        .offset(opts.skip ?? 0)
+        .limit(opts.limit ?? 50),
     ]);
-
-    return { total, logs };
+    const logs = rows.map((entry) => omit(entry, 'legacyId'));
+    return { total: totalRow[0]?.n ?? 0, logs };
   }
 }

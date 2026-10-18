@@ -29,7 +29,7 @@ export function EventDialog({
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       event
-        ? api<RigEvent>(`/events/${event._id}`, { method: 'PUT', body })
+        ? api<RigEvent>(`/events/${event.id}`, { method: 'PUT', body })
         : api<RigEvent>('/events', { method: 'POST', body }),
     onSuccess: async (saved) => {
       await qc.invalidateQueries({ queryKey: keys.events });

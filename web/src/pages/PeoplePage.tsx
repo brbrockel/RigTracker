@@ -38,7 +38,7 @@ export function PeoplePage() {
   const signIn = useSignInActions();
 
   const remove = useMutation({
-    mutationFn: (p: Person) => api(`/people/${p._id}`, { method: 'DELETE' }),
+    mutationFn: (p: Person) => api(`/people/${p.id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.people }),
   });
 
@@ -125,14 +125,14 @@ export function PeoplePage() {
 
       <ul className="flex flex-col gap-3">
         {shown.map((p) => {
-          const isSelf = p._id === user?.id;
+          const isSelf = p.id === user?.id;
           return (
-            <li key={p._id}>
+            <li key={p.id}>
               <Card className="flex items-start gap-3 p-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
-                      to={`/people/${p._id}`}
+                      to={`/people/${p.id}`}
                       className="block truncate py-1 font-medium hover:text-primary hover:underline"
                     >
                       {fullName(p)}

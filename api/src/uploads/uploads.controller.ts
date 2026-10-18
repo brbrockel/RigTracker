@@ -7,15 +7,15 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { randomUUID } from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
+import multer from 'multer';
+import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import sharp from 'sharp';
-import { RequireRoles } from '../auth/roles.decorator';
+import { RequireRoles } from '../auth/roles.decorator.js';
 import { Throttle } from '@nestjs/throttler';
-import { UPLOAD_LIMIT } from '../common/throttle';
-import { uploadsDir } from '../common/uploads-dir';
+import { UPLOAD_LIMIT } from '../common/throttle.js';
+import { uploadsDir } from '../common/uploads-dir.js';
 
 const baseUploadDir = uploadsDir();
 const tmpUploadDir = path.join(baseUploadDir, '.incoming');
@@ -44,7 +44,7 @@ function sanitizeFolder(raw: string): string {
     .split('/')
     .map((s) => s.replace(/[^a-z0-9\-_ ]/g, '-').trim())
     .filter(Boolean);
-  if (!segments.length || !ROOT_FOLDERS.has(segments[0])) return '';
+  if (!segments.length || !ROOT_FOLDERS.has(segments[0]!)) return '';
   const cleaned = segments.slice(0, 2).join('/');
   // guard against path traversal
   const resolved = path.resolve(baseUploadDir, cleaned);
@@ -96,7 +96,7 @@ export class UploadsController {
   @Throttle(UPLOAD_LIMIT)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
+      storage: multer.diskStorage({
         destination: (_req, _file, cb) => {
           fs.mkdirSync(tmpUploadDir, { recursive: true });
           cb(null, tmpUploadDir);
@@ -106,7 +106,10 @@ export class UploadsController {
       limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
     }),
   )
-  async uploadImage(@UploadedFile() file: any, @Query('folder') folder?: string) {
+  async uploadImage(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Query('folder') folder?: unknown,
+  ) {
     if (!file?.path) {
       throw new BadRequestException('Media file is required');
     }

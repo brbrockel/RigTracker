@@ -27,7 +27,7 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Per-IP rate limits, security headers and a CSP.
 - `/api/health`, and the running version on Account.
 - Nightly verified backups.
-- 252 API end-to-end tests, 50 web tests, `pnpm check` and CI.
+- 268 API end-to-end tests, 51 web tests, `pnpm check` and CI.
 
 ### Fixed
 
@@ -37,6 +37,18 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Deleting a person left dangling references, and gear whose rig was deleted couldn't be edited.
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
+
+### 2.0.0-alpha.3
+
+- **Breaking:** PostgreSQL 18 + Drizzle replaces MongoDB.
+  - Records have UUID `id`s instead of `_id`.
+  - Date-only fields come back as `YYYY-MM-DD`.
+  - Foreign keys connect gear, rigs and people, and sign-in emails are unique in the database.
+  - The audit log is append-only (a database trigger) and records before and after values. The Activity log shows what changed.
+- The API runs on NestJS 12, Express 5, ESM and TypeScript 6. `pnpm audit` finds no known vulnerabilities.
+- The schema migrations (`api/drizzle`) run when the container starts.
+- Backups are a nightly `pg_dump`, verified with `pg_restore --list`.
+- The one-off import from Mongo keeps the old ids as `legacy_id`. It clears the 1900 placeholder dates and keeps the rigs' former names as the custom field "Past name".
 
 ### 2.0.0-alpha.2
 

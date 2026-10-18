@@ -1,40 +1,41 @@
 import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
-import { getConnectionToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
-import type { Connection } from 'mongoose';
-import { Types } from 'mongoose';
+import { sql } from 'drizzle-orm';
 import request from 'supertest';
 import { expect } from 'vitest';
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/app';
-import { hashToken, newToken } from '../src/auth/tokens';
+import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/app.js';
+import { hashToken, newToken } from '../src/auth/tokens.js';
+import { DB, type Database } from '../src/db/db.js';
+import { people, signInLinks } from '../src/db/schema.js';
 
 export const SESSION_COOKIE = 'rigtracker_session';
 
 export interface TestApp {
   app: INestApplication;
-  /** The app's own database connection, for setting up records and checking stored rows. */
-  db: Connection;
+  /** The app's own database, for setting up records and checking stored rows. */
+  db: Database;
   close(): Promise<void>;
 }
 
-/** Boots the real AppModule against the test database (MONGO_URI from vitest.config.mts). */
+/** Boots the real AppModule against the test database (DATABASE_URL from vitest.config.ts). */
 export async function createTestApp(): Promise<TestApp> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication({ logger: ['error'] });
   configureApp(app);
   await app.init();
-  const db = app.get<Connection>(getConnectionToken());
-  // Unique indexes (e.g. gear serial numbers) must exist before the tests rely on them.
-  await Promise.all(Object.values(db.models).map((m) => m.init()));
+  const db = app.get<Database>(DB);
   return { app, db, close: () => app.close() };
 }
 
-/** Empties every collection (keeping indexes). */
+/**
+ * Empties every table. TRUNCATE isn't a row-level UPDATE or DELETE, so the audit log's
+ * append-only trigger allows it.
+ */
 export async function resetDb(t: TestApp): Promise<void> {
-  const collections = await t.db.db.collections();
-  await Promise.all(collections.map((c) => c.deleteMany({})));
+  await t.db.execute(sql`truncate table
+    audit_log, sessions, sign_in_links, gear, rigs, events, people restart identity cascade`);
 }
 
 let ipCounter = Math.floor(Math.random() * 60_000);
@@ -49,24 +50,30 @@ export function nextIp(): string {
 
 export type Role = 'admin' | 'user' | 'viewer';
 
+type PersonFields = Partial<typeof people.$inferInsert> & {
+  /** As the API shows sign-in access: [role], or [] for none. */
+  roles?: Role[];
+};
+
 let personCounter = 0;
 /** Inserts a person straight into the database. */
 export async function createPerson(
   t: TestApp,
-  fields: Record<string, unknown> = {},
+  fields: PersonFields = {},
 ): Promise<{ id: string; email?: string }> {
   personCounter++;
-  const doc = {
+  const { roles, ...rest } = fields;
+  const values = {
     firstName: 'Test',
     lastName: `Person${personCounter}`,
     email: `person${personCounter}-${Date.now()}@example.com`,
-    roles: [],
     isActive: true,
     loginCount: 0,
-    ...fields,
+    ...(roles ? { role: roles[0] ?? null } : {}),
+    ...rest,
   };
-  const { insertedId } = await t.db.collection('people').insertOne(doc);
-  return { id: String(insertedId), email: doc.email as string | undefined };
+  const [row] = await t.db.insert(people).values(values).returning();
+  return { id: row!.id, email: row!.email ?? undefined };
 }
 
 /** Stores a sign-in link for a person and returns its token (as an admin-made link would be). */
@@ -76,12 +83,7 @@ export async function createLinkToken(
   expiresAt = new Date(Date.now() + 60 * 60 * 1000),
 ): Promise<string> {
   const token = newToken();
-  await t.db.collection('sign_in_links').insertOne({
-    tokenHash: hashToken(token),
-    userId: new Types.ObjectId(personId),
-    expiresAt,
-    createdAt: new Date(),
-  });
+  await t.db.insert(signInLinks).values({ tokenHash: hashToken(token), personId, expiresAt });
   return token;
 }
 
@@ -123,7 +125,7 @@ export async function signIn(t: TestApp, personId: string): Promise<SignedIn> {
   const cookie = ([] as string[])
     .concat(res.headers['set-cookie'] ?? [])
     .find((c) => c.startsWith(`${SESSION_COOKIE}=`));
-  const sessionToken = decodeURIComponent(cookie!.split(';')[0].slice(SESSION_COOKIE.length + 1));
+  const sessionToken = decodeURIComponent(cookie!.split(';')[0]!.slice(SESSION_COOKIE.length + 1));
   return {
     id: personId,
     email: res.body.user.email,
@@ -138,7 +140,7 @@ export async function signIn(t: TestApp, personId: string): Promise<SignedIn> {
 export async function signInAs(
   t: TestApp,
   role: Role,
-  fields: Record<string, unknown> = {},
+  fields: PersonFields = {},
 ): Promise<SignedIn> {
   const person = await createPerson(t, { roles: [role], ...fields });
   return signIn(t, person.id);
@@ -159,4 +161,4 @@ export function as(who: SignedIn) {
 }
 
 /** A well-formed id that matches no record. */
-export const MISSING_ID = '0123456789abcdef01234567';
+export const MISSING_ID = '00000000-0000-4000-8000-000000000000';

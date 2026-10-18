@@ -1,23 +1,22 @@
 import type { INestApplication } from '@nestjs/common';
-import * as path from 'path';
-import * as express from 'express';
-import * as fs from 'fs';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import express from 'express';
 import helmet from 'helmet';
-import mongoose from 'mongoose';
-import { AuthService } from './auth/auth.service';
-import { SERVED_UPLOAD_EXTENSIONS } from './uploads/uploads.controller';
-import { MongoErrorsFilter } from './common/mongo-errors.filter';
-import { uploadsDir } from './common/uploads-dir';
-
-// Filters only use fields in the schema. Request values reach filters only after the
-// controllers' zod checks make them plain strings (so ?id[$ne]=x is refused, not run).
-mongoose.set('strictQuery', true);
+import { AuthService } from './auth/auth.service.js';
+import { SERVED_UPLOAD_EXTENSIONS } from './uploads/uploads.controller.js';
+import { PgErrorsFilter } from './common/pg-errors.filter.js';
+import { uploadsDir } from './common/uploads-dir.js';
 
 /** Settings shared by the real server and the tests. */
 export function configureApp(app: INestApplication) {
   const server = app.getHttpAdapter().getInstance() as express.Express;
   server.disable('x-powered-by');
-  app.useGlobalFilters(new MongoErrorsFilter(app.getHttpAdapter()));
+  // Express 5 parses query strings "simple" by default; the extended (qs) parser keeps
+  // ?rigId[$ne]=x an object, which the zod query schemas then refuse with a 400 (as in 1.x)
+  // instead of silently ignoring the parameter.
+  server.set('query parser', 'extended');
+  app.useGlobalFilters(new PgErrorsFilter(app.getHttpAdapter()));
   // Security headers for every response. The web app's CSP: everything from this site;
   // antd-era inline styles are gone, but Radix sets style attributes, hence 'unsafe-inline' for styles.
   server.use(

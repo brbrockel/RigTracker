@@ -5,14 +5,14 @@ import { asAdmin, asViewer, mockApi, renderAt } from './render';
 
 const events = [
   {
-    _id: 'e1',
+    id: 'e1',
     name: 'Spring Boogie',
     eventDate: '2099-03-10T00:00:00.000Z',
     photoUrls: ['/uploads/a.jpg', '/uploads/b.mp4'],
     eventPhotoUrl: '/uploads/a.jpg',
   },
-  { _id: 'e2', name: 'Summer Trip', eventDate: '2099-06-01T00:00:00.000Z' },
-  { _id: 'e3', name: 'Old Jump Day', eventDate: '2020-05-02T00:00:00.000Z' },
+  { id: 'e2', name: 'Summer Trip', eventDate: '2099-06-01T00:00:00.000Z' },
+  { id: 'e3', name: 'Old Jump Day', eventDate: '2020-05-02T00:00:00.000Z' },
 ];
 
 describe('events', () => {
@@ -46,10 +46,10 @@ describe('events', () => {
     const calls = mockApi({
       'GET /api/auth/me': asAdmin,
       'GET /api/events': () => ({ status: 200, body: [] }),
-      'POST /api/events': () => ({ status: 201, body: { _id: 'e9', name: 'New one' } }),
+      'POST /api/events': () => ({ status: 201, body: { id: 'e9', name: 'New one' } }),
       'GET /api/events/e9': () => ({
         status: 200,
-        body: { _id: 'e9', name: 'New one', eventDate: '2099-01-02T00:00:00.000Z' },
+        body: { id: 'e9', name: 'New one', eventDate: '2099-01-02T00:00:00.000Z' },
       }),
     });
     const router = renderAt('/events');

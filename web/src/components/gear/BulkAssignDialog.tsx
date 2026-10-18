@@ -47,7 +47,7 @@ export function BulkAssignDialog({
   const [error, setError] = useState('');
   const [remaining, setRemaining] = useState<Gear[]>(gear);
 
-  const nameById = useMemo(() => new Map(people.map((p) => [p._id, personName(p)])), [people]);
+  const nameById = useMemo(() => new Map(people.map((p) => [p.id, personName(p)])), [people]);
   const sortedRigs = useMemo(
     () => [...rigs].sort((a, b) => collator.compare(rigLabel(a), rigLabel(b))),
     [rigs],
@@ -66,7 +66,7 @@ export function BulkAssignDialog({
       verb: 'Updating',
       past: 'Updated',
       label: gearLabel,
-      each: (g) => api(`/gear/${g._id}`, { method: 'PUT', body: assignmentBody(mode, target) }),
+      each: (g) => api(`/gear/${g.id}`, { method: 'PUT', body: assignmentBody(mode, target) }),
     });
     await Promise.all([
       qc.invalidateQueries({ queryKey: keys.gear }),
@@ -97,7 +97,7 @@ export function BulkAssignDialog({
               <Select id="bulk-rig" value={target} onChange={(e) => setTarget(e.target.value)}>
                 <option value="">Choose a rig</option>
                 {sortedRigs.map((r) => (
-                  <option key={r._id} value={r._id}>
+                  <option key={r.id} value={r.id}>
                     {rigLabel(r)}
                     {r.primaryUserId
                       ? ` (${nameById.get(r.primaryUserId) || 'Unknown person'})`
@@ -111,7 +111,7 @@ export function BulkAssignDialog({
               <Select id="bulk-person" value={target} onChange={(e) => setTarget(e.target.value)}>
                 <option value="">Choose a person</option>
                 {sortedPeople.map((p) => (
-                  <option key={p._id} value={p._id}>
+                  <option key={p.id} value={p.id}>
                     {personName(p) || p.email || 'Unnamed person'}
                   </option>
                 ))}

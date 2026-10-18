@@ -80,7 +80,7 @@ export function RigDialog({
         className="sm:max-w-2xl"
       >
         {/* Keyed so the form starts fresh each time it opens. */}
-        {open && <RigForm key={rig?._id ?? 'new'} rig={rig} onDone={() => onOpenChange(false)} />}
+        {open && <RigForm key={rig?.id ?? 'new'} rig={rig} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   );
@@ -96,7 +96,7 @@ function RigForm({ rig, onDone }: { rig?: Rig | null; onDone: () => void }) {
     mutationFn: () => {
       const body = rigBody(values, imageUrl, !!rig);
       return rig
-        ? api<Rig>(`/rigs/${rig._id}`, { method: 'PUT', body })
+        ? api<Rig>(`/rigs/${rig.id}`, { method: 'PUT', body })
         : api<Rig>('/rigs', { method: 'POST', body });
     },
     onSuccess: async () => {
@@ -148,7 +148,7 @@ function RigForm({ rig, onDone }: { rig?: Rig | null; onDone: () => void }) {
           >
             <option value="">No one</option>
             {sortedPeople.map((p) => (
-              <option key={p._id} value={p._id}>
+              <option key={p.id} value={p.id}>
                 {personName(p) || p.email || 'Unnamed person'}
               </option>
             ))}

@@ -2,7 +2,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { anon, as, createTestApp, resetDb, signInAs, type SignedIn, type TestApp } from './helpers';
+import {
+  anon,
+  as,
+  createTestApp,
+  resetDb,
+  signInAs,
+  type SignedIn,
+  type TestApp,
+} from './helpers.js';
 
 let t: TestApp;
 let user: SignedIn;

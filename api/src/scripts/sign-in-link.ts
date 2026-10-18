@@ -6,23 +6,20 @@
  *   docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com --admin "Your Name"
  *
  * --admin makes the person with that email an admin, creating them if there's no one with it yet.
- * Links use APP_URL (e.g. https://rigtracker.bhbslp.org).
+ * Links use APP_URL (e.g. https://rigtracker.bhbslp.org); the database is DATABASE_URL(_FILE).
  */
-import mongoose from 'mongoose';
-import { readSecret } from '../common/secrets';
-import { Person, PersonSchema } from '../people/person.schema';
-import { SignInLink, SignInLinkSchema } from '../auth/sign-in-link.schema';
-import { AuditLog, AuditLogSchema } from '../audit/audit-log.schema';
-import { SIGN_IN_LINK_TTL_MS, hashToken, newToken, signInLinkUrl } from '../auth/tokens';
+import { eq, sql } from 'drizzle-orm';
+import { loadConfig } from '../config.js';
+import { createDb, createPool } from '../db/db.js';
+import { auditLog, people, signInLinks } from '../db/schema.js';
+import { SIGN_IN_LINK_TTL_MS, hashToken, newToken, signInLinkUrl } from '../auth/tokens.js';
 
 async function main() {
   const args = process.argv.slice(2);
   const adminIdx = args.indexOf('--admin');
   const makeAdmin = adminIdx !== -1;
-  const fullName =
-    makeAdmin && args[adminIdx + 1] && !args[adminIdx + 1].startsWith('--')
-      ? args[adminIdx + 1].trim()
-      : undefined;
+  const nameArg = args[adminIdx + 1];
+  const fullName = makeAdmin && nameArg && !nameArg.startsWith('--') ? nameArg.trim() : undefined;
   const email = (args[0] || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     console.error('Usage: sign-in-link <email> [--admin "Name"]');
@@ -36,15 +33,15 @@ async function main() {
     process.exit(1);
   }
 
-  await mongoose.connect(readSecret('MONGO_URI') || 'mongodb://localhost:27017/rigtracker');
+  const pool = createPool(loadConfig().DATABASE_URL);
+  const db = createDb(pool);
   try {
-    const People = mongoose.model(Person.name, PersonSchema);
-    const Links = mongoose.model(SignInLink.name, SignInLinkSchema);
-    const Audit = mongoose.model(AuditLog.name, AuditLogSchema);
-
-    const matches = await People.find({ email });
+    const matches = await db
+      .select()
+      .from(people)
+      .where(sql`lower(${people.email}) = ${email}`);
     if (matches.length > 1) {
-      const withAccess = matches.filter((p) => p.roles?.length);
+      const withAccess = matches.filter((p) => p.role);
       if (withAccess.length !== 1) {
         console.error(
           `${matches.length} people have the email ${email}. Fix that on People first.`,
@@ -53,7 +50,7 @@ async function main() {
         return;
       }
     }
-    let user = matches.find((p) => p.roles?.length) ?? matches[0];
+    let user = matches.find((p) => p.role) ?? matches[0];
     if (!user && !makeAdmin) {
       console.error(
         `No one has the email ${email}. Give them sign-in access on People, or run again with --admin.`,
@@ -63,30 +60,35 @@ async function main() {
     }
     if (!user) {
       const [firstName, ...rest] = (fullName || email.split('@')[0]!).split(/\s+/);
-      user = await People.create({
-        firstName,
-        lastName: rest.join(' ') || undefined,
-        email,
-        roles: ['admin'],
-        isActive: true,
-      });
+      [user] = await db
+        .insert(people)
+        .values({
+          firstName: firstName ?? null,
+          lastName: rest.join(' ') || null,
+          email,
+          role: 'admin',
+          isActive: true,
+        })
+        .returning();
       console.log(
-        `Added ${[user.firstName, user.lastName].filter(Boolean).join(' ')} to People as an admin`,
+        `Added ${[user!.firstName, user!.lastName].filter(Boolean).join(' ')} to People as an admin`,
       );
-    } else if (makeAdmin && (!user.roles?.includes('admin') || user.isActive === false)) {
-      user.roles = ['admin'];
-      user.isActive = true;
-      await user.save();
+    } else if (makeAdmin && (user.role !== 'admin' || !user.isActive)) {
+      [user] = await db
+        .update(people)
+        .set({ role: 'admin', isActive: true })
+        .where(eq(people.id, user.id))
+        .returning();
       console.log(`${email} is now an admin`);
     }
-    if (!user.roles?.length) {
+    if (!user!.role) {
       console.error(
         `${email} has no sign-in access. Give it on People, or run again with --admin.`,
       );
       process.exitCode = 1;
       return;
     }
-    if (user.isActive === false) {
+    if (!user!.isActive) {
       console.error(`${email} has sign-in turned off.`);
       process.exitCode = 1;
       return;
@@ -94,11 +96,13 @@ async function main() {
 
     const token = newToken();
     const expiresAt = new Date(Date.now() + SIGN_IN_LINK_TTL_MS);
-    await Links.create({ tokenHash: hashToken(token), userId: user._id, expiresAt });
-    await Audit.create({
+    await db
+      .insert(signInLinks)
+      .values({ tokenHash: hashToken(token), personId: user!.id, expiresAt });
+    await db.insert(auditLog).values({
       action: 'SIGN_IN_LINK',
       resource: 'people',
-      resourceId: String(user._id),
+      resourceId: user!.id,
       resourceName: email,
       details: { via: 'command line' },
     });
@@ -106,7 +110,7 @@ async function main() {
       `Sign-in link for ${email} (single use, expires ${expiresAt.toISOString()}):\n${signInLinkUrl(appUrl, token)}`,
     );
   } finally {
-    await mongoose.disconnect();
+    await pool.end();
   }
 }
 

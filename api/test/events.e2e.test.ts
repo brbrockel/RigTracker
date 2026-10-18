@@ -9,7 +9,7 @@ import {
   signInAs,
   type SignedIn,
   type TestApp,
-} from './helpers';
+} from './helpers.js';
 
 let t: TestApp;
 let admin: SignedIn;
@@ -40,24 +40,26 @@ describe('events', () => {
         .expect(201)
     ).body;
     expect(ev).toMatchObject({ name: 'Boogie', description: 'Fun', photoUrls: [] });
-    expect(new Date(ev.eventDate).toISOString()).toBe('2025-07-04T00:00:00.000Z');
-    expect((await as(user).get(`/api/events/${ev._id}`).expect(200)).body.name).toBe('Boogie');
+    expect(ev.eventDate).toBe('2025-07-04');
+    expect((await as(user).get(`/api/events/${ev.id}`).expect(200)).body.name).toBe('Boogie');
     const updated = (
-      await as(user).put(`/api/events/${ev._id}`, { description: 'More fun' }).expect(200)
+      await as(user).put(`/api/events/${ev.id}`, { description: 'More fun' }).expect(200)
     ).body;
     expect(updated).toMatchObject({ name: 'Boogie', description: 'More fun' });
-    expect((await as(admin).delete(`/api/events/${ev._id}`).expect(200)).body).toEqual({
+    expect((await as(admin).delete(`/api/events/${ev.id}`).expect(200)).body).toEqual({
       deleted: true,
     });
-    await as(user).get(`/api/events/${ev._id}`).expect(404);
-    await as(user).put(`/api/events/${ev._id}`, { name: 'x' }).expect(404);
+    await as(user).get(`/api/events/${ev.id}`).expect(404);
+    await as(user).put(`/api/events/${ev.id}`, { name: 'x' }).expect(404);
     await as(admin).delete(`/api/events/${MISSING_ID}`).expect(404);
   });
 
   it('lists events by date', async () => {
     await as(user).post('/api/events', { name: 'Later', eventDate: '2025-09-01' }).expect(201);
     await as(user).post('/api/events', { name: 'Earlier', eventDate: '2025-01-01' }).expect(201);
-    const names = (await as(user).get('/api/events').expect(200)).body.map((e: any) => e.name);
+    const names = (await as(user).get('/api/events').expect(200)).body.map(
+      (e: { name: string }) => e.name,
+    );
     expect(names).toEqual(['Earlier', 'Later']);
   });
 
@@ -94,7 +96,7 @@ describe('events', () => {
     // Changing just the main photo adds it to the existing photos.
     const changed = (
       await as(user)
-        .put(`/api/events/${withList._id}`, { eventPhotoUrl: 'https://example.com/new.jpg' })
+        .put(`/api/events/${withList.id}`, { eventPhotoUrl: 'https://example.com/new.jpg' })
         .expect(200)
     ).body;
     expect(changed.eventPhotoUrl).toBe('https://example.com/new.jpg');
@@ -112,7 +114,7 @@ describe('events', () => {
         .post('/api/events', { name: 'Keep', photoUrls: ['/uploads/events/keep/a.jpg'] })
         .expect(201)
     ).body;
-    await as(admin).delete(`/api/events/${ev._id}`).expect(200);
+    await as(admin).delete(`/api/events/${ev.id}`).expect(200);
     expect(fs.existsSync(file)).toBe(true);
   });
 
@@ -141,7 +143,7 @@ describe('events', () => {
         })
         .expect(201)
     ).body;
-    await as(admin).delete(`/api/events/${ev._id}?purgeMedia=true`).expect(200);
+    await as(admin).delete(`/api/events/${ev.id}?purgeMedia=true`).expect(200);
     expect(fs.existsSync(a)).toBe(false);
     expect(fs.existsSync(main)).toBe(false);
     // Its emptied folder is removed too, but not the uploads folder or other folders.

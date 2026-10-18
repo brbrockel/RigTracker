@@ -1,14 +1,15 @@
 import {
-  CanActivate,
-  ExecutionContext,
+  type CanActivate,
+  type ExecutionContext,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthService } from './auth.service';
-import { IS_PUBLIC_KEY } from './public.decorator';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual } from 'node:crypto';
+import { AuthService } from './auth.service.js';
+import type { AuthedRequest } from './auth-user.js';
+import { IS_PUBLIC_KEY } from './public.decorator.js';
 
 @Injectable()
 export class AuthSessionGuard implements CanActivate {
@@ -26,10 +27,9 @@ export class AuthSessionGuard implements CanActivate {
       return true;
     }
 
-    const req = context.switchToHttp().getRequest<any>();
-    const cookieHeader = req.headers?.cookie as string | undefined;
+    const req = context.switchToHttp().getRequest<AuthedRequest>();
     const sessionId = this.authService.extractCookie(
-      cookieHeader,
+      req.headers?.cookie,
       this.authService.getSessionCookieName(),
     );
     const auth = await this.authService.getAuthenticatedUser(sessionId);

@@ -5,7 +5,7 @@ import type { AuditEntry } from '@/lib/api';
 import { asAdmin, mockApi, renderAt } from './render';
 
 const entry = (i: number, extra: Partial<AuditEntry> = {}): AuditEntry => ({
-  _id: `a${i}`,
+  id: `a${i}`,
   action: 'UPDATE',
   resource: 'rigs',
   resourceId: `r${i}`,
@@ -73,5 +73,21 @@ describe('activity log', () => {
       expect(screen.queryByText('changed rig Oldest rig')).not.toBeInTheDocument(),
     );
     expect(screen.getByText('added gear Foo')).toBeInTheDocument();
+  });
+});
+
+describe('changed fields', () => {
+  it('lists only the fields an update changed', async () => {
+    const { changedFields } = await import('@/pages/ActivityPage');
+    expect(
+      changedFields({
+        before: { id: 'r1', name: 'rig-4', notes: null, updatedAt: 'a', repackDue: '2026-06-08' },
+        after: { id: 'r1', name: 'rig-4', notes: 'Packed by WSU', updatedAt: 'b', repackDue: null },
+      }),
+    ).toEqual([
+      { field: 'notes', from: '—', to: 'Packed by WSU' },
+      { field: 'repackDue', from: '2026-06-08', to: '—' },
+    ]);
+    expect(changedFields({ before: null, after: null })).toEqual([]);
   });
 });

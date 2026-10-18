@@ -1,9 +1,10 @@
 import { Controller, Get, Param, Post, Body, Put, Delete, Query, Req } from '@nestjs/common';
-import { EventsService } from './events.service';
-import { RequireRoles } from '../auth/roles.decorator';
-import { ZodPipe } from '../common/validation';
-import { EventBody } from './event.dto';
-import { AuditService } from '../audit/audit.service';
+import { EventsService } from './events.service.js';
+import { RequireRoles } from '../auth/roles.decorator.js';
+import type { AuthedRequest } from '../auth/auth-user.js';
+import { IdPipe, ZodPipe } from '../common/validation.js';
+import { EventBody } from './event.dto.js';
+import { AuditService } from '../audit/audit.service.js';
 
 @Controller('events')
 export class EventsController {
@@ -18,18 +19,18 @@ export class EventsController {
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(@Param('id', IdPipe) id: string) {
     return this.eventsService.findOne(id);
   }
 
   @Post()
   @RequireRoles('user', 'admin')
-  async create(@Body(new ZodPipe(EventBody)) dto: EventBody, @Req() req: any) {
+  async create(@Body(new ZodPipe(EventBody)) dto: EventBody, @Req() req: AuthedRequest) {
     const result = await this.eventsService.create(dto);
     await this.auditService.log({
       action: 'CREATE',
       resource: 'events',
-      resourceId: String(result._id || result.id),
+      resourceId: result.id,
       resourceName: result.name,
       actor: req.authUser,
     });
@@ -39,27 +40,29 @@ export class EventsController {
   @Put(':id')
   @RequireRoles('user', 'admin')
   async update(
-    @Param('id') id: string,
+    @Param('id', IdPipe) id: string,
     @Body(new ZodPipe(EventBody)) dto: EventBody,
-    @Req() req: any,
+    @Req() req: AuthedRequest,
   ) {
-    const result = await this.eventsService.update(id, dto);
+    const { before, after } = await this.eventsService.update(id, dto);
     await this.auditService.log({
       action: 'UPDATE',
       resource: 'events',
       resourceId: id,
-      resourceName: result?.name ?? dto?.name ?? undefined,
+      resourceName: after.name ?? dto.name ?? undefined,
       actor: req.authUser,
+      before,
+      after,
     });
-    return result;
+    return after;
   }
 
   @Delete(':id')
   @RequireRoles('admin')
   async remove(
-    @Param('id') id: string,
-    @Query('purgeMedia') purgeMedia?: string,
-    @Req() req?: any,
+    @Param('id', IdPipe) id: string,
+    @Query('purgeMedia') purgeMedia?: unknown,
+    @Req() req?: AuthedRequest,
   ) {
     const shouldPurgeMedia = String(purgeMedia).toLowerCase() === 'true';
     const result = await this.eventsService.remove(id, shouldPurgeMedia);

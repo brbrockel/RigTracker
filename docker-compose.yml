@@ -3,6 +3,22 @@
 name: rigtracker-dev
 
 services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: rigtracker
+      POSTGRES_PASSWORD: rigtracker
+      POSTGRES_DB: rigtracker
+    ports:
+      - '127.0.0.1:15433:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U rigtracker']
+      interval: 5s
+      retries: 10
+
+  # The 1.x/alpha database, kept until the Postgres cutover (and for the import script).
   mongo:
     image: mongo:6.0
     ports:
@@ -15,6 +31,9 @@ services:
       retries: 10
 
 volumes:
+  postgres-data:
+    # Explicit dev-only name; production uses its own volume.
+    name: rigtracker_dev_postgres-data
   mongo-data:
     # Explicit dev-only name; the production stack uses /srv/homelab-data/rigtracker/mongo-data.
     name: rigtracker_dev_mongo-data

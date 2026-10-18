@@ -1,9 +1,11 @@
 import { Controller, Get, Param, Post, Body, Put, Delete, Req, Query } from '@nestjs/common';
-import { GearService } from './gear.service';
-import { RequireRoles } from '../auth/roles.decorator';
-import { AuditService } from '../audit/audit.service';
-import { ZodPipe } from '../common/validation';
-import { GearBody, GearQuery } from './gear.dto';
+import { GearService } from './gear.service.js';
+import { RequireRoles } from '../auth/roles.decorator.js';
+import type { AuthedRequest } from '../auth/auth-user.js';
+import { AuditService } from '../audit/audit.service.js';
+import { IdPipe, ZodPipe } from '../common/validation.js';
+import { GearBody, GearQuery } from './gear.dto.js';
+import type { z } from 'zod';
 
 @Controller('gear')
 export class GearController {
@@ -13,26 +15,23 @@ export class GearController {
   ) {}
 
   @Get()
-  getAll(
-    @Query(new ZodPipe(GearQuery))
-    { rigId, personId, unassigned }: { rigId?: string; personId?: string; unassigned?: string },
-  ) {
-    return this.gearService.findAll({ rigId, personId, unassigned });
+  getAll(@Query(new ZodPipe(GearQuery)) filters: z.infer<typeof GearQuery>) {
+    return this.gearService.findAll(filters);
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(@Param('id', IdPipe) id: string) {
     return this.gearService.findOne(id);
   }
 
   @Post()
   @RequireRoles('user', 'admin')
-  async create(@Body(new ZodPipe(GearBody)) dto: GearBody, @Req() req: any) {
+  async create(@Body(new ZodPipe(GearBody)) dto: GearBody, @Req() req: AuthedRequest) {
     const result = await this.gearService.create(dto);
     await this.auditService.log({
       action: 'CREATE',
       resource: 'gear',
-      resourceId: String(result._id || result.id),
+      resourceId: result.id,
       resourceName: result.name,
       actor: req.authUser,
     });
@@ -42,24 +41,26 @@ export class GearController {
   @Put(':id')
   @RequireRoles('user', 'admin')
   async update(
-    @Param('id') id: string,
+    @Param('id', IdPipe) id: string,
     @Body(new ZodPipe(GearBody)) dto: GearBody,
-    @Req() req: any,
+    @Req() req: AuthedRequest,
   ) {
-    const result = await this.gearService.update(id, dto);
+    const { before, after } = await this.gearService.update(id, dto);
     await this.auditService.log({
       action: 'UPDATE',
       resource: 'gear',
       resourceId: id,
-      resourceName: result?.name ?? dto?.name ?? undefined,
+      resourceName: after.name ?? dto.name ?? undefined,
       actor: req.authUser,
+      before,
+      after,
     });
-    return result;
+    return after;
   }
 
   @Delete(':id')
   @RequireRoles('admin')
-  async remove(@Param('id') id: string, @Req() req: any) {
+  async remove(@Param('id', IdPipe) id: string, @Req() req: AuthedRequest) {
     const result = await this.gearService.remove(id);
     await this.auditService.log({
       action: 'DELETE',

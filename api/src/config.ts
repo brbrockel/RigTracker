@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { readSecret } from './common/secrets';
+import { readSecret } from './common/secrets.js';
+
+/** The local development database (`pnpm dev:services`). */
+export const DEV_DATABASE_URL = 'postgres://rigtracker:rigtracker@127.0.0.1:15433/rigtracker';
 
 /**
  * Every setting the API reads, checked once at start-up so a bad deploy fails fast with a
@@ -8,9 +11,9 @@ import { readSecret } from './common/secrets';
 const Env = z
   .object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-    MONGO_URI: z
+    DATABASE_URL: z
       .string()
-      .regex(/^mongodb(\+srv)?:\/\//, 'must be a mongodb:// URL')
+      .regex(/^postgres(ql)?:\/\//, 'must be a postgres:// URL')
       .optional(),
     HOST: z.string().default('0.0.0.0'),
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
@@ -26,20 +29,21 @@ const Env = z
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
-    if (!env.MONGO_URI)
+    if (!env.DATABASE_URL)
       ctx.addIssue({
         code: 'custom',
-        path: ['MONGO_URI'],
-        message: 'required in production (or MONGO_URI_FILE)',
+        path: ['DATABASE_URL'],
+        message: 'required in production (or DATABASE_URL_FILE)',
       });
     if (!env.APP_URL)
       ctx.addIssue({ code: 'custom', path: ['APP_URL'], message: 'required in production' });
-  });
+  })
+  .transform((env) => ({ ...env, DATABASE_URL: env.DATABASE_URL ?? DEV_DATABASE_URL }));
 
 export type Config = z.infer<typeof Env>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const result = Env.safeParse({ ...env, MONGO_URI: readSecret('MONGO_URI') });
+  const result = Env.safeParse({ ...env, DATABASE_URL: readSecret('DATABASE_URL', env) });
   if (!result.success) {
     const lines = result.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`);
     throw new Error(`Invalid configuration:\n${lines.join('\n')}`);

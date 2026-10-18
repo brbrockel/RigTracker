@@ -1,4 +1,6 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { people } from '../src/db/schema.js';
 import {
   MISSING_ID,
   as,
@@ -9,7 +11,7 @@ import {
   signInAs,
   type SignedIn,
   type TestApp,
-} from './helpers';
+} from './helpers.js';
 
 let t: TestApp;
 let admin: SignedIn;
@@ -24,7 +26,7 @@ beforeEach(async () => {
   user = await signInAs(t, 'user');
 });
 
-const HIDDEN = ['lastLoginIp', 'lastUserAgent', 'legacyUserId'];
+const HIDDEN = ['lastLoginIp', 'lastUserAgent', 'legacyUserId', 'legacyId', 'role'];
 
 describe('people', () => {
   it('create, read, update and delete', async () => {
@@ -50,21 +52,21 @@ describe('people', () => {
       roles: [],
     });
     const list = (await as(user).get('/api/people').expect(200)).body;
-    expect(list.map((p: any) => p._id)).toContain(created._id);
+    expect(list.map((p: { id: string }) => p.id)).toContain(created.id);
     const updated = (
-      await as(user).put(`/api/people/${created._id}`, { lastName: 'Smith' }).expect(200)
+      await as(user).put(`/api/people/${created.id}`, { lastName: 'Smith' }).expect(200)
     ).body;
     expect(updated).toMatchObject({
       firstName: 'Jane',
       lastName: 'Smith',
       email: 'jane.doe@example.com',
     });
-    expect((await as(admin).delete(`/api/people/${created._id}`).expect(200)).body).toEqual({
+    expect((await as(admin).delete(`/api/people/${created.id}`).expect(200)).body).toEqual({
       deleted: true,
     });
-    await as(user).get(`/api/people/${created._id}`).expect(404);
-    await as(user).put(`/api/people/${created._id}`, { lastName: 'x' }).expect(404);
-    await as(admin).delete(`/api/people/${created._id}`).expect(404);
+    await as(user).get(`/api/people/${created.id}`).expect(404);
+    await as(user).put(`/api/people/${created.id}`, { lastName: 'x' }).expect(404);
+    await as(admin).delete(`/api/people/${created.id}`).expect(404);
   });
 
   it.each(['not-an-email', 'a@b', 'x@@example.com'])('rejects the email %s', async (email) => {
@@ -85,7 +87,7 @@ describe('people', () => {
     ).body;
     expect(gb.phone).toBe('+442079460958');
     const p = (
-      await as(user).put(`/api/people/${us._id}`, { phone: '+1 (415) 555-2672' }).expect(200)
+      await as(user).put(`/api/people/${us.id}`, { phone: '+1 (415) 555-2672' }).expect(200)
     ).body;
     expect(p.phone).toBe('+14155552672');
   });
@@ -110,6 +112,8 @@ describe('people', () => {
       loginCount: 99,
       lastLoginIp: '1.2.3.4',
       legacyUserId: 'x',
+      legacyId: 'x',
+      role: 'admin',
     };
     const created = (
       await as(user)
@@ -132,18 +136,18 @@ describe('people', () => {
       isActive: true,
       loginCount: 0,
     });
-    const stored = await t.db.collection('people').findOne({ firstName: 'Changed' });
-    expect(stored).toMatchObject({ roles: ['viewer'], isActive: true, loginCount: 0 });
-    expect(stored).not.toHaveProperty('lastLoginIp');
-    expect(stored).not.toHaveProperty('legacyUserId');
+    const [stored] = await t.db.select().from(people).where(eq(people.firstName, 'Changed'));
+    expect(stored).toMatchObject({ role: 'viewer', isActive: true, loginCount: 0 });
+    expect(stored!.lastLoginIp).toBeNull();
+    expect(stored!.legacyId).toBeNull();
   });
 
   it('never returns lastLoginIp, lastUserAgent or legacyUserId', async () => {
-    const p = await createPerson(t, { roles: ['user'], legacyUserId: 'old-id' });
+    const p = await createPerson(t, { roles: ['user'], legacyId: 'old-id' });
     const who = await signIn(t, p.id);
-    const stored = await t.db.collection('people').findOne({ email: who.email });
+    const [stored] = await t.db.select().from(people).where(eq(people.email, who.email));
     expect(stored).toHaveProperty('lastLoginIp', who.ip);
-    expect(stored).toHaveProperty('lastUserAgent');
+    expect(stored!.lastUserAgent).toBeTruthy();
 
     const responses = [
       ...(await as(admin).get('/api/people').expect(200)).body,

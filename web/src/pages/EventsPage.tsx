@@ -126,7 +126,7 @@ export function EventsPage() {
       {creating && (
         <EventDialog
           onClose={() => setCreating(false)}
-          onSaved={(e) => navigate(`/events/${e._id}`)}
+          onSaved={(e) => navigate(`/events/${e.id}`)}
         />
       )}
     </div>
@@ -139,7 +139,7 @@ function MonthGroups({ events }: { events: RigEvent[] }) {
       <h3 className="text-base font-semibold">{g.label}</h3>
       <ul className="flex flex-col gap-2">
         {g.events.map((e) => (
-          <li key={e._id}>
+          <li key={e.id}>
             <EventCard event={e} />
           </li>
         ))}
@@ -153,7 +153,7 @@ function EventCard({ event: e }: { event: RigEvent }) {
     .size;
   return (
     <Card className="transition-colors hover:bg-accent/50">
-      <Link to={`/events/${e._id}`} className="flex items-center gap-3 p-3">
+      <Link to={`/events/${e.id}`} className="flex items-center gap-3 p-3">
         <Thumb url={e.eventPhotoUrl || e.photoUrls?.[0]} alt={e.name || 'Event'} />
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{e.name || 'Untitled event'}</div>

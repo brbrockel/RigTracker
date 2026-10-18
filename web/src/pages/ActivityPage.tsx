@@ -151,7 +151,7 @@ export function ActivityPage() {
       ) : (
         <Card className="divide-y p-0">
           {entries.map((e) => (
-            <ActivityRow key={e._id} entry={e} />
+            <ActivityRow key={e.id} entry={e} />
           ))}
         </Card>
       )}
@@ -176,10 +176,39 @@ export function ActivityPage() {
   );
 }
 
+/** Fields that aren't worth showing in a change list. */
+const IGNORED = new Set(['id', 'createdAt', 'updatedAt', 'legacyId']);
+
+/** The fields an update changed, with their old and new values. */
+export function changedFields(e: Pick<AuditEntry, 'before' | 'after'>) {
+  if (!e.before || !e.after) return [];
+  const keys = new Set([...Object.keys(e.before), ...Object.keys(e.after)]);
+  const show = (v: unknown) =>
+    v === null || v === undefined || v === ''
+      ? '—'
+      : typeof v === 'object'
+        ? JSON.stringify(v)
+        : String(v);
+  return [...keys]
+    .filter(
+      (k) =>
+        !IGNORED.has(k) &&
+        JSON.stringify(e.before![k] ?? null) !== JSON.stringify(e.after![k] ?? null),
+    )
+    .map((k) => ({ field: k, from: show(e.before![k]), to: show(e.after![k]) }));
+}
+
+/** camelCase field name → "Camel case". */
+const label = (k: string) => {
+  const words = k.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 function ActivityRow({ entry: e }: { entry: AuditEntry }) {
   const [open, setOpen] = useState(false);
   const who = e.userDisplayName || e.userEmail || 'Command line';
-  const hasDetails = !!e.details && Object.keys(e.details).length > 0;
+  const changes = changedFields(e);
+  const hasDetails = (!!e.details && Object.keys(e.details).length > 0) || changes.length > 0;
   const summary = (
     <div className="min-w-0 flex-1">
       <div className="break-words">
@@ -216,7 +245,19 @@ function ActivityRow({ entry: e }: { entry: AuditEntry }) {
       ) : (
         <div className="flex min-h-11 items-start gap-2">{summary}</div>
       )}
-      {open && hasDetails && (
+      {open && changes.length > 0 && (
+        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md bg-muted p-2 text-xs">
+          {changes.map((c) => (
+            <div key={c.field} className="contents">
+              <dt className="font-medium">{label(c.field)}</dt>
+              <dd className="min-w-0 break-words">
+                <span className="text-muted-foreground line-through">{c.from}</span> → {c.to}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {open && !!e.details && Object.keys(e.details).length > 0 && (
         <div className="mt-2 max-h-60 overflow-x-auto overflow-y-auto rounded-md bg-muted">
           <pre className="p-2 text-xs">{JSON.stringify(e.details, null, 2)}</pre>
         </div>

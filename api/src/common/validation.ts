@@ -1,4 +1,4 @@
-import { BadRequestException, PipeTransform } from '@nestjs/common';
+import { BadRequestException, type PipeTransform } from '@nestjs/common';
 import { z } from 'zod';
 
 /** Validates a request body or query with a zod schema: `@Body(new ZodPipe(schema))`. */
@@ -32,27 +32,29 @@ export const text = (max = 200) =>
     z.string().max(max).nullable().optional(),
   );
 
-/** A date: yyyy-mm-dd or a full ISO timestamp; '' or null clears it. */
-export const date = () =>
-  z.preprocess(
-    blankToNull,
-    z
-      .union([z.iso.date(), z.iso.datetime({ offset: true })])
-      .transform((s) => new Date(s))
-      .nullable()
-      .optional(),
-  );
+/** yyyy-mm-dd, or a full ISO timestamp (its UTC date is kept). */
+export const dateOnly = z
+  .union([z.iso.date(), z.iso.datetime({ offset: true })])
+  .transform((s) => (s.length === 10 ? s : new Date(s).toISOString().slice(0, 10)));
 
-/** Another record's id (a Mongo ObjectId); '' or null clears it. */
-export const ref = () =>
-  z.preprocess(
-    blankToNull,
-    z
-      .string()
-      .regex(/^[a-f0-9]{24}$/, 'must be a record id')
-      .nullable()
-      .optional(),
-  );
+/** A date (stored as a date, returned as yyyy-mm-dd); '' or null clears it. */
+export const date = () => z.preprocess(blankToNull, dateOnly.nullable().optional());
+
+/** Record ids are UUIDs (any version: Postgres accepts them all). */
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const uuidString = z.string().regex(UUID_PATTERN, 'must be a record id (a UUID)');
+
+/** Another record's id; '' or null clears it. */
+export const ref = () => z.preprocess(blankToNull, uuidString.nullable().optional());
+
+/** Checks an :id route parameter: `@Param('id', IdPipe) id: string`. Malformed ids are 400. */
+export class IdPipe implements PipeTransform<unknown, string> {
+  transform(value: unknown): string {
+    if (typeof value !== 'string' || !UUID_PATTERN.test(value))
+      throw new BadRequestException('Invalid id: record ids are UUIDs');
+    return value.toLowerCase();
+  }
+}
 
 /** A photo or video: one of our uploads, or an https link. */
 export const mediaUrlSchema = z
@@ -74,6 +76,9 @@ export const customFields = () =>
 
 /** Query-string values must be plain strings (never objects like ?id[$ne]=x). */
 export const queryString = () => z.string().max(100).optional();
+
+/** An optional id filter in a query string; '' means no filter. */
+export const queryId = () => z.preprocess((v) => (v === '' ? undefined : v), uuidString.optional());
 
 /** Drops undefined keys so an update only touches what was sent. */
 export function defined<T extends Record<string, unknown>>(o: T): Partial<T> {

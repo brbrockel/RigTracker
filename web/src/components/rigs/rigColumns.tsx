@@ -52,7 +52,7 @@ export function rigColumns(nameOf: NameOf): ColumnDef<Rig>[] {
       label: 'Rig',
       hideable: false,
       render: (r) => (
-        <Link to={`/rigs/${r._id}`} className="font-medium hover:underline">
+        <Link to={`/rigs/${r.id}`} className="font-medium hover:underline">
           {rigLabel(r)}
         </Link>
       ),
@@ -182,7 +182,7 @@ export function rigGroups(nameOf: NameOf): GroupOption<Rig>[] {
 export function rigSummary(r: Rig, nameOf: NameOf): ItemSummary {
   return {
     title: rigLabel(r),
-    href: `/rigs/${r._id}`,
+    href: `/rigs/${r.id}`,
     subtitle: join(
       r.primaryUserId ? nameOf(r.primaryUserId) || 'Unknown person' : 'No primary person',
       r.container,

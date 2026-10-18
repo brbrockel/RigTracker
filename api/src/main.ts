@@ -1,19 +1,22 @@
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { configureApp } from './app';
-import { loadConfig } from './config';
+import { AppModule } from './app.module.js';
+import { configureApp } from './app.js';
+import { loadConfig } from './config.js';
+import { runMigrations } from './db/migrate.js';
 
 async function bootstrap() {
   const config = loadConfig();
   console.log(`RigTracker ${config.APP_VERSION} (${config.NODE_ENV})`);
+  // The database schema is brought up to date before the API starts answering (as TeeMate does,
+  // but in-process: one command starts the container, and a failed migration stops it).
+  await runMigrations(config.DATABASE_URL);
+  console.log('Database migrations applied');
   const app = await NestFactory.create(AppModule);
   configureApp(app);
 
-  // In the combined container nginx is the only client, so HOST=127.0.0.1 keeps the API off the network.
-  const host = config.HOST;
-  const port = config.PORT;
-  await app.listen(port, host);
-  console.log(`API listening on http://${host}:${port}`);
+  await app.listen(config.PORT, config.HOST);
+  console.log(`API listening on http://${config.HOST}:${config.PORT}`);
 }
 
 bootstrap().catch((err) => {

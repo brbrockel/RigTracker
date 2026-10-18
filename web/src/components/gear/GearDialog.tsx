@@ -42,7 +42,7 @@ export function GearDialog({
       <DialogContent title={gear ? 'Edit gear' : 'New gear'}>
         {open && (
           <GearForm
-            key={gear?._id ?? 'new'}
+            key={gear?.id ?? 'new'}
             gear={gear}
             rigs={rigs}
             people={people}
@@ -81,10 +81,10 @@ function GearForm({
   );
 
   const nameOf = (id?: string) => {
-    const p = id ? people.find((x) => x._id === id) : undefined;
+    const p = id ? people.find((x) => x.id === id) : undefined;
     return p ? personName(p) || 'Unnamed person' : '';
   };
-  const rig = rigId ? rigs.find((r) => r._id === rigId) : undefined;
+  const rig = rigId ? rigs.find((r) => r.id === rigId) : undefined;
   const movesPerson =
     !!gear &&
     !!rigId &&
@@ -109,7 +109,7 @@ function GearForm({
       if (imageUrl) body.imageUrl = imageUrl;
       else if (gear) body.imageUrl = null;
       return gear
-        ? api<Gear>(`/gear/${gear._id}`, { method: 'PUT', body })
+        ? api<Gear>(`/gear/${gear.id}`, { method: 'PUT', body })
         : api<Gear>('/gear', { method: 'POST', body });
     },
     onSuccess: async () => {
@@ -166,7 +166,7 @@ function GearForm({
           <Select id="gear-rig" value={rigId} onChange={(e) => setRigId(e.target.value)}>
             <option value="">Not on a rig</option>
             {sortedRigs.map((r) => (
-              <option key={r._id} value={r._id}>
+              <option key={r.id} value={r.id}>
                 {rigLabel(r)}
                 {r.primaryUserId ? ` (${nameOf(r.primaryUserId) || 'Unknown person'})` : ''}
               </option>
@@ -182,7 +182,7 @@ function GearForm({
           >
             <option value="">{rigId ? 'No one (rig has no primary person)' : 'No one'}</option>
             {sortedPeople.map((p) => (
-              <option key={p._id} value={p._id}>
+              <option key={p.id} value={p.id}>
                 {personName(p) || p.email || 'Unnamed person'}
               </option>
             ))}

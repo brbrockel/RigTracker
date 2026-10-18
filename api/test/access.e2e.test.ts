@@ -14,7 +14,7 @@ import {
   type Role,
   type SignedIn,
   type TestApp,
-} from './helpers';
+} from './helpers.js';
 
 let t: TestApp;
 beforeAll(async () => {
@@ -124,21 +124,21 @@ describe('what each role can actually do', () => {
     const admin = await signInAs(t, 'admin');
     const viewer = await signInAs(t, 'viewer');
     const rig = (await as(admin).post('/api/rigs', { name: 'R1' }).expect(201)).body;
-    expect((await as(viewer).get('/api/rigs').expect(200)).body.map((r: any) => r.name)).toEqual([
-      'R1',
-    ]);
-    await as(viewer).get(`/api/rigs/${rig._id}`).expect(200);
+    expect(
+      (await as(viewer).get('/api/rigs').expect(200)).body.map((r: { name: string }) => r.name),
+    ).toEqual(['R1']);
+    await as(viewer).get(`/api/rigs/${rig.id}`).expect(200);
     await as(viewer).post('/api/rigs', { name: 'R2' }).expect(403);
-    await as(viewer).put(`/api/rigs/${rig._id}`, { name: 'R3' }).expect(403);
-    await as(viewer).delete(`/api/rigs/${rig._id}`).expect(403);
-    expect((await as(viewer).get(`/api/rigs/${rig._id}`)).body.name).toBe('R1');
+    await as(viewer).put(`/api/rigs/${rig.id}`, { name: 'R3' }).expect(403);
+    await as(viewer).delete(`/api/rigs/${rig.id}`).expect(403);
+    expect((await as(viewer).get(`/api/rigs/${rig.id}`)).body.name).toBe('R1');
   });
 
   it('a user can create and update but not delete', async () => {
     const user = await signInAs(t, 'user');
     const gear = (await as(user).post('/api/gear', { name: 'Altimeter' }).expect(201)).body;
-    await as(user).put(`/api/gear/${gear._id}`, { name: 'Altimeter 2' }).expect(200);
-    await as(user).delete(`/api/gear/${gear._id}`).expect(403);
+    await as(user).put(`/api/gear/${gear.id}`, { name: 'Altimeter 2' }).expect(200);
+    await as(user).delete(`/api/gear/${gear.id}`).expect(403);
     const person = await createPerson(t);
     await as(user).delete(`/api/people/${person.id}`).expect(403);
     await as(user).patch(`/api/auth/people/${person.id}/access`, { role: 'admin' }).expect(403);
@@ -152,7 +152,7 @@ describe('what each role can actually do', () => {
     await as(admin).post(`/api/auth/people/${person.id}/link`).expect(201);
     await as(admin).post(`/api/auth/people/${person.id}/sign-out`).expect(201);
     const ev = (await as(admin).post('/api/events', { name: 'Boogie' }).expect(201)).body;
-    await as(admin).delete(`/api/events/${ev._id}`).expect(200);
+    await as(admin).delete(`/api/events/${ev.id}`).expect(200);
     await as(admin).delete(`/api/people/${person.id}`).expect(200);
     await as(admin).get('/api/audit').expect(200);
   });

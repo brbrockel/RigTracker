@@ -9,9 +9,12 @@ import {
   Req,
   ForbiddenException,
 } from '@nestjs/common';
-import { PeopleService } from './people.service';
-import { RequireRoles } from '../auth/roles.decorator';
-import { AuditService } from '../audit/audit.service';
+import { PeopleService } from './people.service.js';
+import { RequireRoles } from '../auth/roles.decorator.js';
+import type { AuthedRequest } from '../auth/auth-user.js';
+import { AuditService } from '../audit/audit.service.js';
+import { IdPipe } from '../common/validation.js';
+import { shortName } from './person-view.js';
 
 @Controller('people')
 export class PeopleController {
@@ -26,20 +29,19 @@ export class PeopleController {
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(@Param('id', IdPipe) id: string) {
     return this.peopleService.findOne(id);
   }
 
   @Post()
   @RequireRoles('user', 'admin')
-  async create(@Body() dto: any, @Req() req: any) {
+  async create(@Body() dto: unknown, @Req() req: AuthedRequest) {
     const result = await this.peopleService.create(dto);
-    const name = [dto.firstName, dto.lastName].filter(Boolean).join(' ');
     await this.auditService.log({
       action: 'CREATE',
       resource: 'people',
-      resourceId: String(result._id || result.id),
-      resourceName: name,
+      resourceId: result.id,
+      resourceName: shortName(result),
       actor: req.authUser,
     });
     return result;
@@ -47,22 +49,23 @@ export class PeopleController {
 
   @Put(':id')
   @RequireRoles('user', 'admin')
-  async update(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
-    const result = await this.peopleService.update(id, dto);
-    const name = [result.firstName, result.lastName].filter(Boolean).join(' ');
+  async update(@Param('id', IdPipe) id: string, @Body() dto: unknown, @Req() req: AuthedRequest) {
+    const { before, after } = await this.peopleService.update(id, dto);
     await this.auditService.log({
       action: 'UPDATE',
       resource: 'people',
       resourceId: id,
-      resourceName: name,
+      resourceName: shortName(after),
       actor: req.authUser,
+      before,
+      after,
     });
-    return result;
+    return after;
   }
 
   @Delete(':id')
   @RequireRoles('admin')
-  async remove(@Param('id') id: string, @Req() req: any) {
+  async remove(@Param('id', IdPipe) id: string, @Req() req: AuthedRequest) {
     if (req.authUser?.id === id) throw new ForbiddenException("You can't delete yourself");
     const person = await this.peopleService.findOne(id);
     const result = await this.peopleService.remove(id);
@@ -70,7 +73,7 @@ export class PeopleController {
       action: 'DELETE',
       resource: 'people',
       resourceId: id,
-      resourceName: [person.firstName, person.lastName].filter(Boolean).join(' '),
+      resourceName: shortName(person),
       actor: req.authUser,
     });
     return result;

@@ -28,19 +28,20 @@ cd ~/repos/homelab-docker-linux
 RIGTRACKER_TAG=<previous version> docker stack deploy -c rigtracker/rigtracker-stack.yml rigtracker
 ```
 
-or roll back to the last spec with `docker service rollback rigtracker_rigtracker`. Database changes aren't undone by a rollback. Data migrations are separate scripts, run by hand, with a backup taken first.
+or roll back to the last spec with `docker service rollback rigtracker_rigtracker`. Database changes aren't undone by a rollback: the container applies new schema migrations (`api/drizzle`) when it starts, so take a backup before deploying one. One-off data scripts are run by hand, with a backup taken first.
 
 ## One-time setup (a new server)
 
-The Mongo user, created while Mongo still runs without `--auth`; its connection string becomes a Docker secret:
+The Postgres password and connection string, as Docker secrets:
 
 ```bash
 PW=$(openssl rand -hex 24)
-docker exec $(docker ps -qf name=rigtracker_mongo) mongosh --quiet admin --eval \
-  "db.createUser({user:'rigtracker',pwd:'$PW',roles:[{role:'readWrite',db:'rigtracker'}]})"
-printf 'mongodb://rigtracker:%s@mongo:27017/rigtracker?authSource=admin' "$PW" | docker secret create rigtracker_mongo_uri -
+printf '%s' "$PW" | docker secret create rigtracker_db_password -
+printf 'postgres://rigtracker:%s@postgres:5432/rigtracker' "$PW" | docker secret create rigtracker_database_url -
 unset PW
 ```
+
+The stack also references `rigtracker_mongo_uri`, which is used only by the one-off import from the old Mongo database (see below). On a new server with no Mongo, create it with any placeholder value, or remove it from the stack.
 
 The uploads folder must be writable by the container's `node` user (uid 1000):
 
@@ -48,7 +49,7 @@ The uploads folder must be writable by the container's `node` user (uid 1000):
 docker run --rm -v /srv/homelab-data/rigtracker/uploads:/u alpine chown -R 1000:1000 /u
 ```
 
-The first admin:
+The container applies database migrations when it starts. The first admin:
 
 ```bash
 docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com --admin "Your Name"
@@ -58,27 +59,42 @@ docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-i
 
 The `backup` service runs nightly at 07:00 UTC (about 3 AM Eastern):
 
-- a gzipped `mongodump`, checked with a dry-run restore and kept for 30 days;
+- a compressed `pg_dump`, checked with `pg_restore --list` and kept for 30 days;
 - one current tarball of the uploads.
 
-Both go to the `rigtracker_backups` volume. Copy that volume off this machine periodically.
+Both go to the `rigtracker_backups` volume. Copy that volume off this machine periodically. The last Mongo archives from before the cutover (`rigtracker-*.archive.gz`) are kept there too.
 
-Take one now, for example before a migration:
+Take one now, for example before a deploy with a schema migration:
 
 ```bash
 docker exec $(docker ps -qf name=rigtracker_backup) sh -c \
-  'mongodump --quiet --uri="$(cat /run/secrets/rigtracker_mongo_uri)" --gzip --archive=/backups/rigtracker-manual-$(date -u +%Y%m%dT%H%M).archive.gz'
+  'PGPASSWORD="$(cat /run/secrets/rigtracker_db_password)" pg_dump -Fc -f /backups/rigtracker-manual-$(date -u +%Y%m%dT%H%M).dump'
 ```
 
-Restore drill (a throwaway Mongo; never restore over production without a fresh backup first):
+Restore drill (a throwaway Postgres; never restore over production without a fresh backup first):
 
 ```bash
-docker run -d --rm --name rt-restore -p 127.0.0.1:27999:27017 mongo:6.0
-docker run --rm --network host -v rigtracker_backups:/b:ro mongo:6.0 \
-  mongorestore --uri=mongodb://127.0.0.1:27999 --gzip --archive=/b/rigtracker-YYYY-MM-DD.archive.gz
-docker exec rt-restore mongosh --quiet rigtracker --eval 'db.getCollectionNames().forEach(c => print(c, db[c].countDocuments()))'
+docker run -d --rm --name rt-restore -e POSTGRES_PASSWORD=x -p 127.0.0.1:15499:5432 postgres:18-alpine
+docker run --rm --network host -v rigtracker_backups:/b:ro -e PGPASSWORD=x postgres:18-alpine \
+  pg_restore -h 127.0.0.1 -p 15499 -U postgres --create -d postgres /b/rigtracker-YYYY-MM-DD.dump
+docker exec rt-restore psql -U postgres rigtracker -c \
+  "select 'people', count(*) from people union all select 'rigs', count(*) from rigs union all select 'gear', count(*) from gear"
 docker rm -f rt-restore
 ```
+
+## Moving from Mongo (2.0.0-alpha.3 cutover)
+
+Done once, on 2026-10-18. Kept here as the record and for a re-run if a rollback is ever needed.
+
+1. Take a final Mongo backup into the backups volume (`mongodump --gzip --archive=…`).
+2. Stop the old app: `docker service scale rigtracker_rigtracker=0`.
+3. Run a one-off service on the internal network, with both secrets, that applies the migrations and then imports:
+   - `node dist/db/migrate.js`
+   - `node dist/scripts/import-mongo.js`, a dry run that prints the counts
+   - `node dist/scripts/import-mongo.js --apply`, one transaction, which ends with a Mongo-vs-Postgres verification table and exits non-zero on any mismatch
+4. Deploy the new version (`./build.sh --deploy`).
+
+Mongo stays in the stack, untouched, for 30 days as the rollback: deploy the previous version (`RIGTRACKER_TAG=2.0.0-alpha.2`) and point it back at Mongo.
 
 ## Logs and status
 

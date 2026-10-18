@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 /** 256-bit random token, URL-safe. */
 export function newToken(): string {

@@ -106,9 +106,9 @@ function RepacksCard({
         ) : (
           <ul className="-mx-2 flex flex-col">
             {due.map(({ rig, days }) => (
-              <li key={rig._id}>
+              <li key={rig.id}>
                 <Link
-                  to={`/rigs/${rig._id}`}
+                  to={`/rigs/${rig.id}`}
                   className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50"
                 >
                   <div className="min-w-0 flex-1">
@@ -168,9 +168,9 @@ function UpcomingEventsCard() {
         ) : (
           <ul className="-mx-2 flex flex-col">
             {upcoming.map(({ event, days }) => (
-              <li key={event._id}>
+              <li key={event.id}>
                 <Link
-                  to={`/events/${event._id}`}
+                  to={`/events/${event.id}`}
                   className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50"
                 >
                   <CalendarDays className="size-5 shrink-0 text-muted-foreground" aria-hidden />
