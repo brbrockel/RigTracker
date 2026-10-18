@@ -1,5 +1,5 @@
-import { z } from 'zod'
-import { date, mediaUrl, queryString, ref, text } from '../common/validation'
+import { z } from 'zod';
+import { date, mediaUrl, queryString, ref, text } from '../common/validation';
 
 export const GearBody = z
   .object({
@@ -13,11 +13,11 @@ export const GearBody = z
     assignedRigId: ref(),
     assignedPersonId: ref(),
   })
-  .strict()
-export type GearBody = z.infer<typeof GearBody>
+  .strict();
+export type GearBody = z.infer<typeof GearBody>;
 
 export const GearQuery = z.object({
   rigId: queryString(),
   personId: queryString(),
   unassigned: queryString(),
-})
+});

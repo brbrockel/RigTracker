@@ -39,7 +39,11 @@ export function InventoryGallery<T>({
                   )}
                 >
                   <div className="aspect-square w-full">
-                    <Thumb url={item.imageUrl} alt={item.title} className="size-full rounded-none" />
+                    <Thumb
+                      url={item.imageUrl}
+                      alt={item.title}
+                      className="size-full rounded-none"
+                    />
                   </div>
                   {selection && (
                     <SelectBox
@@ -53,11 +57,17 @@ export function InventoryGallery<T>({
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <ItemTitle item={item} className="text-sm" />
                       {item.subtitle && (
-                        <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {item.subtitle}
+                        </span>
                       )}
-                      {item.badges && <div className="mt-1 flex flex-wrap gap-1">{item.badges}</div>}
+                      {item.badges && (
+                        <div className="mt-1 flex flex-wrap gap-1">{item.badges}</div>
+                      )}
                     </div>
-                    {rowMenu && <div className="relative z-10 -mr-1.5 -mt-1.5 shrink-0">{rowMenu(row)}</div>}
+                    {rowMenu && (
+                      <div className="relative z-10 -mr-1.5 -mt-1.5 shrink-0">{rowMenu(row)}</div>
+                    )}
                   </div>
                 </li>
               );

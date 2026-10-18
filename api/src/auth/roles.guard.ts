@@ -1,6 +1,6 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
-import { Reflector } from '@nestjs/core'
-import { REQUIRED_ROLES_KEY } from './roles.decorator'
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { REQUIRED_ROLES_KEY } from './roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -10,18 +10,18 @@ export class RolesGuard implements CanActivate {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(REQUIRED_ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
-    ])
+    ]);
 
     if (!requiredRoles || requiredRoles.length === 0) {
-      return true
+      return true;
     }
 
-    const req = context.switchToHttp().getRequest<any>()
-    const roles = Array.isArray(req?.authUser?.roles) ? req.authUser.roles : []
-    const allowed = requiredRoles.some((role) => roles.includes(role))
+    const req = context.switchToHttp().getRequest<any>();
+    const roles = Array.isArray(req?.authUser?.roles) ? req.authUser.roles : [];
+    const allowed = requiredRoles.some((role) => roles.includes(role));
     if (!allowed) {
-      throw new ForbiddenException('Insufficient role permissions')
+      throw new ForbiddenException('Insufficient role permissions');
     }
-    return true
+    return true;
   }
 }

@@ -38,7 +38,9 @@ export function ColumnsMenu<T>({
               disabled={locked}
               onSelect={(e) => e.preventDefault()}
               onCheckedChange={(on) =>
-                onChange(columns.map((x) => x.id).filter((id) => (id === c.id ? on : shown.has(id))))
+                onChange(
+                  columns.map((x) => x.id).filter((id) => (id === c.id ? on : shown.has(id))),
+                )
               }
             >
               {c.label}

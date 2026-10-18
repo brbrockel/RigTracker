@@ -4,19 +4,34 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { asAdmin, asViewer, mockApi, renderAt } from './render';
 
 const DAY = 86_400_000;
-const isoIn = (days: number) => new Date(Date.now() + days * DAY).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+const isoIn = (days: number) =>
+  new Date(Date.now() + days * DAY).toISOString().slice(0, 10) + 'T00:00:00.000Z';
 
 const people = [
   { _id: 'p1', firstName: 'Ann', lastName: 'Jumper' },
   { _id: 'p2', firstName: 'Bob', lastName: 'Flyer' },
 ];
 const rigs = [
-  { _id: 'r1', number: '3', name: 'Blue', primaryUserId: 'p1', repackDue: isoIn(-5), reserveSerialNumber: 'RES-111' },
+  {
+    _id: 'r1',
+    number: '3',
+    name: 'Blue',
+    primaryUserId: 'p1',
+    repackDue: isoIn(-5),
+    reserveSerialNumber: 'RES-111',
+  },
   { _id: 'r2', number: '4', name: 'Green', primaryUserId: 'p2', repackDue: isoIn(10) },
   { _id: 'r3', name: 'Spare', repackDue: isoIn(120) },
 ];
 const gear = [
-  { _id: 'g1', name: 'Altimeter', type: 'Altimeter', serialNumber: 'ALT-1', assignedRigId: 'r1', assignedPersonId: 'p1' },
+  {
+    _id: 'g1',
+    name: 'Altimeter',
+    type: 'Altimeter',
+    serialNumber: 'ALT-1',
+    assignedRigId: 'r1',
+    assignedPersonId: 'p1',
+  },
   { _id: 'g2', name: 'Helmet', type: 'Helmet', serialNumber: 'HEL-1' },
 ];
 
@@ -78,7 +93,9 @@ describe('rigs list', () => {
     await userEvent.type(within(dialog).getByLabelText('Name'), 'Red');
     await userEvent.type(within(dialog).getByLabelText('Number'), '7');
     await userEvent.selectOptions(within(dialog).getByLabelText('Primary person'), 'p2');
-    fireEvent.change(within(dialog).getByLabelText('Repack due'), { target: { value: '2026-12-01' } });
+    fireEvent.change(within(dialog).getByLabelText('Repack due'), {
+      target: { value: '2026-12-01' },
+    });
     await userEvent.type(within(dialog).getByLabelText('Rigger initials'), 'BB');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Add rig' }));
 

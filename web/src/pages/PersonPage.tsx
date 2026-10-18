@@ -215,7 +215,10 @@ export function PersonPage() {
                     </div>
                     {c.phone && (
                       <Button asChild variant="outline" size="icon" className="size-11">
-                        <a href={`tel:${c.phone}`} aria-label={`Call ${c.name || formatPhone(c.phone)}`}>
+                        <a
+                          href={`tel:${c.phone}`}
+                          aria-label={`Call ${c.name || formatPhone(c.phone)}`}
+                        >
                           <Phone />
                         </a>
                       </Button>
@@ -302,7 +305,9 @@ export function PersonPage() {
                         ) : (
                           <Badge>Direct</Badge>
                         )}
-                        {[g.type, g.serialNumber && `SN ${g.serialNumber}`].filter(Boolean).join(' · ')}
+                        {[g.type, g.serialNumber && `SN ${g.serialNumber}`]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </div>
                     </div>
                     {writer && (
@@ -403,7 +408,10 @@ function AssignGearDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent title="Assign gear" description={`Give a piece of gear to ${fullName(person)}.`}>
+      <DialogContent
+        title="Assign gear"
+        description={`Give a piece of gear to ${fullName(person)}.`}
+      >
         <form onSubmit={submit} className="flex flex-col gap-4">
           <Field id="assign-gear" label="Gear">
             <Select id="assign-gear" value={gearId} onChange={(e) => setGearId(e.target.value)}>

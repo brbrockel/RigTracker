@@ -1,4 +1,11 @@
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, Download, FileDown, ListChecks, Printer } from 'lucide-react';
+import {
+  ArrowDownWideNarrow,
+  ArrowUpWideNarrow,
+  Download,
+  FileDown,
+  ListChecks,
+  Printer,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { Button } from '@/components/ui/button';
@@ -19,7 +26,15 @@ import { InventoryList } from './InventoryList';
 import { InventoryTable } from './InventoryTable';
 import { SelectBox } from './SelectBox';
 import { groupRows, sortRows } from './sort';
-import type { ColumnDef, GroupOption, ItemSummary, Selection, SortOption, SortState, SortValue } from './types';
+import type {
+  ColumnDef,
+  GroupOption,
+  ItemSummary,
+  Selection,
+  SortOption,
+  SortState,
+  SortValue,
+} from './types';
 import { useViewPrefs } from './useViewPrefs';
 import { ViewSwitcher } from './ViewSwitcher';
 
@@ -57,7 +72,8 @@ export interface InventoryBrowserProps<T> {
 
 /** Search/filters, layout switcher, sort, grouping, selection, CSV export and print for a list page. */
 export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
-  const { pageKey, title, rows, columns, sortOptions, groupOptions, defaultSort, getId, getLabel } = props;
+  const { pageKey, title, rows, columns, sortOptions, groupOptions, defaultSort, getId, getLabel } =
+    props;
 
   const prefs = useViewPrefs(
     pageKey,
@@ -67,7 +83,10 @@ export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
       columns: columns.filter((c) => c.defaultVisible !== false).map((c) => c.id),
     },
     {
-      sorts: [...sortOptions.map((s) => s.id), ...columns.filter((c) => c.sortValue).map((c) => c.id)],
+      sorts: [
+        ...sortOptions.map((s) => s.id),
+        ...columns.filter((c) => c.sortValue).map((c) => c.id),
+      ],
       groups: ['', ...groupOptions.map((g) => g.id)],
       columns: columns.map((c) => c.id),
     },
@@ -169,11 +188,23 @@ export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
   else if (view === 'table') content = tableFor(true, selection);
   else if (view === 'list')
     content = (
-      <InventoryList groups={groups} getId={getId} summary={props.summary} selection={selection} rowMenu={menu} />
+      <InventoryList
+        groups={groups}
+        getId={getId}
+        summary={props.summary}
+        selection={selection}
+        rowMenu={menu}
+      />
     );
   else if (view === 'gallery')
     content = (
-      <InventoryGallery groups={groups} getId={getId} summary={props.summary} selection={selection} rowMenu={menu} />
+      <InventoryGallery
+        groups={groups}
+        getId={getId}
+        summary={props.summary}
+        selection={selection}
+        rowMenu={menu}
+      />
     );
   else
     content = (
@@ -204,9 +235,7 @@ export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
   return (
     <>
       <div className="flex flex-col gap-2 print:hidden">
-        <div className="flex flex-wrap items-center gap-2">
-          {props.filters}
-        </div>
+        <div className="flex flex-wrap items-center gap-2">{props.filters}</div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Phones: sort, direction and grouping share one row. */}
           <div className="flex w-full items-center gap-1 sm:w-auto sm:gap-2">
@@ -226,7 +255,9 @@ export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
                   Sort: {s.label}
                 </option>
               ))}
-              {!sortIsOption && sortColumn && <option value={sortColumn.id}>Sort: {sortColumn.label}</option>}
+              {!sortIsOption && sortColumn && (
+                <option value={sortColumn.id}>Sort: {sortColumn.label}</option>
+              )}
             </Select>
             <Button
               variant="outline"
@@ -234,7 +265,9 @@ export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
               className="size-11"
               aria-label={sort.dir === 'asc' ? 'Sort descending' : 'Sort ascending'}
               title={sort.dir === 'asc' ? 'Ascending' : 'Descending'}
-              onClick={() => prefs.setSort({ by: sort.by, dir: sort.dir === 'asc' ? 'desc' : 'asc' })}
+              onClick={() =>
+                prefs.setSort({ by: sort.by, dir: sort.dir === 'asc' ? 'desc' : 'asc' })
+              }
             >
               {sort.dir === 'asc' ? <ArrowUpWideNarrow /> : <ArrowDownWideNarrow />}
             </Button>
@@ -256,38 +289,43 @@ export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
           <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
             <ViewSwitcher value={view} onChange={prefs.setView} />
             <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant={selecting ? 'secondary' : 'outline'}
-              aria-label="Select"
-              aria-pressed={selecting}
-              onClick={() => {
-                if (selecting) clear();
-                setSelecting(!selecting);
-              }}
-            >
-              <ListChecks /> <span className="hidden sm:inline">Select</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" aria-label="Export">
-                  <Download /> <span className="hidden sm:inline">Export</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  disabled={ordered.length === 0}
-                  onSelect={() => exportCsv(selectedRows.length ? selectedRows : ordered)}
-                >
-                  <FileDown /> Download CSV{selectedRows.length ? ` (${selectedRows.length} selected)` : ''}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => window.print()}>
-                  <Printer /> Print
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {view === 'table' && (
-              <ColumnsMenu columns={columns} visible={prefs.columns} onChange={prefs.setColumns} />
-            )}
+              <Button
+                variant={selecting ? 'secondary' : 'outline'}
+                aria-label="Select"
+                aria-pressed={selecting}
+                onClick={() => {
+                  if (selecting) clear();
+                  setSelecting(!selecting);
+                }}
+              >
+                <ListChecks /> <span className="hidden sm:inline">Select</span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" aria-label="Export">
+                    <Download /> <span className="hidden sm:inline">Export</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    disabled={ordered.length === 0}
+                    onSelect={() => exportCsv(selectedRows.length ? selectedRows : ordered)}
+                  >
+                    <FileDown /> Download CSV
+                    {selectedRows.length ? ` (${selectedRows.length} selected)` : ''}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => window.print()}>
+                    <Printer /> Print
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {view === 'table' && (
+                <ColumnsMenu
+                  columns={columns}
+                  visible={prefs.columns}
+                  onChange={prefs.setColumns}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -297,13 +335,19 @@ export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
         <div className="hidden print:block">
           <h1 className="text-xl font-semibold">{title}</h1>
           <p className="text-sm">
-            {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })} ·{' '}
-            {ordered.length} {ordered.length === 1 ? 'item' : 'items'}
+            {new Date().toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}{' '}
+            · {ordered.length} {ordered.length === 1 ? 'item' : 'items'}
           </p>
         </div>
       )}
       {props.notice}
-      <div className={cn(view !== 'table' && 'print:hidden', barVisible && 'pb-32 md:pb-20')}>{content}</div>
+      <div className={cn(view !== 'table' && 'print:hidden', barVisible && 'pb-32 md:pb-20')}>
+        {content}
+      </div>
       {printing && view !== 'table' && rows.length > 0 && (
         <div className="hidden print:block">{tableFor(false)}</div>
       )}
@@ -320,8 +364,20 @@ export function InventoryBrowser<T>(props: InventoryBrowserProps<T>) {
   );
 }
 
-function SelectBoxFor({ id, label, selection }: { id: string; label: string; selection: Selection }) {
+function SelectBoxFor({
+  id,
+  label,
+  selection,
+}: {
+  id: string;
+  label: string;
+  selection: Selection;
+}) {
   return (
-    <SelectBox label={`Select ${label}`} checked={selection.selected.has(id)} onChange={() => selection.toggle(id)} />
+    <SelectBox
+      label={`Select ${label}`}
+      checked={selection.selected.has(id)}
+      onChange={() => selection.toggle(id)}
+    />
   );
 }

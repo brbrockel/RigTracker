@@ -55,7 +55,12 @@ export function EventDialog({
             <Input id="ev-name" value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
           <Field id="ev-date" label="Date">
-            <Input id="ev-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Input
+              id="ev-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </Field>
           <Field id="ev-desc" label="Description">
             <textarea

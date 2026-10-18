@@ -38,7 +38,9 @@ export function AccountPage() {
           <Button
             variant="outline"
             onClick={() =>
-              signOut.mutate(undefined, { onSettled: () => navigate('/sign-in', { replace: true }) })
+              signOut.mutate(undefined, {
+                onSettled: () => navigate('/sign-in', { replace: true }),
+              })
             }
           >
             <LogOut /> Sign out

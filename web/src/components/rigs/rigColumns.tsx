@@ -10,7 +10,11 @@ import { cn } from '@/lib/utils';
 /** Looks up the primary person's name. */
 export type NameOf = (id?: string) => string | undefined;
 
-const join = (...parts: (string | undefined)[]) => parts.map((p) => p?.trim()).filter(Boolean).join(' · ');
+const join = (...parts: (string | undefined)[]) =>
+  parts
+    .map((p) => p?.trim())
+    .filter(Boolean)
+    .join(' · ');
 const withSerial = (what?: string, serial?: string) => join(what, serial && `S/N ${serial}`);
 
 function TwoLine({ main, sub }: { main?: string; sub?: string }) {
@@ -140,8 +144,17 @@ export function rigSorts(nameOf: NameOf): SortOption<Rig>[] {
     { id: 'number', label: 'Rig number', value: (r) => r.number?.trim() },
     { id: 'name', label: 'Name', value: (r) => r.name?.trim() },
     { id: 'repackDue', label: 'Repack due', value: (r) => timeOf(parseDate(r.repackDue)) },
-    { id: 'person', label: 'Primary person', value: (r) => (r.primaryUserId ? nameOf(r.primaryUserId) : undefined) },
-    { id: 'updated', label: 'Recently changed', value: (r) => timeOf(parseDate(r.updatedAt)), defaultDir: 'desc' },
+    {
+      id: 'person',
+      label: 'Primary person',
+      value: (r) => (r.primaryUserId ? nameOf(r.primaryUserId) : undefined),
+    },
+    {
+      id: 'updated',
+      label: 'Recently changed',
+      value: (r) => timeOf(parseDate(r.updatedAt)),
+      defaultDir: 'desc',
+    },
   ];
 }
 

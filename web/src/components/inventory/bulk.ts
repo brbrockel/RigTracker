@@ -37,7 +37,11 @@ export function useBulkRunner() {
             const ok = done.length
               ? `${opts.past} ${done.length} of ${items.length} before stopping: ${done.map(opts.label).join(', ')}.`
               : 'Nothing was changed.';
-            return { ok: false, done, message: `Stopped at ${opts.label(item)}: ${errorMessage(err)} ${ok}` };
+            return {
+              ok: false,
+              done,
+              message: `Stopped at ${opts.label(item)}: ${errorMessage(err)} ${ok}`,
+            };
           }
           done.push(item);
         }

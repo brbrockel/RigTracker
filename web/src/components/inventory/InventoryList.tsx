@@ -8,7 +8,8 @@ import type { Group, ItemSummary, Selection } from './types';
 
 /** The record's name: a link stretched over the whole row/panel when it has a page. */
 export function ItemTitle({ item, className }: { item: ItemSummary; className?: string }) {
-  if (!item.href) return <span className={cn('truncate font-medium', className)}>{item.title}</span>;
+  if (!item.href)
+    return <span className={cn('truncate font-medium', className)}>{item.title}</span>;
   return (
     <Link
       to={item.href}
@@ -67,10 +68,16 @@ export function InventoryList<T>({
                     <div className="flex min-w-0 flex-1 flex-col">
                       <ItemTitle item={item} />
                       {item.subtitle && (
-                        <span className="truncate text-sm text-muted-foreground">{item.subtitle}</span>
+                        <span className="truncate text-sm text-muted-foreground">
+                          {item.subtitle}
+                        </span>
                       )}
                     </div>
-                    {item.badges && <div className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end">{item.badges}</div>}
+                    {item.badges && (
+                      <div className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end">
+                        {item.badges}
+                      </div>
+                    )}
                   </div>
                   {rowMenu && <div className="relative z-10 shrink-0">{rowMenu(row)}</div>}
                 </li>

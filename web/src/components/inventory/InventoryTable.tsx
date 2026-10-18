@@ -60,7 +60,11 @@ export function InventoryTable<T>({
             )}
             {columns.map((c) => {
               const active = sort?.by === c.id;
-              const ariaSort = active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined;
+              const ariaSort = active
+                ? sort!.dir === 'asc'
+                  ? 'ascending'
+                  : 'descending'
+                : undefined;
               const Icon = !active ? ArrowUpDown : sort!.dir === 'asc' ? ArrowUp : ArrowDown;
               return (
                 <th
@@ -133,15 +137,17 @@ export function InventoryTable<T>({
                   {columns.map((c) => (
                     <td
                       key={c.id}
-                      className={cn('px-3 py-2 align-middle', alignClass[c.align ?? 'left'], c.className)}
+                      className={cn(
+                        'px-3 py-2 align-middle',
+                        alignClass[c.align ?? 'left'],
+                        c.className,
+                      )}
                     >
                       {c.render(row)}
                     </td>
                   ))}
                   {hasMenu && (
-                    <td className="px-1 py-1 text-right print:hidden">
-                      {rowMenu!(row)}
-                    </td>
+                    <td className="px-1 py-1 text-right print:hidden">{rowMenu!(row)}</td>
                   )}
                 </tr>
               );

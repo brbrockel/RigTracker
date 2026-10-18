@@ -232,7 +232,12 @@ export function EventPage() {
               >
                 <Camera /> Take photo
               </Button>
-              <Button size="sm" className="h-11" disabled={busy} onClick={() => library.current?.click()}>
+              <Button
+                size="sm"
+                className="h-11"
+                disabled={busy}
+                onClick={() => library.current?.click()}
+              >
                 <ImagePlus /> Add photos or videos
               </Button>
             </div>
@@ -292,7 +297,12 @@ export function EventPage() {
                         />
                       </>
                     ) : (
-                      <img src={mediaUrl(url)} alt="" loading="lazy" className="size-full object-cover" />
+                      <img
+                        src={mediaUrl(url)}
+                        alt=""
+                        loading="lazy"
+                        className="size-full object-cover"
+                      />
                     )}
                   </button>
                   {url === main && (
@@ -355,7 +365,12 @@ export function EventPage() {
                     </Button>
                   )}
                   {writer && (
-                    <Button variant="outline" className="text-destructive" disabled={busy} onClick={() => removeItem(current)}>
+                    <Button
+                      variant="outline"
+                      className="text-destructive"
+                      disabled={busy}
+                      onClick={() => removeItem(current)}
+                    >
                       <X /> Remove
                     </Button>
                   )}

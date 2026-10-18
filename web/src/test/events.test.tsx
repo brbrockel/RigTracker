@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { asAdmin, asViewer, mockApi, renderAt } from './render';
 
 const events = [
-  { _id: 'e1', name: 'Spring Boogie', eventDate: '2099-03-10T00:00:00.000Z', photoUrls: ['/uploads/a.jpg', '/uploads/b.mp4'], eventPhotoUrl: '/uploads/a.jpg' },
+  {
+    _id: 'e1',
+    name: 'Spring Boogie',
+    eventDate: '2099-03-10T00:00:00.000Z',
+    photoUrls: ['/uploads/a.jpg', '/uploads/b.mp4'],
+    eventPhotoUrl: '/uploads/a.jpg',
+  },
   { _id: 'e2', name: 'Summer Trip', eventDate: '2099-06-01T00:00:00.000Z' },
   { _id: 'e3', name: 'Old Jump Day', eventDate: '2020-05-02T00:00:00.000Z' },
 ];
@@ -19,7 +25,10 @@ describe('events', () => {
     expect(await screen.findByRole('heading', { name: 'March 2099' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'June 2099' })).toBeInTheDocument();
     const upcoming = screen.getByRole('region', { name: 'Upcoming' });
-    expect(within(upcoming).getByRole('link', { name: /Spring Boogie/ })).toHaveAttribute('href', '/events/e1');
+    expect(within(upcoming).getByRole('link', { name: /Spring Boogie/ })).toHaveAttribute(
+      'href',
+      '/events/e1',
+    );
     expect(within(upcoming).getByText(/2 items/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /New event/ })).not.toBeInTheDocument();
 
@@ -38,7 +47,10 @@ describe('events', () => {
       'GET /api/auth/me': asAdmin,
       'GET /api/events': () => ({ status: 200, body: [] }),
       'POST /api/events': () => ({ status: 201, body: { _id: 'e9', name: 'New one' } }),
-      'GET /api/events/e9': () => ({ status: 200, body: { _id: 'e9', name: 'New one', eventDate: '2099-01-02T00:00:00.000Z' } }),
+      'GET /api/events/e9': () => ({
+        status: 200,
+        body: { _id: 'e9', name: 'New one', eventDate: '2099-01-02T00:00:00.000Z' },
+      }),
     });
     const router = renderAt('/events');
     await userEvent.click(await screen.findByRole('button', { name: /New event/ }));
@@ -49,7 +61,10 @@ describe('events', () => {
     await userEvent.click(d.getByRole('button', { name: 'Create' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/events/e9'));
     const post = calls.find((c) => c.key === 'POST /api/events')!;
-    expect(JSON.parse(String(post.init?.body))).toMatchObject({ name: 'New one', eventDate: '2099-01-02' });
+    expect(JSON.parse(String(post.init?.body))).toMatchObject({
+      name: 'New one',
+      eventDate: '2099-01-02',
+    });
   });
 
   it.each([
@@ -59,7 +74,10 @@ describe('events', () => {
     const calls = mockApi({
       'GET /api/auth/me': asAdmin,
       'GET /api/events/e1': () => ({ status: 200, body: events[0] }),
-      [`DELETE /api/events/e1?purgeMedia=${expected}`]: () => ({ status: 200, body: { deleted: true } }),
+      [`DELETE /api/events/e1?purgeMedia=${expected}`]: () => ({
+        status: 200,
+        body: { deleted: true },
+      }),
       'GET /api/events': () => ({ status: 200, body: [] }),
     });
     const router = renderAt('/events/e1');
@@ -67,7 +85,8 @@ describe('events', () => {
     expect(screen.getAllByRole('button', { name: /Open (photo|video)/ })).toHaveLength(2);
     await userEvent.click(screen.getByRole('button', { name: 'Delete Spring Boogie' }));
     const d = within(await screen.findByRole('dialog'));
-    if (tick) await userEvent.click(d.getByRole('checkbox', { name: 'Also delete its photos and videos' }));
+    if (tick)
+      await userEvent.click(d.getByRole('checkbox', { name: 'Also delete its photos and videos' }));
     await userEvent.click(d.getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/events'));
     const del = calls.find((c) => c.key.startsWith('DELETE'))!;
@@ -81,7 +100,10 @@ describe('events', () => {
     const calls = mockApi({
       'GET /api/auth/me': asAdmin,
       'GET /api/events/e2': () => ({ status: 200, body: saved }),
-      'POST /api/uploads/image?folder=events%2FSummer%20Trip': () => ({ status: 201, body: { url: `/uploads/x${++n}.jpg` } }),
+      'POST /api/uploads/image?folder=events%2FSummer%20Trip': () => ({
+        status: 201,
+        body: { url: `/uploads/x${++n}.jpg` },
+      }),
       'PUT /api/events/e2': (init) => {
         saved = { ...saved, ...JSON.parse(String(init?.body)) };
         return { status: 200, body: saved };
@@ -90,9 +112,14 @@ describe('events', () => {
     });
     renderAt('/events/e2');
     expect(await screen.findByText('No photos or videos yet.')).toBeInTheDocument();
-    const files = [new File(['a'], 'a.jpg', { type: 'image/jpeg' }), new File(['b'], 'b.mp4', { type: 'video/mp4' })];
+    const files = [
+      new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+      new File(['b'], 'b.mp4', { type: 'video/mp4' }),
+    ];
     await userEvent.upload(screen.getByTestId('event-media-input'), files);
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /Open photo/ })).toHaveLength(2));
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: /Open photo/ })).toHaveLength(2),
+    );
     const puts = calls.filter((c) => c.key === 'PUT /api/events/e2');
     expect(puts).toHaveLength(1);
     expect(JSON.parse(String(puts[0]!.init?.body))).toEqual({

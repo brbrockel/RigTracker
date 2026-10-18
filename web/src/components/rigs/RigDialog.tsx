@@ -23,7 +23,14 @@ const TEXT = [
   'riggerINT',
   'notes',
 ] as const;
-const DATES = ['containerDOM', 'mainDOM', 'reserveDOM', 'aadDOM', 'lastPacked', 'repackDue'] as const;
+const DATES = [
+  'containerDOM',
+  'mainDOM',
+  'reserveDOM',
+  'aadDOM',
+  'lastPacked',
+  'repackDue',
+] as const;
 
 type Key = (typeof TEXT)[number] | (typeof DATES)[number] | 'primaryUserId';
 type Values = Record<Key, string>;
@@ -67,7 +74,9 @@ export function RigDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         title={rig ? 'Edit rig' : 'New rig'}
-        description={rig ? undefined : 'Only the name is required; fill in the rest as you know it.'}
+        description={
+          rig ? undefined : 'Only the name is required; fill in the rest as you know it.'
+        }
         className="sm:max-w-2xl"
       >
         {/* Keyed so the form starts fresh each time it opens. */}
@@ -127,8 +136,16 @@ function RigForm({ rig, onDone }: { rig?: Rig | null; onDone: () => void }) {
       <Section title="Rig">
         {text('name', 'Name', { required: true })}
         {text('number', 'Number')}
-        <Field id="rig-primaryUserId" label="Primary person" hint="Gear on this rig goes with them.">
-          <Select id="rig-primaryUserId" value={values.primaryUserId} onChange={set('primaryUserId')}>
+        <Field
+          id="rig-primaryUserId"
+          label="Primary person"
+          hint="Gear on this rig goes with them."
+        >
+          <Select
+            id="rig-primaryUserId"
+            value={values.primaryUserId}
+            onChange={set('primaryUserId')}
+          >
             <option value="">No one</option>
             {sortedPeople.map((p) => (
               <option key={p._id} value={p._id}>

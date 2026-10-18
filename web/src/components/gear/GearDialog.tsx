@@ -76,7 +76,9 @@ function GearForm({
   const [notes, setNotes] = useState(gear?.notes ?? '');
   const [imageUrl, setImageUrl] = useState<string | undefined>(gear?.imageUrl || undefined);
   const [rigId, setRigId] = useState(gear?.assignedRigId ?? '');
-  const [personId, setPersonId] = useState(gear?.assignedRigId ? '' : (gear?.assignedPersonId ?? ''));
+  const [personId, setPersonId] = useState(
+    gear?.assignedRigId ? '' : (gear?.assignedPersonId ?? ''),
+  );
 
   const nameOf = (id?: string) => {
     const p = id ? people.find((x) => x._id === id) : undefined;
@@ -84,7 +86,10 @@ function GearForm({
   };
   const rig = rigId ? rigs.find((r) => r._id === rigId) : undefined;
   const movesPerson =
-    !!gear && !!rigId && rigId !== (gear.assignedRigId ?? '') && !!gear.assignedPersonId &&
+    !!gear &&
+    !!rigId &&
+    rigId !== (gear.assignedRigId ?? '') &&
+    !!gear.assignedPersonId &&
     gear.assignedPersonId !== rig?.primaryUserId;
 
   const save = useMutation({
@@ -145,7 +150,11 @@ function GearForm({
           </datalist>
         </Field>
         <Field id="gear-serial" label="Serial number">
-          <Input id="gear-serial" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} />
+          <Input
+            id="gear-serial"
+            value={serialNumber}
+            onChange={(e) => setSerialNumber(e.target.value)}
+          />
         </Field>
         <Field id="gear-dom" label="Date of manufacture">
           <Input id="gear-dom" type="date" value={dom} onChange={(e) => setDom(e.target.value)} />
@@ -183,7 +192,8 @@ function GearForm({
       {rigId && (
         <p className="-mt-2 text-xs text-muted-foreground">
           Gear on a rig goes with the rig's primary person.
-          {movesPerson && ` Saving moves it from ${nameOf(gear?.assignedPersonId) || 'its current person'}.`}
+          {movesPerson &&
+            ` Saving moves it from ${nameOf(gear?.assignedPersonId) || 'its current person'}.`}
         </p>
       )}
 

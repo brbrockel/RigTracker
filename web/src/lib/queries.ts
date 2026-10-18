@@ -31,4 +31,3 @@ export const useEvents = () =>
   useQuery({ queryKey: keys.events, queryFn: () => api<RigEvent[]>('/events') });
 export const useEvent = (id: string) =>
   useQuery({ queryKey: keys.event(id), queryFn: () => api<RigEvent>(`/events/${id}`) });
-

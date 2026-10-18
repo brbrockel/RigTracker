@@ -13,7 +13,10 @@ export class GearController {
   ) {}
 
   @Get()
-  getAll(@Query(new ZodPipe(GearQuery)) { rigId, personId, unassigned }: { rigId?: string; personId?: string; unassigned?: string }) {
+  getAll(
+    @Query(new ZodPipe(GearQuery))
+    { rigId, personId, unassigned }: { rigId?: string; personId?: string; unassigned?: string },
+  ) {
     return this.gearService.findAll({ rigId, personId, unassigned });
   }
 
@@ -26,15 +29,31 @@ export class GearController {
   @RequireRoles('user', 'admin')
   async create(@Body(new ZodPipe(GearBody)) dto: GearBody, @Req() req: any) {
     const result = await this.gearService.create(dto);
-    await this.auditService.log({ action: 'CREATE', resource: 'gear', resourceId: String(result._id || result.id), resourceName: result.name, actor: req.authUser });
+    await this.auditService.log({
+      action: 'CREATE',
+      resource: 'gear',
+      resourceId: String(result._id || result.id),
+      resourceName: result.name,
+      actor: req.authUser,
+    });
     return result;
   }
 
   @Put(':id')
   @RequireRoles('user', 'admin')
-  async update(@Param('id') id: string, @Body(new ZodPipe(GearBody)) dto: GearBody, @Req() req: any) {
+  async update(
+    @Param('id') id: string,
+    @Body(new ZodPipe(GearBody)) dto: GearBody,
+    @Req() req: any,
+  ) {
     const result = await this.gearService.update(id, dto);
-    await this.auditService.log({ action: 'UPDATE', resource: 'gear', resourceId: id, resourceName: result?.name ?? dto?.name ?? undefined, actor: req.authUser });
+    await this.auditService.log({
+      action: 'UPDATE',
+      resource: 'gear',
+      resourceId: id,
+      resourceName: result?.name ?? dto?.name ?? undefined,
+      actor: req.authUser,
+    });
     return result;
   }
 
@@ -42,7 +61,12 @@ export class GearController {
   @RequireRoles('admin')
   async remove(@Param('id') id: string, @Req() req: any) {
     const result = await this.gearService.remove(id);
-    await this.auditService.log({ action: 'DELETE', resource: 'gear', resourceId: id, actor: req.authUser });
+    await this.auditService.log({
+      action: 'DELETE',
+      resource: 'gear',
+      resourceId: id,
+      actor: req.authUser,
+    });
     return result;
   }
 }

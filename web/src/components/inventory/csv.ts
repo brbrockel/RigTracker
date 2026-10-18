@@ -28,7 +28,8 @@ export function todayStamp(now = new Date()): string {
 }
 
 /** e.g. rigtracker-gear-2026-10-17.csv */
-export const csvFilename = (page: string, now = new Date()) => `rigtracker-${page}-${todayStamp(now)}.csv`;
+export const csvFilename = (page: string, now = new Date()) =>
+  `rigtracker-${page}-${todayStamp(now)}.csv`;
 
 export function downloadCsv(filename: string, text: string) {
   const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });

@@ -14,14 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input, Select } from '@/components/ui/input';
-import {
-  api,
-  canDelete,
-  canSignIn,
-  canWrite,
-  errorMessage,
-  type Person,
-} from '@/lib/api';
+import { api, canDelete, canSignIn, canWrite, errorMessage, type Person } from '@/lib/api';
 import { keys, usePeople } from '@/lib/queries';
 
 type Sort = 'first' | 'last';
@@ -82,8 +75,8 @@ export function PeoplePage() {
             {admin && (
               <>
                 <br />
-                Anyone here can be given sign-in access. Each sign-in link works once and lasts
-                72 hours.
+                Anyone here can be given sign-in access. Each sign-in link works once and lasts 72
+                hours.
               </>
             )}
           </>

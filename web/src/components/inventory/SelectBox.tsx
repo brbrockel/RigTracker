@@ -20,7 +20,12 @@ export function SelectBox({
     if (ref.current) ref.current.indeterminate = indeterminate;
   }, [indeterminate]);
   return (
-    <label className={cn('relative z-10 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center print:hidden', className)}>
+    <label
+      className={cn(
+        'relative z-10 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center print:hidden',
+        className,
+      )}
+    >
       <input
         ref={ref}
         type="checkbox"

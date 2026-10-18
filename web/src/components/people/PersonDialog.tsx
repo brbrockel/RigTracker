@@ -54,7 +54,10 @@ type Errors = Partial<Record<'firstName' | 'lastName' | 'email' | 'phone', strin
 };
 
 /** Checks the form; returns the request body, or the problems to show. */
-function validate(d: Draft, needsEmail: boolean): { body?: Record<string, unknown>; errors: Errors } {
+function validate(
+  d: Draft,
+  needsEmail: boolean,
+): { body?: Record<string, unknown>; errors: Errors } {
   const errors: Errors = {};
   if (!d.firstName.trim()) errors.firstName = 'Enter a first name';
   const email = d.email.trim().toLowerCase();
@@ -207,20 +210,49 @@ export function PersonDialog({
 
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-2 text-sm font-medium">Address</legend>
-            <Input aria-label="Address line 1" placeholder="Street" autoComplete="address-line1" value={d.line1} onChange={set('line1')} />
-            <Input aria-label="Address line 2" placeholder="Apt, unit (optional)" autoComplete="address-line2" value={d.line2} onChange={set('line2')} />
+            <Input
+              aria-label="Address line 1"
+              placeholder="Street"
+              autoComplete="address-line1"
+              value={d.line1}
+              onChange={set('line1')}
+            />
+            <Input
+              aria-label="Address line 2"
+              placeholder="Apt, unit (optional)"
+              autoComplete="address-line2"
+              value={d.line2}
+              onChange={set('line2')}
+            />
             <div className="grid grid-cols-[1fr_5rem_6rem] gap-2">
-              <Input aria-label="City" placeholder="City" autoComplete="address-level2" value={d.city} onChange={set('city')} />
-              <Input aria-label="State" placeholder="State" autoComplete="address-level1" value={d.state} onChange={set('state')} />
-              <Input aria-label="ZIP" placeholder="ZIP" inputMode="numeric" autoComplete="postal-code" value={d.zip} onChange={set('zip')} />
+              <Input
+                aria-label="City"
+                placeholder="City"
+                autoComplete="address-level2"
+                value={d.city}
+                onChange={set('city')}
+              />
+              <Input
+                aria-label="State"
+                placeholder="State"
+                autoComplete="address-level1"
+                value={d.state}
+                onChange={set('state')}
+              />
+              <Input
+                aria-label="ZIP"
+                placeholder="ZIP"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                value={d.zip}
+                onChange={set('zip')}
+              />
             </div>
           </fieldset>
 
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-2 text-sm font-medium">Emergency contacts</legend>
-            {d.contacts.length === 0 && (
-              <p className="text-sm text-muted-foreground">None yet.</p>
-            )}
+            {d.contacts.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
             {d.contacts.map((c, i) => (
               <div key={i} className="flex flex-col gap-2 rounded-lg border p-3">
                 <div className="flex items-center gap-2">

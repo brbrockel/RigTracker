@@ -10,9 +10,19 @@ const options: { view: ViewMode; label: string; icon: LucideIcon }[] = [
 ];
 
 /** Segmented toggle between the four layouts. */
-export function ViewSwitcher({ value, onChange }: { value: ViewMode; onChange: (v: ViewMode) => void }) {
+export function ViewSwitcher({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
   return (
-    <div role="group" aria-label="Layout" className="inline-flex h-11 shrink-0 rounded-lg border bg-card p-0.5 print:hidden">
+    <div
+      role="group"
+      aria-label="Layout"
+      className="inline-flex h-11 shrink-0 rounded-lg border bg-card p-0.5 print:hidden"
+    >
       {options.map(({ view, label, icon: Icon }) => (
         <button
           key={view}

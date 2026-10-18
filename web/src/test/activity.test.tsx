@@ -27,7 +27,11 @@ describe('activity log', () => {
         userDisplayName: undefined,
         userEmail: undefined,
       }),
-      entry(2, { action: 'SIGN_IN', resource: 'user', details: { method: 'link', ip: '10.0.0.1' } }),
+      entry(2, {
+        action: 'SIGN_IN',
+        resource: 'user',
+        details: { method: 'link', ip: '10.0.0.1' },
+      }),
       ...Array.from({ length: 47 }, (_, i) => entry(i + 3)),
     ];
     const calls = mockApi({
@@ -61,8 +65,13 @@ describe('activity log', () => {
       expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument(),
     );
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Filter by record type' }), 'gear');
-    await waitFor(() => expect(screen.queryByText('changed rig Oldest rig')).not.toBeInTheDocument());
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Filter by record type' }),
+      'gear',
+    );
+    await waitFor(() =>
+      expect(screen.queryByText('changed rig Oldest rig')).not.toBeInTheDocument(),
+    );
     expect(screen.getByText('added gear Foo')).toBeInTheDocument();
   });
 });

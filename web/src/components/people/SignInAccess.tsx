@@ -59,7 +59,13 @@ type Choice = 'none' | Role;
 
 const currentChoice = (p: Person): Choice => {
   const r = p.roles ?? [];
-  return r.includes('admin') ? 'admin' : r.includes('user') ? 'user' : r.includes('viewer') ? 'viewer' : 'none';
+  return r.includes('admin')
+    ? 'admin'
+    : r.includes('user')
+      ? 'user'
+      : r.includes('viewer')
+        ? 'viewer'
+        : 'none';
 };
 
 function AccessDialog({ person, onClose }: { person: Person; onClose: () => void }) {

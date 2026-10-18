@@ -21,7 +21,9 @@ export function sortRows<T>(
       return empty(a) ? 1 : -1;
     }
     let c =
-      typeof a === 'number' && typeof b === 'number' ? a - b : collator.compare(String(a), String(b));
+      typeof a === 'number' && typeof b === 'number'
+        ? a - b
+        : collator.compare(String(a), String(b));
     if (dir === 'desc') c = -c;
     return c || tie(x, y);
   });

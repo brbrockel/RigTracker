@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { asAdmin, asUser, asViewer, mockApi, renderAt } from './render';
 
 const people = [
-  { _id: 'p1', firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com', phone: '+18605551234' },
+  {
+    _id: 'p1',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    email: 'ada@example.com',
+    phone: '+18605551234',
+  },
   { _id: 'p2', firstName: 'Grace', lastName: 'Hopper', email: 'grace@navy.mil' },
 ];
 const ok = (body: unknown) => () => ({ status: 200, body });
@@ -41,11 +47,23 @@ describe('people', () => {
       'GET /api/people': () => ({ status: 200, body: people }),
     });
     renderAt('/people');
-    expect(await screen.findByRole('link', { name: 'Ada Lovelace' })).toHaveAttribute('href', '/people/p1');
+    expect(await screen.findByRole('link', { name: 'Ada Lovelace' })).toHaveAttribute(
+      'href',
+      '/people/p1',
+    );
     expect(screen.getByRole('link', { name: 'Grace Hopper' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Call (860) 555-1234' })).toHaveAttribute('href', 'tel:+18605551234');
-    expect(screen.getByRole('link', { name: 'Text (860) 555-1234' })).toHaveAttribute('href', 'sms:+18605551234');
-    expect(screen.getByRole('link', { name: /grace@navy.mil/ })).toHaveAttribute('href', 'mailto:grace@navy.mil');
+    expect(screen.getByRole('link', { name: 'Call (860) 555-1234' })).toHaveAttribute(
+      'href',
+      'tel:+18605551234',
+    );
+    expect(screen.getByRole('link', { name: 'Text (860) 555-1234' })).toHaveAttribute(
+      'href',
+      'sms:+18605551234',
+    );
+    expect(screen.getByRole('link', { name: /grace@navy.mil/ })).toHaveAttribute(
+      'href',
+      'mailto:grace@navy.mil',
+    );
 
     await userEvent.type(screen.getByRole('textbox', { name: 'Search people' }), 'navy');
     expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).not.toBeInTheDocument();
@@ -147,8 +165,14 @@ describe('people', () => {
     renderAt('/people/p1');
     expect(await screen.findByRole('heading', { name: 'Ada Lovelace' })).toBeInTheDocument();
     expect(screen.getByText('Mar 4, 1990')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Call Bob' })).toHaveAttribute('href', 'tel:+12035550000');
-    expect(await screen.findByRole('link', { name: /#7 · Javelin/ })).toHaveAttribute('href', '/rigs/r1');
+    expect(screen.getByRole('link', { name: 'Call Bob' })).toHaveAttribute(
+      'href',
+      'tel:+12035550000',
+    );
+    expect(await screen.findByRole('link', { name: /#7 · Javelin/ })).toHaveAttribute(
+      'href',
+      '/rigs/r1',
+    );
     expect(screen.queryByText(/Other/)).not.toBeInTheDocument();
     expect(await screen.findByText('Altimeter')).toBeInTheDocument();
 
@@ -157,7 +181,10 @@ describe('people', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Assign' }));
     await waitFor(() => expect(calls.some((c) => c.key === 'PUT /api/gear/g2')).toBe(true));
     const put = calls.find((c) => c.key === 'PUT /api/gear/g2')!;
-    expect(JSON.parse(String(put.init?.body))).toEqual({ assignedRigId: null, assignedPersonId: 'p1' });
+    expect(JSON.parse(String(put.init?.body))).toEqual({
+      assignedRigId: null,
+      assignedPersonId: 'p1',
+    });
   });
 
   it('says when a person is missing', async () => {
@@ -181,8 +208,12 @@ describe('people', () => {
     expect(me.getByText(/Last signed in .* · 4 sign-ins/)).toBeInTheDocument();
     expect(within(card('Sam Jones')).getByText('User')).toBeInTheDocument();
     expect(within(card('Sam Jones')).getByText('Never signed in')).toBeInTheDocument();
-    expect(within(card('Ada Lovelace')).queryByText(/signed in|Admin|User|Viewer/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Each sign-in link works once and lasts\s+72 hours/)).toBeInTheDocument();
+    expect(
+      within(card('Ada Lovelace')).queryByText(/signed in|Admin|User|Viewer/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Each sign-in link works once and lasts\s+72 hours/),
+    ).toBeInTheDocument();
 
     const filter = screen.getByRole('combobox', { name: 'Filter people' });
     await userEvent.selectOptions(filter, 'sign-in');
@@ -275,7 +306,9 @@ describe('people', () => {
     expect(text.getAttribute('href')).toMatch(/^sms:/);
     expect(decodeURIComponent(text.getAttribute('href')!)).toContain(link);
     const email = within(dialog).getByRole('link', { name: 'Email' });
-    expect(email.getAttribute('href')).toMatch(/^mailto:sam@example\.com\?subject=Your%20RigTracker/);
+    expect(email.getAttribute('href')).toMatch(
+      /^mailto:sam@example\.com\?subject=Your%20RigTracker/,
+    );
     expect(decodeURIComponent(email.getAttribute('href')!)).toContain(link);
   });
 

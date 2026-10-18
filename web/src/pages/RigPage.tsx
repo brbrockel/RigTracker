@@ -235,7 +235,12 @@ export function RigPage() {
         }}
       />
       {assigning && (
-        <AssignGearDialog rig={r} gear={gear.data ?? []} nameOf={nameOf} onClose={() => setAssigning(false)} />
+        <AssignGearDialog
+          rig={r}
+          gear={gear.data ?? []}
+          nameOf={nameOf}
+          onClose={() => setAssigning(false)}
+        />
       )}
     </div>
   );
@@ -271,12 +276,15 @@ function AssignGearDialog({
   const unassigned = others.filter((g) => !g.assignedRigId && !g.assignedPersonId);
   const withPerson = others.filter((g) => !g.assignedRigId && g.assignedPersonId);
   const onOtherRig = others.filter((g) => g.assignedRigId);
-  const label = (g: Gear) => [g.name || 'Unnamed gear', g.type, g.serialNumber].filter(Boolean).join(' · ');
-  const rigName = (rid?: string) => rigLabel(rigs.data?.find((x) => x._id === rid)) || 'another rig';
+  const label = (g: Gear) =>
+    [g.name || 'Unnamed gear', g.type, g.serialNumber].filter(Boolean).join(' · ');
+  const rigName = (rid?: string) =>
+    rigLabel(rigs.data?.find((x) => x._id === rid)) || 'another rig';
   const selected = others.find((g) => g._id === gearId);
 
   const assign = useMutation({
-    mutationFn: () => api<Gear>(`/gear/${gearId}`, { method: 'PUT', body: { assignedRigId: rig._id } }),
+    mutationFn: () =>
+      api<Gear>(`/gear/${gearId}`, { method: 'PUT', body: { assignedRigId: rig._id } }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: keys.gear });
       onClose();
@@ -311,7 +319,12 @@ function AssignGearDialog({
                     : undefined
               }
             >
-              <Select id="assign-gear" required value={gearId} onChange={(e) => setGearId(e.target.value)}>
+              <Select
+                id="assign-gear"
+                required
+                value={gearId}
+                onChange={(e) => setGearId(e.target.value)}
+              >
                 <option value="">Choose gear…</option>
                 {unassigned.length > 0 && (
                   <optgroup label="Unassigned">

@@ -56,7 +56,9 @@ export function gearColumns({ rigOf, nameOf }: GearLookups): ColumnDef<Gear>[] {
     {
       id: 'made',
       label: 'Made',
-      render: (g) => <span className="whitespace-nowrap">{formatDate(g.dateOfManufacture) || dash}</span>,
+      render: (g) => (
+        <span className="whitespace-nowrap">{formatDate(g.dateOfManufacture) || dash}</span>
+      ),
       text: (g) => csvDate(g.dateOfManufacture),
       sortValue: (g) => timeOf(parseDate(g.dateOfManufacture)),
     },
@@ -112,7 +114,12 @@ export const gearSorts: SortOption<Gear>[] = [
   { id: 'type', label: 'Type', value: (g) => g.type?.trim() },
   { id: 'serial', label: 'Serial', value: (g) => g.serialNumber?.trim() },
   { id: 'made', label: 'Made', value: (g) => timeOf(parseDate(g.dateOfManufacture)) },
-  { id: 'updated', label: 'Recently changed', value: (g) => timeOf(parseDate(g.updatedAt)), defaultDir: 'desc' },
+  {
+    id: 'updated',
+    label: 'Recently changed',
+    value: (g) => timeOf(parseDate(g.updatedAt)),
+    defaultDir: 'desc',
+  },
 ];
 
 const assignmentGroups = {
@@ -152,7 +159,11 @@ export function gearGroups({ rigOf, nameOf }: GearLookups): GroupOption<Gear>[] 
       id: 'assignment',
       label: 'Assignment',
       of: (g) =>
-        g.assignedRigId ? assignmentGroups.rig : g.assignedPersonId ? assignmentGroups.person : assignmentGroups.none,
+        g.assignedRigId
+          ? assignmentGroups.rig
+          : g.assignedPersonId
+            ? assignmentGroups.person
+            : assignmentGroups.none,
     },
   ];
 }

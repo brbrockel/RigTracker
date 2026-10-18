@@ -48,7 +48,10 @@ export function BulkAssignDialog({
   const [remaining, setRemaining] = useState<Gear[]>(gear);
 
   const nameById = useMemo(() => new Map(people.map((p) => [p._id, personName(p)])), [people]);
-  const sortedRigs = useMemo(() => [...rigs].sort((a, b) => collator.compare(rigLabel(a), rigLabel(b))), [rigs]);
+  const sortedRigs = useMemo(
+    () => [...rigs].sort((a, b) => collator.compare(rigLabel(a), rigLabel(b))),
+    [rigs],
+  );
   const sortedPeople = useMemo(
     () => [...people].sort((a, b) => collator.compare(personName(a), personName(b))),
     [people],
@@ -96,7 +99,9 @@ export function BulkAssignDialog({
                 {sortedRigs.map((r) => (
                   <option key={r._id} value={r._id}>
                     {rigLabel(r)}
-                    {r.primaryUserId ? ` (${nameById.get(r.primaryUserId) || 'Unknown person'})` : ''}
+                    {r.primaryUserId
+                      ? ` (${nameById.get(r.primaryUserId) || 'Unknown person'})`
+                      : ''}
                   </option>
                 ))}
               </Select>

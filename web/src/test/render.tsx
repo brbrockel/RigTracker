@@ -59,4 +59,7 @@ export const asAdmin = () => ({
   },
 });
 export const asUser = () => ({ ...asAdmin(), body: { ...asAdmin().body, user: user(['user']) } });
-export const asViewer = () => ({ ...asAdmin(), body: { ...asAdmin().body, user: user(['viewer']) } });
+export const asViewer = () => ({
+  ...asAdmin(),
+  body: { ...asAdmin().body, user: user(['viewer']) },
+});

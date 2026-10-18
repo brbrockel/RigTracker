@@ -50,14 +50,32 @@ export function MediaPicker({
       <div className="flex items-center gap-3">
         <Thumb url={value} alt={label} className="size-20" />
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => camera.current?.click()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => camera.current?.click()}
+          >
             <Camera /> Take photo
           </Button>
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => library.current?.click()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => library.current?.click()}
+          >
             <ImagePlus /> {value ? 'Replace' : 'Choose'}
           </Button>
           {value && (
-            <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => onChange(undefined)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => onChange(undefined)}
+            >
               <X /> Remove
             </Button>
           )}
@@ -65,8 +83,21 @@ export function MediaPicker({
       </div>
       {busy && <p className="text-xs text-muted-foreground">Uploading…</p>}
       {error && <Alert variant="destructive">{error}</Alert>}
-      <input ref={camera} type="file" accept={accept} capture="environment" hidden onChange={(e) => pick(e.target.files)} />
-      <input ref={library} type="file" accept={accept} hidden onChange={(e) => pick(e.target.files)} />
+      <input
+        ref={camera}
+        type="file"
+        accept={accept}
+        capture="environment"
+        hidden
+        onChange={(e) => pick(e.target.files)}
+      />
+      <input
+        ref={library}
+        type="file"
+        accept={accept}
+        hidden
+        onChange={(e) => pick(e.target.files)}
+      />
     </div>
   );
 }

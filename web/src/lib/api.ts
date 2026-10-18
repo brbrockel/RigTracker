@@ -85,8 +85,7 @@ export interface Me {
 
 export const isAdmin = (u?: User | null) => !!u?.roles.includes('admin');
 /** Admins and users can add and change records; viewers can only look. */
-export const canWrite = (u?: User | null) =>
-  !!u?.roles.some((r) => r === 'admin' || r === 'user');
+export const canWrite = (u?: User | null) => !!u?.roles.some((r) => r === 'admin' || r === 'user');
 /** Only admins delete. */
 export const canDelete = isAdmin;
 
@@ -205,7 +204,9 @@ export const canSignIn = (p?: Pick<Person, 'roles' | 'isActive'> | null) =>
   !!p?.roles?.length && p.isActive !== false;
 
 /** The person's sign-in access as a word. */
-export function roleLabel(p?: Pick<Person, 'roles'> | null): 'Admin' | 'User' | 'Viewer' | 'No sign-in' {
+export function roleLabel(
+  p?: Pick<Person, 'roles'> | null,
+): 'Admin' | 'User' | 'Viewer' | 'No sign-in' {
   const roles = p?.roles ?? [];
   if (roles.includes('admin')) return 'Admin';
   if (roles.includes('user')) return 'User';

@@ -4,7 +4,7 @@ This page contains day-to-day development and deployment operations for RigTrack
 
 ## Prerequisites
 
-- Node 20+
+- Node 24 (`.nvmrc`; `nvm use`)
 - pnpm 10 (`packageManager` is pinned in root `package.json`)
 - Docker (for container builds)
 - Docker Swarm (for homelab deployment)
@@ -15,13 +15,26 @@ From repo root:
 
 ```bash
 pnpm install
-pnpm dev:api            # API on :4000 (needs MONGO_URI, or a local Mongo on 27017)
+cp .env.example .env    # local settings (never committed)
+pnpm dev:services       # MongoDB in Docker on 127.0.0.1:17017 (stop: pnpm dev:services:stop)
+pnpm dev:api            # API on :4000 (MONGO_URI from .env)
 pnpm dev:web            # web on http://localhost:5173; /api and /uploads are proxied to :4000
-pnpm --filter rigtracker-web test       # web tests (vitest)
-pnpm --filter rigtracker-web typecheck
 ```
 
-Sign in locally with a link: `APP_URL=http://localhost:5173 node api/dist/scripts/sign-in-link.js you@example.com --admin "Your Name"` (after `pnpm --filter rigtracker-api build`).
+Sign in locally with a link: `APP_URL=http://localhost:5173 MONGO_URI=mongodb://127.0.0.1:17017/rigtracker node api/dist/scripts/sign-in-link.js you@example.com --admin "Your Name"` (after `pnpm --filter rigtracker-api build`).
+
+## Checks
+
+Run before every commit; CI (`.github/workflows/ci.yml`) runs the same on every push:
+
+```bash
+pnpm check              # lint + format:check + typecheck + test
+pnpm format             # fix formatting (Prettier)
+```
+
+- Web tests (vitest + Testing Library, `web/src/test/`) stub the API with `mockApi`.
+- API tests (vitest + supertest, `api/test/*.e2e.test.ts`) boot the real app against a test database: `TEST_MONGO_URI`, default `mongodb://127.0.0.1:17017/rigtracker_test` (the `pnpm dev:services` Mongo). The test database is dropped at the start of each run. They are the behaviour contract for the Postgres move in step 4 of [Plan.md](Plan.md).
+- ESLint reports `any` in the API as warnings until step 4 replaces the Mongo services.
 
 ## Build Commands
 

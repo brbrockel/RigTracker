@@ -6,7 +6,14 @@ import { asAdmin, asUser, asViewer, mockApi, renderAt } from './render';
 const people = [{ _id: 'p1', firstName: 'Ann', lastName: 'Jumper' }];
 const rigs = [{ _id: 'r1', number: '3', name: 'Blue', primaryUserId: 'p1' }];
 const gear = [
-  { _id: 'g1', name: 'Altimeter', type: 'Altimeter', serialNumber: 'ALT-1', assignedRigId: 'r1', assignedPersonId: 'p1' },
+  {
+    _id: 'g1',
+    name: 'Altimeter',
+    type: 'Altimeter',
+    serialNumber: 'ALT-1',
+    assignedRigId: 'r1',
+    assignedPersonId: 'p1',
+  },
   { _id: 'g2', name: 'Helmet', type: 'Helmet', serialNumber: 'HEL-1', assignedPersonId: 'p1' },
   { _id: 'g3', name: 'Hook knife', type: 'Knife', serialNumber: 'KN-9' },
 ];
@@ -24,8 +31,14 @@ describe('gear list', () => {
     mockApi({ 'GET /api/auth/me': asUser, ...lists });
     renderAt('/gear');
     expect(await screen.findByText('Hook knife')).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: 'Rig: #3 · Blue' })).toHaveAttribute('href', '/rigs/r1');
-    expect(screen.getAllByRole('link', { name: 'Person: Ann Jumper' })[0]).toHaveAttribute('href', '/people/p1');
+    expect(await screen.findByRole('link', { name: 'Rig: #3 · Blue' })).toHaveAttribute(
+      'href',
+      '/rigs/r1',
+    );
+    expect(screen.getAllByRole('link', { name: 'Person: Ann Jumper' })[0]).toHaveAttribute(
+      'href',
+      '/people/p1',
+    );
 
     await userEvent.type(screen.getByLabelText('Search gear'), 'kn-9');
     expect(screen.getByText('Hook knife')).toBeInTheDocument();
@@ -69,7 +82,9 @@ describe('gear list', () => {
     await userEvent.selectOptions(within(dialog).getByLabelText('Rig'), 'r1');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Add gear' }));
 
-    expect(await within(dialog).findByText('A gear item with serial ALT-1 already exists')).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText('A gear item with serial ALT-1 already exists'),
+    ).toBeInTheDocument();
     expect(body).toMatchObject({
       name: 'Spare altimeter',
       type: 'Altimeter',

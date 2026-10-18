@@ -57,9 +57,7 @@ function describe(e: AuditEntry): string {
     case 'SIGN_IN':
       return 'signed in';
     case 'SIGN_OUT':
-      return e.details?.everywhere
-        ? `signed${name || ' someone'} out everywhere`
-        : 'signed out';
+      return e.details?.everywhere ? `signed${name || ' someone'} out everywhere` : 'signed out';
     case 'SIGN_IN_LINK':
       return `made a sign-in link for${name || ' someone'}`;
     default:

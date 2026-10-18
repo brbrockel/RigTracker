@@ -1,5 +1,5 @@
-import { z } from 'zod'
-import { date, mediaUrl, mediaUrlSchema, text } from '../common/validation'
+import { z } from 'zod';
+import { date, mediaUrl, mediaUrlSchema, text } from '../common/validation';
 
 export const EventBody = z
   .object({
@@ -10,5 +10,5 @@ export const EventBody = z
     eventPhotoUrl: mediaUrl(),
     photoUrls: z.array(mediaUrlSchema).max(500).optional(),
   })
-  .strict()
-export type EventBody = z.infer<typeof EventBody>
+  .strict();
+export type EventBody = z.infer<typeof EventBody>;

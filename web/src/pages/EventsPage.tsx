@@ -44,8 +44,7 @@ export function EventsPage() {
   const { upcoming, past } = useMemo(() => {
     const q = search.trim().toLowerCase();
     const shown = (events.data ?? []).filter(
-      (e) =>
-        !q || e.name?.toLowerCase().includes(q) || e.description?.toLowerCase().includes(q),
+      (e) => !q || e.name?.toLowerCase().includes(q) || e.description?.toLowerCase().includes(q),
     );
     const isPast = (e: RigEvent) => (daysUntil(e.eventDate) ?? 0) < 0;
     return {

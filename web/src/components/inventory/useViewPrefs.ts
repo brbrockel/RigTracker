@@ -50,7 +50,8 @@ function load(pageKey: string, defaults: ViewPrefDefaults, valid: ViewPrefOption
   if (!stored || typeof stored !== 'object') return base;
   const s = stored as Record<string, unknown>;
   const out = { ...base };
-  if (typeof s.view === 'string' && (VIEWS as readonly string[]).includes(s.view)) out.view = s.view as ViewMode;
+  if (typeof s.view === 'string' && (VIEWS as readonly string[]).includes(s.view))
+    out.view = s.view as ViewMode;
   const sort = s.sort as Record<string, unknown> | undefined;
   if (
     sort &&
@@ -60,7 +61,8 @@ function load(pageKey: string, defaults: ViewPrefDefaults, valid: ViewPrefOption
     (!valid.sorts || valid.sorts.includes(sort.by))
   )
     out.sort = { by: sort.by, dir: sort.dir };
-  if (typeof s.group === 'string' && (!valid.groups || valid.groups.includes(s.group))) out.group = s.group;
+  if (typeof s.group === 'string' && (!valid.groups || valid.groups.includes(s.group)))
+    out.group = s.group;
   if (Array.isArray(s.columns)) {
     const cols = s.columns.filter(
       (c): c is string => typeof c === 'string' && (!valid.columns || valid.columns.includes(c)),
@@ -79,7 +81,11 @@ function save(pageKey: string, prefs: ViewPrefs) {
 }
 
 /** A page's layout, sort, grouping and table columns, remembered per device in localStorage. */
-export function useViewPrefs(pageKey: string, defaults: ViewPrefDefaults, valid: ViewPrefOptions = {}) {
+export function useViewPrefs(
+  pageKey: string,
+  defaults: ViewPrefDefaults,
+  valid: ViewPrefOptions = {},
+) {
   const [prefs, setPrefs] = useState(() => load(pageKey, defaults, valid));
   const current = useRef(prefs);
   const update = useCallback(

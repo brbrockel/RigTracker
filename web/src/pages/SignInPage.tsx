@@ -33,7 +33,9 @@ export function SignInPage() {
         <div className="flex flex-col items-center gap-2 text-center">
           <img src="/img/logo1.jpg" alt="" className="size-14 rounded-xl object-cover" />
           <h1 className="text-2xl font-semibold tracking-tight">RigTracker</h1>
-          <p className="text-sm text-muted-foreground">Rigs, gear, events and people for the club</p>
+          <p className="text-sm text-muted-foreground">
+            Rigs, gear, events and people for the club
+          </p>
         </div>
         {token ? <UseLink key={token} token={token} /> : <HowToSignIn />}
       </div>
@@ -49,8 +51,8 @@ function HowToSignIn() {
           <Link2 className="size-5 text-primary" aria-hidden /> Sign in with a link
         </CardTitle>
         <CardDescription>
-          RigTracker doesn't use passwords yet. Ask a RigTracker admin for a sign-in link, then
-          open it on this device. Each link works once and lasts 72 hours.
+          RigTracker doesn't use passwords yet. Ask a RigTracker admin for a sign-in link, then open
+          it on this device. Each link works once and lasts 72 hours.
         </CardDescription>
       </CardHeader>
     </Card>

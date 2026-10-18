@@ -52,9 +52,7 @@ export const routes = [
           { path: 'users', element: <Navigate to="/people" replace /> },
           {
             element: <RequireAdmin />,
-            children: [
-              { path: 'activity', element: <ActivityPage /> },
-            ],
+            children: [{ path: 'activity', element: <ActivityPage /> }],
           },
           { path: '*', element: <NotFoundPage /> },
         ],

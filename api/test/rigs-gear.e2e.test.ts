@@ -1,26 +1,45 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { MISSING_ID, as, createPerson, createTestApp, resetDb, signInAs, type SignedIn, type TestApp } from './helpers'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  MISSING_ID,
+  as,
+  createPerson,
+  createTestApp,
+  resetDb,
+  signInAs,
+  type SignedIn,
+  type TestApp,
+} from './helpers';
 
-let t: TestApp
-let admin: SignedIn
-let user: SignedIn
+let t: TestApp;
+let admin: SignedIn;
+let user: SignedIn;
 beforeAll(async () => {
-  t = await createTestApp()
-})
-afterAll(async () => t.close())
+  t = await createTestApp();
+});
+afterAll(async () => t.close());
 beforeEach(async () => {
-  await resetDb(t)
-  admin = await signInAs(t, 'admin')
-  user = await signInAs(t, 'user')
-})
+  await resetDb(t);
+  admin = await signInAs(t, 'admin');
+  user = await signInAs(t, 'user');
+});
 
-const createRig = async (body: object = {}) => (await as(user).post('/api/rigs', { name: 'Rig', ...body }).expect(201)).body
-const createGear = async (body: object = {}) => (await as(user).post('/api/gear', { name: 'Gear', ...body }).expect(201)).body
-const getGear = async (id: string) => (await as(user).get(`/api/gear/${id}`).expect(200)).body
+const createRig = async (body: object = {}) =>
+  (
+    await as(user)
+      .post('/api/rigs', { name: 'Rig', ...body })
+      .expect(201)
+  ).body;
+const createGear = async (body: object = {}) =>
+  (
+    await as(user)
+      .post('/api/gear', { name: 'Gear', ...body })
+      .expect(201)
+  ).body;
+const getGear = async (id: string) => (await as(user).get(`/api/gear/${id}`).expect(200)).body;
 
 describe('rigs', () => {
   it('create, read, update and delete', async () => {
-    const p = await createPerson(t, { firstName: 'Jane', lastName: 'Doe' })
+    const p = await createPerson(t, { firstName: 'Jane', lastName: 'Doe' });
     const rig = await createRig({
       name: 'Javelin',
       number: '7',
@@ -30,47 +49,65 @@ describe('rigs', () => {
       primaryUserId: p.id,
       customFields: { color: 'blue', jumps: 300, checked: true },
       imageUrl: '/uploads/rigs/a.jpg',
-    })
-    expect(rig).toMatchObject({ name: 'Javelin', number: '7', primaryUserId: p.id, customFields: { color: 'blue', jumps: 300, checked: true } })
-    expect(new Date(rig.containerDOM).toISOString()).toBe('2020-05-01T00:00:00.000Z')
+    });
+    expect(rig).toMatchObject({
+      name: 'Javelin',
+      number: '7',
+      primaryUserId: p.id,
+      customFields: { color: 'blue', jumps: 300, checked: true },
+    });
+    expect(new Date(rig.containerDOM).toISOString()).toBe('2020-05-01T00:00:00.000Z');
 
-    const list = (await as(user).get('/api/rigs').expect(200)).body
-    expect(list).toHaveLength(1)
-    expect(list[0]).toMatchObject({ _id: rig._id, primaryUserName: 'Jane Doe' })
-    expect((await as(user).get(`/api/rigs/${rig._id}`).expect(200)).body).toMatchObject({ name: 'Javelin', primaryUserName: 'Jane Doe' })
+    const list = (await as(user).get('/api/rigs').expect(200)).body;
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ _id: rig._id, primaryUserName: 'Jane Doe' });
+    expect((await as(user).get(`/api/rigs/${rig._id}`).expect(200)).body).toMatchObject({
+      name: 'Javelin',
+      primaryUserName: 'Jane Doe',
+    });
 
-    const updated = (await as(user).put(`/api/rigs/${rig._id}`, { name: 'Javelin II', notes: 'new main' }).expect(200)).body
-    expect(updated).toMatchObject({ name: 'Javelin II', notes: 'new main', number: '7' })
+    const updated = (
+      await as(user)
+        .put(`/api/rigs/${rig._id}`, { name: 'Javelin II', notes: 'new main' })
+        .expect(200)
+    ).body;
+    expect(updated).toMatchObject({ name: 'Javelin II', notes: 'new main', number: '7' });
 
     // A blank value clears a field.
-    const cleared = (await as(user).put(`/api/rigs/${rig._id}`, { notes: '', primaryUserId: null }).expect(200)).body
-    expect(cleared.notes ?? null).toBeNull()
-    expect(cleared.primaryUserId ?? null).toBeNull()
+    const cleared = (
+      await as(user).put(`/api/rigs/${rig._id}`, { notes: '', primaryUserId: null }).expect(200)
+    ).body;
+    expect(cleared.notes ?? null).toBeNull();
+    expect(cleared.primaryUserId ?? null).toBeNull();
 
-    expect((await as(admin).delete(`/api/rigs/${rig._id}`).expect(200)).body).toEqual({ deleted: true })
-    await as(user).get(`/api/rigs/${rig._id}`).expect(404)
-    await as(admin).delete(`/api/rigs/${rig._id}`).expect(404)
-  })
+    expect((await as(admin).delete(`/api/rigs/${rig._id}`).expect(200)).body).toEqual({
+      deleted: true,
+    });
+    await as(user).get(`/api/rigs/${rig._id}`).expect(404);
+    await as(admin).delete(`/api/rigs/${rig._id}`).expect(404);
+  });
 
   it('the primary person must exist', async () => {
-    const res = await as(user).post('/api/rigs', { name: 'R', primaryUserId: MISSING_ID }).expect(400)
-    expect(res.body.message).toMatch(/person/i)
-    const rig = await createRig()
-    await as(user).put(`/api/rigs/${rig._id}`, { primaryUserId: MISSING_ID }).expect(400)
-  })
+    const res = await as(user)
+      .post('/api/rigs', { name: 'R', primaryUserId: MISSING_ID })
+      .expect(400);
+    expect(res.body.message).toMatch(/person/i);
+    const rig = await createRig();
+    await as(user).put(`/api/rigs/${rig._id}`, { primaryUserId: MISSING_ID }).expect(400);
+  });
 
   it('updating or reading a missing rig is 404', async () => {
-    await as(user).get(`/api/rigs/${MISSING_ID}`).expect(404)
-    await as(user).put(`/api/rigs/${MISSING_ID}`, { name: 'x' }).expect(404)
-  })
-})
+    await as(user).get(`/api/rigs/${MISSING_ID}`).expect(404);
+    await as(user).put(`/api/rigs/${MISSING_ID}`, { name: 'x' }).expect(404);
+  });
+});
 
 describe('validation', () => {
   const resources = [
     ['rigs', { name: 'ok' }],
     ['gear', { name: 'ok' }],
     ['events', { name: 'ok' }],
-  ] as const
+  ] as const;
 
   describe.each(resources)('/api/%s', (resource, valid) => {
     const bad: Array<[string, object]> = [
@@ -78,43 +115,56 @@ describe('validation', () => {
       ['an operator object', { name: { $gt: '' } }],
       ['a too-long name', { name: 'x'.repeat(201) }],
       ['a number for a text field', { name: 42 }],
-    ]
+    ];
 
     it.each(bad)('POST rejects %s with 400 and a message', async (_what, body) => {
-      const res = await as(user).post(`/api/${resource}`, body).expect(400)
-      expect(typeof res.body.message).toBe('string')
-      expect(res.body.message.length).toBeGreaterThan(0)
-    })
+      const res = await as(user).post(`/api/${resource}`, body).expect(400);
+      expect(typeof res.body.message).toBe('string');
+      expect(res.body.message.length).toBeGreaterThan(0);
+    });
 
     it.each(bad)('PUT rejects %s with 400', async (_what, body) => {
-      const created = (await as(user).post(`/api/${resource}`, valid).expect(201)).body
-      await as(user).put(`/api/${resource}/${created._id}`, body).expect(400)
-      expect((await as(user).get(`/api/${resource}/${created._id}`)).body.name).toBe('ok')
-    })
+      const created = (await as(user).post(`/api/${resource}`, valid).expect(201)).body;
+      await as(user).put(`/api/${resource}/${created._id}`, body).expect(400);
+      expect((await as(user).get(`/api/${resource}/${created._id}`)).body.name).toBe('ok');
+    });
 
     it('a malformed :id is 400, not 500', async () => {
-      await as(user).get(`/api/${resource}/not-an-id`).expect(400)
-      await as(user).put(`/api/${resource}/not-an-id`, valid).expect(400)
-      await as(admin).delete(`/api/${resource}/not-an-id`).expect(400)
-    })
-  })
+      await as(user).get(`/api/${resource}/not-an-id`).expect(400);
+      await as(user).put(`/api/${resource}/not-an-id`, valid).expect(400);
+      await as(admin).delete(`/api/${resource}/not-an-id`).expect(400);
+    });
+  });
 
   it.each([
     ['rigs', 'imageUrl'],
     ['gear', 'imageUrl'],
     ['events', 'eventPhotoUrl'],
   ])('/api/%s %s must be an upload or an https link', async (resource, field) => {
-    for (const url of ['javascript:alert(1)', 'http://example.com/a.jpg', 'data:text/html,hi', '//evil.example/a.jpg']) {
-      await as(user).post(`/api/${resource}`, { name: 'x', [field]: url }).expect(400)
+    for (const url of [
+      'javascript:alert(1)',
+      'http://example.com/a.jpg',
+      'data:text/html,hi',
+      '//evil.example/a.jpg',
+    ]) {
+      await as(user)
+        .post(`/api/${resource}`, { name: 'x', [field]: url })
+        .expect(400);
     }
-    await as(user).post(`/api/${resource}`, { name: 'x', [field]: '/uploads/a.jpg' }).expect(201)
-    await as(user).post(`/api/${resource}`, { name: 'x', [field]: 'https://example.com/a.jpg' }).expect(201)
-  })
+    await as(user)
+      .post(`/api/${resource}`, { name: 'x', [field]: '/uploads/a.jpg' })
+      .expect(201);
+    await as(user)
+      .post(`/api/${resource}`, { name: 'x', [field]: 'https://example.com/a.jpg' })
+      .expect(201);
+  });
 
   it('event photoUrls must all be uploads or https links', async () => {
-    await as(user).post('/api/events', { name: 'x', photoUrls: ['/uploads/a.jpg', 'javascript:alert(1)'] }).expect(400)
-    await as(user).post('/api/events', { name: 'x', photoUrls: 'not-a-list' }).expect(400)
-  })
+    await as(user)
+      .post('/api/events', { name: 'x', photoUrls: ['/uploads/a.jpg', 'javascript:alert(1)'] })
+      .expect(400);
+    await as(user).post('/api/events', { name: 'x', photoUrls: 'not-a-list' }).expect(400);
+  });
 
   it.each([
     ['rigs', 'lastPacked'],
@@ -122,10 +172,14 @@ describe('validation', () => {
     ['events', 'eventDate'],
   ])('/api/%s rejects a bad %s', async (resource, field) => {
     for (const value of ['yesterday', '2024-13-01', '01/02/2024', 12345]) {
-      await as(user).post(`/api/${resource}`, { name: 'x', [field]: value }).expect(400)
+      await as(user)
+        .post(`/api/${resource}`, { name: 'x', [field]: value })
+        .expect(400);
     }
-    await as(user).post(`/api/${resource}`, { name: 'x', [field]: '2024-02-29' }).expect(201)
-  })
+    await as(user)
+      .post(`/api/${resource}`, { name: 'x', [field]: '2024-02-29' })
+      .expect(201);
+  });
 
   it.each([
     ['rigs', 'primaryUserId'],
@@ -133,181 +187,214 @@ describe('validation', () => {
     ['gear', 'assignedPersonId'],
   ])('/api/%s rejects a malformed %s', async (resource, field) => {
     for (const value of ['abc', { $ne: null }, 123]) {
-      await as(user).post(`/api/${resource}`, { name: 'x', [field]: value }).expect(400)
+      await as(user)
+        .post(`/api/${resource}`, { name: 'x', [field]: value })
+        .expect(400);
     }
-  })
+  });
 
   it('rig custom fields must be a flat object of short values', async () => {
-    await as(user).post('/api/rigs', { customFields: { nested: { a: 1 } } }).expect(400)
-    await as(user).post('/api/rigs', { customFields: { long: 'x'.repeat(501) } }).expect(400)
-    const many = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`f${i}`, i]))
-    await as(user).post('/api/rigs', { customFields: many }).expect(400)
-  })
+    await as(user)
+      .post('/api/rigs', { customFields: { nested: { a: 1 } } })
+      .expect(400);
+    await as(user)
+      .post('/api/rigs', { customFields: { long: 'x'.repeat(501) } })
+      .expect(400);
+    const many = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`f${i}`, i]));
+    await as(user).post('/api/rigs', { customFields: many }).expect(400);
+  });
 
   it('gear filters must be plain strings (?personId[$ne]=x is 400)', async () => {
-    await createGear()
-    await as(user).get('/api/gear?personId[$ne]=x').expect(400)
-    await as(user).get('/api/gear?rigId[$gt]=').expect(400)
-  })
-})
+    await createGear();
+    await as(user).get('/api/gear?personId[$ne]=x').expect(400);
+    await as(user).get('/api/gear?rigId[$gt]=').expect(400);
+  });
+});
 
 describe('gear', () => {
   it('create, read, update and delete', async () => {
-    const g = await createGear({ name: 'Cypres 2', type: 'AAD', serialNumber: 'C-1', dateOfManufacture: '2019-06-01' })
-    expect(g).toMatchObject({ name: 'Cypres 2', type: 'AAD', serialNumber: 'C-1' })
-    expect((await as(user).get('/api/gear').expect(200)).body).toHaveLength(1)
-    const updated = (await as(user).put(`/api/gear/${g._id}`, { notes: 'serviced' }).expect(200)).body
-    expect(updated).toMatchObject({ name: 'Cypres 2', notes: 'serviced' })
-    expect((await as(admin).delete(`/api/gear/${g._id}`).expect(200)).body).toEqual({ ok: true })
-    await as(user).get(`/api/gear/${g._id}`).expect(404)
-    await as(user).put(`/api/gear/${g._id}`, { name: 'x' }).expect(404)
-  })
+    const g = await createGear({
+      name: 'Cypres 2',
+      type: 'AAD',
+      serialNumber: 'C-1',
+      dateOfManufacture: '2019-06-01',
+    });
+    expect(g).toMatchObject({ name: 'Cypres 2', type: 'AAD', serialNumber: 'C-1' });
+    expect((await as(user).get('/api/gear').expect(200)).body).toHaveLength(1);
+    const updated = (await as(user).put(`/api/gear/${g._id}`, { notes: 'serviced' }).expect(200))
+      .body;
+    expect(updated).toMatchObject({ name: 'Cypres 2', notes: 'serviced' });
+    expect((await as(admin).delete(`/api/gear/${g._id}`).expect(200)).body).toEqual({ ok: true });
+    await as(user).get(`/api/gear/${g._id}`).expect(404);
+    await as(user).put(`/api/gear/${g._id}`, { name: 'x' }).expect(404);
+  });
 
   it('a duplicate serial number is 409', async () => {
-    const g = await createGear({ serialNumber: 'SN-1' })
-    const res = await as(user).post('/api/gear', { name: 'Other', serialNumber: 'SN-1' }).expect(409)
-    expect(res.body.message).toMatch(/serial number/)
-    const other = await createGear({ serialNumber: 'SN-2' })
-    await as(user).put(`/api/gear/${other._id}`, { serialNumber: 'SN-1' }).expect(409)
+    const g = await createGear({ serialNumber: 'SN-1' });
+    const res = await as(user)
+      .post('/api/gear', { name: 'Other', serialNumber: 'SN-1' })
+      .expect(409);
+    expect(res.body.message).toMatch(/serial number/);
+    const other = await createGear({ serialNumber: 'SN-2' });
+    await as(user).put(`/api/gear/${other._id}`, { serialNumber: 'SN-1' }).expect(409);
     // Saving the same serial on the same gear is fine.
-    await as(user).put(`/api/gear/${g._id}`, { serialNumber: 'SN-1', name: 'Same' }).expect(200)
-  })
+    await as(user).put(`/api/gear/${g._id}`, { serialNumber: 'SN-1', name: 'Same' }).expect(200);
+  });
 
   it('clearing a serial removes it, and any number of gear can have no serial', async () => {
-    const a = await createGear({ serialNumber: 'SN-A' })
-    const b = await createGear({ serialNumber: 'SN-B' })
-    await createGear()
-    await createGear({ serialNumber: '' })
-    await createGear({ serialNumber: null })
-    const clearedA = (await as(user).put(`/api/gear/${a._id}`, { serialNumber: '' }).expect(200)).body
-    expect(clearedA).not.toHaveProperty('serialNumber')
-    const clearedB = (await as(user).put(`/api/gear/${b._id}`, { serialNumber: null }).expect(200)).body
-    expect(clearedB).not.toHaveProperty('serialNumber')
-    expect(await getGear(a._id)).not.toHaveProperty('serialNumber')
-    expect((await as(user).get('/api/gear')).body).toHaveLength(5)
+    const a = await createGear({ serialNumber: 'SN-A' });
+    const b = await createGear({ serialNumber: 'SN-B' });
+    await createGear();
+    await createGear({ serialNumber: '' });
+    await createGear({ serialNumber: null });
+    const clearedA = (await as(user).put(`/api/gear/${a._id}`, { serialNumber: '' }).expect(200))
+      .body;
+    expect(clearedA).not.toHaveProperty('serialNumber');
+    const clearedB = (await as(user).put(`/api/gear/${b._id}`, { serialNumber: null }).expect(200))
+      .body;
+    expect(clearedB).not.toHaveProperty('serialNumber');
+    expect(await getGear(a._id)).not.toHaveProperty('serialNumber');
+    expect((await as(user).get('/api/gear')).body).toHaveLength(5);
     // The cleared serial is free to use again.
-    await createGear({ serialNumber: 'SN-A' })
-  })
+    await createGear({ serialNumber: 'SN-A' });
+  });
 
   it('gear put on a rig follows the rig’s primary person', async () => {
-    const p1 = await createPerson(t)
-    const rig = await createRig({ primaryUserId: p1.id })
-    const g = await createGear({ assignedRigId: rig._id })
-    expect(g).toMatchObject({ assignedRigId: rig._id, assignedPersonId: p1.id })
+    const p1 = await createPerson(t);
+    const rig = await createRig({ primaryUserId: p1.id });
+    const g = await createGear({ assignedRigId: rig._id });
+    expect(g).toMatchObject({ assignedRigId: rig._id, assignedPersonId: p1.id });
     // A person sent alongside a rig is ignored: the rig decides.
-    const p2 = await createPerson(t)
-    const g2 = await createGear({ assignedRigId: rig._id, assignedPersonId: p2.id })
-    expect(g2).toMatchObject({ assignedRigId: rig._id, assignedPersonId: p1.id })
-  })
+    const p2 = await createPerson(t);
+    const g2 = await createGear({ assignedRigId: rig._id, assignedPersonId: p2.id });
+    expect(g2).toMatchObject({ assignedRigId: rig._id, assignedPersonId: p1.id });
+  });
 
   it('gear on a rig without a primary person has no person', async () => {
-    const rig = await createRig()
-    const g = await createGear({ assignedRigId: rig._id })
-    expect(g.assignedRigId).toBe(rig._id)
-    expect(g.assignedPersonId ?? null).toBeNull()
-  })
+    const rig = await createRig();
+    const g = await createGear({ assignedRigId: rig._id });
+    expect(g.assignedRigId).toBe(rig._id);
+    expect(g.assignedPersonId ?? null).toBeNull();
+  });
 
   it('changing a rig’s primary person moves its gear to them', async () => {
-    const p1 = await createPerson(t)
-    const p2 = await createPerson(t)
-    const rig = await createRig({ primaryUserId: p1.id })
-    const g = await createGear({ assignedRigId: rig._id })
-    const elsewhere = await createGear({ assignedPersonId: p1.id })
-    await as(user).put(`/api/rigs/${rig._id}`, { primaryUserId: p2.id }).expect(200)
-    expect(await getGear(g._id)).toMatchObject({ assignedRigId: rig._id, assignedPersonId: p2.id })
-    expect((await getGear(elsewhere._id)).assignedPersonId).toBe(p1.id)
-    await as(user).put(`/api/rigs/${rig._id}`, { primaryUserId: null }).expect(200)
-    expect((await getGear(g._id)).assignedPersonId ?? null).toBeNull()
+    const p1 = await createPerson(t);
+    const p2 = await createPerson(t);
+    const rig = await createRig({ primaryUserId: p1.id });
+    const g = await createGear({ assignedRigId: rig._id });
+    const elsewhere = await createGear({ assignedPersonId: p1.id });
+    await as(user).put(`/api/rigs/${rig._id}`, { primaryUserId: p2.id }).expect(200);
+    expect(await getGear(g._id)).toMatchObject({ assignedRigId: rig._id, assignedPersonId: p2.id });
+    expect((await getGear(elsewhere._id)).assignedPersonId).toBe(p1.id);
+    await as(user).put(`/api/rigs/${rig._id}`, { primaryUserId: null }).expect(200);
+    expect((await getGear(g._id)).assignedPersonId ?? null).toBeNull();
     // Updating other rig fields leaves the gear's person alone.
-    await as(user).put(`/api/rigs/${rig._id}`, { primaryUserId: p1.id }).expect(200)
-    await as(user).put(`/api/rigs/${rig._id}`, { name: 'Renamed' }).expect(200)
-    expect((await getGear(g._id)).assignedPersonId).toBe(p1.id)
-  })
+    await as(user).put(`/api/rigs/${rig._id}`, { primaryUserId: p1.id }).expect(200);
+    await as(user).put(`/api/rigs/${rig._id}`, { name: 'Renamed' }).expect(200);
+    expect((await getGear(g._id)).assignedPersonId).toBe(p1.id);
+  });
 
   it('assigning gear to a person takes it off its rig', async () => {
-    const p1 = await createPerson(t)
-    const p2 = await createPerson(t)
-    const rig = await createRig({ primaryUserId: p1.id })
-    const g = await createGear({ assignedRigId: rig._id })
-    const res = (await as(user).put(`/api/gear/${g._id}`, { assignedRigId: null, assignedPersonId: p2.id }).expect(200)).body
-    expect(res.assignedRigId ?? null).toBeNull()
-    expect(res.assignedPersonId).toBe(p2.id)
-  })
+    const p1 = await createPerson(t);
+    const p2 = await createPerson(t);
+    const rig = await createRig({ primaryUserId: p1.id });
+    const g = await createGear({ assignedRigId: rig._id });
+    const res = (
+      await as(user)
+        .put(`/api/gear/${g._id}`, { assignedRigId: null, assignedPersonId: p2.id })
+        .expect(200)
+    ).body;
+    expect(res.assignedRigId ?? null).toBeNull();
+    expect(res.assignedPersonId).toBe(p2.id);
+  });
 
   it('assigning to a person directly', async () => {
-    const p = await createPerson(t)
-    const g = await createGear({ assignedPersonId: p.id })
-    expect(g.assignedPersonId).toBe(p.id)
-    expect(g.assignedRigId ?? null).toBeNull()
-    expect((await as(user).get(`/api/gear?personId=${p.id}`)).body.map((x: any) => x._id)).toEqual([g._id])
-  })
+    const p = await createPerson(t);
+    const g = await createGear({ assignedPersonId: p.id });
+    expect(g.assignedPersonId).toBe(p.id);
+    expect(g.assignedRigId ?? null).toBeNull();
+    expect((await as(user).get(`/api/gear?personId=${p.id}`)).body.map((x: any) => x._id)).toEqual([
+      g._id,
+    ]);
+  });
 
   it('unassigning clears both rig and person', async () => {
-    const p = await createPerson(t)
-    const rig = await createRig({ primaryUserId: p.id })
-    const g1 = await createGear({ assignedRigId: rig._id })
-    const g2 = await createGear({ assignedPersonId: p.id })
-    const r1 = (await as(user).put(`/api/gear/${g1._id}`, { assignedRigId: null }).expect(200)).body
-    expect(r1.assignedRigId ?? null).toBeNull()
-    expect(r1.assignedPersonId ?? null).toBeNull()
-    const r2 = (await as(user).put(`/api/gear/${g2._id}`, { assignedRigId: '', assignedPersonId: '' }).expect(200)).body
-    expect(r2.assignedRigId ?? null).toBeNull()
-    expect(r2.assignedPersonId ?? null).toBeNull()
-    expect((await as(user).get('/api/gear?unassigned=true')).body).toHaveLength(2)
-  })
+    const p = await createPerson(t);
+    const rig = await createRig({ primaryUserId: p.id });
+    const g1 = await createGear({ assignedRigId: rig._id });
+    const g2 = await createGear({ assignedPersonId: p.id });
+    const r1 = (await as(user).put(`/api/gear/${g1._id}`, { assignedRigId: null }).expect(200))
+      .body;
+    expect(r1.assignedRigId ?? null).toBeNull();
+    expect(r1.assignedPersonId ?? null).toBeNull();
+    const r2 = (
+      await as(user)
+        .put(`/api/gear/${g2._id}`, { assignedRigId: '', assignedPersonId: '' })
+        .expect(200)
+    ).body;
+    expect(r2.assignedRigId ?? null).toBeNull();
+    expect(r2.assignedPersonId ?? null).toBeNull();
+    expect((await as(user).get('/api/gear?unassigned=true')).body).toHaveLength(2);
+  });
 
   it('a missing rig or person is 400', async () => {
-    await as(user).post('/api/gear', { assignedRigId: MISSING_ID }).expect(400)
-    await as(user).post('/api/gear', { assignedPersonId: MISSING_ID }).expect(400)
-    const g = await createGear()
-    await as(user).put(`/api/gear/${g._id}`, { assignedRigId: MISSING_ID }).expect(400)
-    await as(user).put(`/api/gear/${g._id}`, { assignedPersonId: MISSING_ID }).expect(400)
-  })
+    await as(user).post('/api/gear', { assignedRigId: MISSING_ID }).expect(400);
+    await as(user).post('/api/gear', { assignedPersonId: MISSING_ID }).expect(400);
+    const g = await createGear();
+    await as(user).put(`/api/gear/${g._id}`, { assignedRigId: MISSING_ID }).expect(400);
+    await as(user).put(`/api/gear/${g._id}`, { assignedPersonId: MISSING_ID }).expect(400);
+  });
 
   it('filters by rig, person and unassigned', async () => {
-    const p = await createPerson(t)
-    const rig = await createRig({ primaryUserId: p.id })
-    const onRig = await createGear({ assignedRigId: rig._id })
-    const withPerson = await createGear({ assignedPersonId: p.id })
-    const loose = await createGear()
-    const ids = async (q: string) => (await as(user).get(`/api/gear${q}`).expect(200)).body.map((g: any) => g._id).sort()
-    expect(await ids(`?rigId=${rig._id}`)).toEqual([onRig._id])
-    expect(await ids(`?personId=${p.id}`)).toEqual([onRig._id, withPerson._id].sort())
-    expect(await ids('?unassigned=true')).toEqual([loose._id])
-  })
+    const p = await createPerson(t);
+    const rig = await createRig({ primaryUserId: p.id });
+    const onRig = await createGear({ assignedRigId: rig._id });
+    const withPerson = await createGear({ assignedPersonId: p.id });
+    const loose = await createGear();
+    const ids = async (q: string) =>
+      (await as(user).get(`/api/gear${q}`).expect(200)).body.map((g: any) => g._id).sort();
+    expect(await ids(`?rigId=${rig._id}`)).toEqual([onRig._id]);
+    expect(await ids(`?personId=${p.id}`)).toEqual([onRig._id, withPerson._id].sort());
+    expect(await ids('?unassigned=true')).toEqual([loose._id]);
+  });
 
   it('deleting a rig unassigns its gear', async () => {
-    const p = await createPerson(t)
-    const rig = await createRig({ primaryUserId: p.id })
-    const g = await createGear({ assignedRigId: rig._id })
-    await as(admin).delete(`/api/rigs/${rig._id}`).expect(200)
-    const after = await getGear(g._id)
-    expect(after.assignedRigId ?? null).toBeNull()
-    expect(after.assignedPersonId ?? null).toBeNull()
-  })
+    const p = await createPerson(t);
+    const rig = await createRig({ primaryUserId: p.id });
+    const g = await createGear({ assignedRigId: rig._id });
+    await as(admin).delete(`/api/rigs/${rig._id}`).expect(200);
+    const after = await getGear(g._id);
+    expect(after.assignedRigId ?? null).toBeNull();
+    expect(after.assignedPersonId ?? null).toBeNull();
+  });
 
   it('gear still pointing at a deleted rig can be edited, and is taken off that rig', async () => {
-    const p = await createPerson(t)
+    const p = await createPerson(t);
     const { insertedId } = await t.db
       .collection('gear')
-      .insertOne({ name: 'Orphan', assignedRigId: MISSING_ID, assignedPersonId: p.id })
-    const res = (await as(user).put(`/api/gear/${insertedId}`, { name: 'Orphan 2' }).expect(200)).body
-    expect(res.name).toBe('Orphan 2')
-    expect(res.assignedRigId ?? null).toBeNull()
-    const res2 = (await as(user).put(`/api/gear/${insertedId}`, { assignedPersonId: p.id, notes: 'x' }).expect(200)).body
-    expect(res2.assignedPersonId).toBe(p.id)
-  })
+      .insertOne({ name: 'Orphan', assignedRigId: MISSING_ID, assignedPersonId: p.id });
+    const res = (await as(user).put(`/api/gear/${insertedId}`, { name: 'Orphan 2' }).expect(200))
+      .body;
+    expect(res.name).toBe('Orphan 2');
+    expect(res.assignedRigId ?? null).toBeNull();
+    const res2 = (
+      await as(user)
+        .put(`/api/gear/${insertedId}`, { assignedPersonId: p.id, notes: 'x' })
+        .expect(200)
+    ).body;
+    expect(res2.assignedPersonId).toBe(p.id);
+  });
 
   it('deleting a person clears them from rigs and gear', async () => {
-    const p = await createPerson(t)
-    const rig = await createRig({ primaryUserId: p.id })
-    const onRig = await createGear({ assignedRigId: rig._id })
-    const direct = await createGear({ assignedPersonId: p.id })
-    await as(admin).delete(`/api/people/${p.id}`).expect(200)
-    const r = (await as(user).get(`/api/rigs/${rig._id}`)).body
-    expect(r.primaryUserId ?? null).toBeNull()
-    expect((await getGear(onRig._id)).assignedPersonId ?? null).toBeNull()
-    expect((await getGear(onRig._id)).assignedRigId).toBe(rig._id)
-    expect((await getGear(direct._id)).assignedPersonId ?? null).toBeNull()
-  })
-})
+    const p = await createPerson(t);
+    const rig = await createRig({ primaryUserId: p.id });
+    const onRig = await createGear({ assignedRigId: rig._id });
+    const direct = await createGear({ assignedPersonId: p.id });
+    await as(admin).delete(`/api/people/${p.id}`).expect(200);
+    const r = (await as(user).get(`/api/rigs/${rig._id}`)).body;
+    expect(r.primaryUserId ?? null).toBeNull();
+    expect((await getGear(onRig._id)).assignedPersonId ?? null).toBeNull();
+    expect((await getGear(onRig._id)).assignedRigId).toBe(rig._id);
+    expect((await getGear(direct._id)).assignedPersonId ?? null).toBeNull();
+  });
+});

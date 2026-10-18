@@ -1,9 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, Trash2, Unlink, UserRound, Wrench } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useUser } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { assignmentBody, BulkAssignDialog, type BulkAssignMode } from '@/components/gear/BulkAssignDialog';
+import {
+  assignmentBody,
+  BulkAssignDialog,
+  type BulkAssignMode,
+} from '@/components/gear/BulkAssignDialog';
 import { GearCard } from '@/components/gear/GearCard';
 import { gearColumns, gearGroups, gearSorts, gearSummary } from '@/components/gear/gearColumns';
 import { GearDialog } from '@/components/gear/GearDialog';
@@ -35,8 +39,14 @@ export function GearPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState<Gear | null>(null);
   // Bulk changes: the selected gear and how to clear the selection afterwards.
-  const [assigning, setAssigning] = useState<{ mode: BulkAssignMode; gear: Gear[]; clear: () => void } | null>(null);
-  const [bulkDeleting, setBulkDeleting] = useState<{ gear: Gear[]; clear: () => void } | null>(null);
+  const [assigning, setAssigning] = useState<{
+    mode: BulkAssignMode;
+    gear: Gear[];
+    clear: () => void;
+  } | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState<{ gear: Gear[]; clear: () => void } | null>(
+    null,
+  );
   const [bulkError, setBulkError] = useState('');
   const bulk = useBulkRunner();
 
@@ -56,9 +66,9 @@ export function GearPage() {
   const groups = useMemo(() => gearGroups(lookups), [lookups]);
   const types = useMemo(
     () =>
-      Array.from(new Set((gear.data ?? []).map((g) => g.type?.trim()).filter((t): t is string => !!t))).sort(
-        (a, b) => a.localeCompare(b),
-      ),
+      Array.from(
+        new Set((gear.data ?? []).map((g) => g.type?.trim()).filter((t): t is string => !!t)),
+      ).sort((a, b) => a.localeCompare(b)),
     [gear.data],
   );
 
@@ -224,7 +234,12 @@ export function GearPage() {
               >
                 <UserRound /> Assign to person…
               </Button>
-              <Button variant="outline" size="sm" disabled={bulk.busy} onClick={() => unassign(selected, clear)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulk.busy}
+                onClick={() => unassign(selected, clear)}
+              >
                 <Unlink /> Unassign
               </Button>
               {admin && (

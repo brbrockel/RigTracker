@@ -7,10 +7,30 @@ import { asUser, asViewer, mockApi, renderAt } from './render';
 const people = [{ _id: 'p1', firstName: 'Ann', lastName: 'Jumper' }];
 const rigs = [{ _id: 'r1', number: '3', name: 'Blue', primaryUserId: 'p1' }];
 const gear = [
-  { _id: 'g1', name: 'Altimeter', type: 'Altimeter', serialNumber: 'ALT-1', assignedRigId: 'r1', assignedPersonId: 'p1' },
-  { _id: 'g2', name: 'Helmet', type: 'Helmet', serialNumber: 'HEL-1', assignedPersonId: 'p1', dateOfManufacture: '2024-05-06T00:00:00.000Z' },
+  {
+    _id: 'g1',
+    name: 'Altimeter',
+    type: 'Altimeter',
+    serialNumber: 'ALT-1',
+    assignedRigId: 'r1',
+    assignedPersonId: 'p1',
+  },
+  {
+    _id: 'g2',
+    name: 'Helmet',
+    type: 'Helmet',
+    serialNumber: 'HEL-1',
+    assignedPersonId: 'p1',
+    dateOfManufacture: '2024-05-06T00:00:00.000Z',
+  },
   { _id: 'g3', name: 'Hook knife', type: 'Knife', serialNumber: 'KN-9' },
-  { _id: 'g4', name: 'Spare helmet', type: 'Helmet', serialNumber: 'HEL-10', notes: '=cmd, "quoted"' },
+  {
+    _id: 'g4',
+    name: 'Spare helmet',
+    type: 'Helmet',
+    serialNumber: 'HEL-10',
+    notes: '=cmd, "quoted"',
+  },
 ];
 const lists = {
   'GET /api/rigs': () => ({ status: 200, body: rigs }),
@@ -38,27 +58,40 @@ describe('inventory layouts', () => {
     renderAt('/gear');
     expect(await screen.findByText('Hook knife')).toBeInTheDocument();
     // No stored choice and a phone-sized screen: List.
-    expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
 
     await userEvent.click(screen.getByRole('button', { name: 'Gallery view' }));
-    expect(screen.getByRole('button', { name: 'Gallery view' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Gallery view' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(stored()).toMatchObject({ view: 'gallery' });
 
     cleanup();
     renderAt('/gear');
     expect(await screen.findByText('Hook knife')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Gallery view' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Gallery view' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('starts in Table on a wide screen and ignores a broken stored value', async () => {
     vi.spyOn(window, 'matchMedia').mockImplementation(
-      (query: string) => ({ matches: query === '(min-width: 768px)', media: query }) as MediaQueryList,
+      (query: string) =>
+        ({ matches: query === '(min-width: 768px)', media: query }) as MediaQueryList,
     );
     localStorage.setItem(KEY, '{not json');
     mockApi({ 'GET /api/auth/me': asUser, ...lists });
     renderAt('/gear');
     expect(await screen.findByRole('table')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Table view' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Table view' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getByRole('columnheader', { name: /Serial/ })).toBeInTheDocument();
   });
 
@@ -73,7 +106,12 @@ describe('inventory layouts', () => {
     await userEvent.click(within(serial()).getByRole('button'));
     expect(serial()).toHaveAttribute('aria-sort', 'ascending');
     // Natural order: HEL-1 before HEL-10.
-    expect(tableRows().map((r) => r.match(/[A-Z]+-\d+/)?.[0])).toEqual(['ALT-1', 'HEL-1', 'HEL-10', 'KN-9']);
+    expect(tableRows().map((r) => r.match(/[A-Z]+-\d+/)?.[0])).toEqual([
+      'ALT-1',
+      'HEL-1',
+      'HEL-10',
+      'KN-9',
+    ]);
 
     await userEvent.click(within(serial()).getByRole('button'));
     expect(serial()).toHaveAttribute('aria-sort', 'descending');
@@ -247,9 +285,18 @@ describe('CSV', () => {
 
 describe('rigs layouts', () => {
   const DAY = 86_400_000;
-  const isoIn = (days: number) => new Date(Date.now() + days * DAY).toISOString().slice(0, 10) + 'T00:00:00.000Z';
+  const isoIn = (days: number) =>
+    new Date(Date.now() + days * DAY).toISOString().slice(0, 10) + 'T00:00:00.000Z';
   const rigList = [
-    { _id: 'r1', number: '10', name: 'Blue', primaryUserId: 'p1', repackDue: isoIn(-5), container: 'Javelin', containerSerialNumber: 'J-1' },
+    {
+      _id: 'r1',
+      number: '10',
+      name: 'Blue',
+      primaryUserId: 'p1',
+      repackDue: isoIn(-5),
+      container: 'Javelin',
+      containerSerialNumber: 'J-1',
+    },
     { _id: 'r2', number: '2', name: 'Green', repackDue: isoIn(10) },
     { _id: 'r3', name: 'Spare' },
   ];
@@ -259,7 +306,10 @@ describe('rigs layouts', () => {
     localStorage.setItem('rigtracker.view.rigs', JSON.stringify({ view: 'table' }));
     mockApi({ 'GET /api/auth/me': asUser, ...rigApi });
     renderAt('/rigs');
-    expect(await screen.findByRole('link', { name: '#10 · Blue' })).toHaveAttribute('href', '/rigs/r1');
+    expect(await screen.findByRole('link', { name: '#10 · Blue' })).toHaveAttribute(
+      'href',
+      '/rigs/r1',
+    );
     expect(
       within(screen.getByRole('table'))
         .getAllByRole('link')

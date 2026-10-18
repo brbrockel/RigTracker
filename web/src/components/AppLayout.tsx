@@ -87,7 +87,11 @@ export function AppLayout() {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <a href="https://github.com/brbrockel/RigTracker" target="_blank" rel="noopener noreferrer">
+                  <a
+                    href="https://github.com/brbrockel/RigTracker"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <ExternalLink /> GitHub
                   </a>
                 </DropdownMenuItem>
@@ -100,7 +104,10 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main key={pathname.split('/')[1]} className="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-6 md:pb-10">
+      <main
+        key={pathname.split('/')[1]}
+        className="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-6 md:pb-10"
+      >
         <Outlet />
       </main>
 

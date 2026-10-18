@@ -15,6 +15,6 @@ import { Person, PersonSchema } from '../people/person.schema';
     AuditModule,
   ],
   controllers: [GearController],
-  providers: [GearService]
+  providers: [GearService],
 })
 export class GearModule {}
