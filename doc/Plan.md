@@ -45,6 +45,7 @@ Track the club's rigs, gear, events and people, with:
 | 2026-10-18 | Notices (2.0.0-beta.3, TeeMate's): admins post to everyone, one person or the public (guests too), as stacked banners on every page and in the horn's list, with must-see, banner end dates, read and dismissed state per person, an "Also text it" group text from the admin's phone, People → ⋯ → Send notice, and automatic repack reminders (the primary person within 14 days or overdue, a summary for admins); migration 0007; nothing is emailed or pushed | 2.0.0-beta.3 |
 | 2026-10-18 | A password is required (2.0.0-beta.4): admins' to-do banner that can't be dismissed, People badge and **Needs a password** filter, and a set-password screen for anyone signed in without one | 2.0.0-beta.4 |
 | 2026-10-18 | Ready to go public: history rewritten (the club spreadsheet, import logs and unused images removed; members' names and author emails scrubbed; gitleaks clean), MIT license, force-pushed; repo still private. Homelab commits pushed | `5530cd0` |
+| 2026-10-18 | Android and desktop Install button (beta.5); release candidate rc.1; Report a problem as GitHub issues with a first name only, and Problem reports for admins (rc.2, TeeMate's token shared); Mongo retired; repo public | 2.0.0-rc.2 |
 
 ## Releases
 
@@ -122,7 +123,7 @@ Split in two on 2026-10-17:
 
 ### 6. Finish (S)
 
-- **`TestPlan.md`:** a phone and desktop checklist for each page. Written 2026-10-18 ([TestPlan.md](TestPlan.md)). **2.0.0-rc.1 is deployed (2026-10-18), feature-frozen**; the checklist is worked through on it, fixes go in as rc.N, then 2.0.0.
+- **`TestPlan.md`:** a phone and desktop checklist for each page. Written 2026-10-18 ([TestPlan.md](TestPlan.md)). **2.0.0-rc.2 is deployed (2026-10-18)**: rc.1 plus Report a problem. Feature-frozen from here; the checklist is worked through on it, fixes go in as rc.N, then 2.0.0.
 - **Docs:** `Architecture.md`, `README.md` and `Enhancements.md` brought up to date (2026-10-18).
 - **Retire** Mongo and `users_merged`: done 2026-10-18 (final dump in the backups volume, service and secret removed). Still to do by hand: delete the Google OAuth client in Google Cloud Console.
 - **Go public:** done 2026-10-18. The GitHub repo was deleted and recreated as public from the cleaned history, so the old commits are gone (checked). Still to do: delete `~/backups/RigTracker-*`, which still hold the old history.
