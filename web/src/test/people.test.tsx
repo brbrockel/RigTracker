@@ -312,6 +312,31 @@ describe('people', () => {
     expect(decodeURIComponent(email.getAttribute('href')!)).toContain(link);
   });
 
+  it("addresses the text to the person's mobile when they have one", async () => {
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': ok(
+        everyone.map((p) => (p.id === 'p3' ? { ...p, phone: '+12035550123' } : p)),
+      ),
+      'POST /api/auth/people/p3/link': () => ({
+        status: 201,
+        body: {
+          link: 'https://rigs.example.com/sign-in#token=xyz',
+          email: 'sam@example.com',
+          expiresAt: '2026-10-20T12:00:00.000Z',
+        },
+      }),
+    });
+    const user = userEvent.setup();
+    renderAt('/people');
+    await user.click(await screen.findByRole('button', { name: 'Actions for Sam Jones' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Get password link/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Password link for Sam Jones' });
+    const href = within(dialog).getByRole('link', { name: 'Text' }).getAttribute('href')!;
+    expect(href).toMatch(/^sms:\+12035550123[?&]body=/);
+    expect(decodeURIComponent(href)).toContain('https://rigs.example.com/sign-in#token=xyz');
+  });
+
   it('shows a lockout and unlocks the account', async () => {
     const until = new Date(Date.now() + 15 * 60_000).toISOString();
     const locked = { ...sam, lockedUntil: until, hasPassword: true };

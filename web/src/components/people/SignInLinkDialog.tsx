@@ -19,10 +19,13 @@ export function formatDateTime(value: string): string {
  */
 export function SignInLinkDialog({
   name,
+  phone,
   info,
   onClose,
 }: {
   name: string;
+  /** Their mobile (E.164), so Text opens Messages addressed to them. */
+  phone?: string;
   info: SignInLink;
   onClose: () => void;
 }) {
@@ -65,7 +68,7 @@ export function SignInLinkDialog({
               {copied ? <Check /> : <Copy />} {copied ? 'Copied' : 'Copy link'}
             </Button>
             <Button asChild variant="outline">
-              <a href={smsHref([], message)}>
+              <a href={smsHref(phone ? [phone] : [], message)}>
                 <MessageSquare /> Text
               </a>
             </Button>

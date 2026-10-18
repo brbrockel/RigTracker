@@ -39,6 +39,10 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
 
+### 2.0.0-beta.2
+
+- A password link's **Text** button opens Messages addressed to the person's mobile number when they have one (it already filled in the message). **Email** opens your mail app addressed to them, with the subject and link filled in. RigTracker itself sends nothing.
+
 ### 2.0.0-beta.1
 
 - **Breaking: passwords.** Signing in is an email and password (`POST /api/auth/sign-in`), as in TeeMate:

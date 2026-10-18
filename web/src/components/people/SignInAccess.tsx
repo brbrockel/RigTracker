@@ -183,7 +183,7 @@ function AccessDialog({ person, onClose }: { person: Person; onClose: () => void
 export function useSignInActions() {
   const qc = useQueryClient();
   const [access, setAccess] = useState<Person | null>(null);
-  const [link, setLink] = useState<{ name: string; info: SignInLink } | null>(null);
+  const [link, setLink] = useState<{ name: string; phone?: string; info: SignInLink } | null>(null);
   const [signingOut, setSigningOut] = useState<Person | null>(null);
   const [resetting, setResetting] = useState<Person | null>(null);
 
@@ -194,7 +194,7 @@ export function useSignInActions() {
 
   const getLink = useMutation({
     mutationFn: (p: Person) => api<SignInLink>(`/auth/people/${p.id}/link`, { method: 'POST' }),
-    onSuccess: (info, p) => setLink({ name: fullName(p), info }),
+    onSuccess: (info, p) => setLink({ name: fullName(p), phone: p.phone || undefined, info }),
   });
 
   const dialogs = (
