@@ -41,6 +41,7 @@ Track the club's rigs, gear, events and people, with:
 | 2026-10-17 | Step 3: one Node process (no nginx), `USER node`, `/api/health` + healthcheck, validated config, helmet CSP, versioned images with `build.sh` rolling deploys, `Deployment.md`, `Security.md`, `CHANGELOG.md`; `v1.0.0` tagged on the pre-review app | 2.0.0-alpha.2 |
 | 2026-10-18 | Production cutover to Postgres: about 5 minutes of downtime, the import verified every collection, a backup was taken right after; Mongo kept as the rollback until about 2026-11-17 | 2.0.0-alpha.3 |
 | 2026-10-18 | Step 4a (2.0.0-alpha.3): PostgreSQL 18 + Drizzle, NestJS 12, Express 5, ESM, TS 6; UUID ids; FKs; append-only audit with before/after (shown in the Activity log); importer from Mongo with verification; `pg_dump` backups; 268 API tests | 2.0.0-alpha.3 |
+| 2026-10-18 | Step 4b: rig components as gear slots (alpha.4, the move matched 9 gear by serial and created 11), the media table for photos and videos (alpha.5, 61 photos moved), and the 1.x columns and one-off scripts removed (alpha.6) | 2.0.0-alpha.6 |
 
 ## Releases
 
@@ -79,7 +80,7 @@ Do this before the bigger changes:
 - Versioned image tags (`APP_VERSION`, the git commit) and a rolling `docker stack deploy` in `build.sh`. No more `stack rm`, and no more forced updates.
 - Write `Deployment.md` (secrets, deploy, rollback, backup and restore drill) and `Security.md`.
 
-### 4. PostgreSQL + Drizzle, NestJS 12 (L)
+### 4. PostgreSQL + Drizzle, NestJS 12 (L) — done 2026-10-18 (2.0.0-alpha.3 to alpha.6)
 
 Split in two on 2026-10-17:
 
