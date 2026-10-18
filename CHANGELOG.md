@@ -40,6 +40,10 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
 
+### 2.0.0-beta.5
+
+- **Installing on Android and computers:** Home now offers **Install RigTracker** with an **Install** button whenever the browser can install it (Chrome, Edge or Samsung Internet), opening the browser's own dialog, instead of waiting for Chrome to show its prompt by itself (it often doesn't). On Android without that offer, it gives the menu steps (⋮ → Add to Home screen or Install app). iPhone keeps its Share → Add to Home Screen steps. Hidden once installed, opened from the icon, or dismissed.
+
 ### 2.0.0-beta.4
 
 - **A password is required.** Admins get a banner that can't be dismissed while anyone with sign-in access has no password ("Alex and Sam need a password"), saying who also needs an email address first; it opens People filtered to them (**Needs a password**, `/people?filter=password`) and goes away when each has a password or their access is turned off.

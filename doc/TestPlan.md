@@ -12,7 +12,7 @@ Everything here works on real club data, so use a **"Test"** rig, gear item, eve
   - your normal browser: **you** (Admin)
   - a private window: a **"Test" person** you add on People, with sign-in access as **User**
   - another device or browser: a **guest** (no sign-in)
-- [ ] **Phone:** add RigTracker to the home screen. In Safari: Share → Add to Home Screen (the app shows a hint the first time). On Android: menu → Install app. Open it from the icon, and check it opens full screen with the RigTracker icon.
+- [ ] **Phone:** add RigTracker to the home screen. In Safari: Share → Add to Home Screen (the app shows a hint the first time). On Android: Home shows **Install RigTracker** with an **Install** button (or, if Chrome hasn't offered yet, the menu steps: ⋮ → Add to Home screen). On a computer, Chrome and Edge show the same Install button. Open it from the icon, and check it opens full screen with the RigTracker icon.
 
 ## 1. Sign-in and passwords
 

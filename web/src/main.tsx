@@ -4,7 +4,10 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
 import './index.css';
 import { ApiError } from './lib/api';
+import { listenForInstall } from './lib/install';
 import { createRouter } from './router';
+
+listenForInstall();
 
 const queryClient = new QueryClient({
   defaultOptions: {
