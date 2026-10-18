@@ -1,7 +1,8 @@
 import { Controller, Get, Param, Post, Body, Put, Delete, Req, Query } from '@nestjs/common';
 import { GearService } from './gear.service.js';
 import { RequireRoles } from '../auth/roles.decorator.js';
-import type { AuthedRequest } from '../auth/auth-user.js';
+import { isGuest, type AuthedRequest } from '../auth/auth-user.js';
+import { GuestOk } from '../auth/public.decorator.js';
 import { AuditService } from '../audit/audit.service.js';
 import { IdPipe, ZodPipe } from '../common/validation.js';
 import { GearBody, GearQuery } from './gear.dto.js';
@@ -15,13 +16,18 @@ export class GearController {
   ) {}
 
   @Get()
-  getAll(@Query(new ZodPipe(GearQuery)) filters: z.infer<typeof GearQuery>) {
-    return this.gearService.findAll(filters);
+  @GuestOk()
+  getAll(
+    @Query(new ZodPipe(GearQuery)) filters: z.infer<typeof GearQuery>,
+    @Req() req: AuthedRequest,
+  ) {
+    return this.gearService.findAll(filters, isGuest(req));
   }
 
   @Get(':id')
-  getOne(@Param('id', IdPipe) id: string) {
-    return this.gearService.findOne(id);
+  @GuestOk()
+  getOne(@Param('id', IdPipe) id: string, @Req() req: AuthedRequest) {
+    return this.gearService.findOne(id, isGuest(req));
   }
 
   @Post()

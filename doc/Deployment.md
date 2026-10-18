@@ -41,6 +41,14 @@ printf 'postgres://rigtracker:%s@postgres:5432/rigtracker' "$PW" | docker secret
 unset PW
 ```
 
+The key that encrypts authenticator-app secrets (2.0.0-beta.1 and later; the API refuses to start in production without it):
+
+```bash
+openssl rand -hex 32 | tr -d '\n' | docker secret create rigtracker_app_secret -
+```
+
+The stack gives it to the `rigtracker` service as `APP_SECRET_FILE=/run/secrets/rigtracker_app_secret`. Keep it: if it's lost or changed, everyone's authenticator codes stop working and an admin has to **Reset authenticator** for each person who had them. It isn't in the database backups, so store a copy with the other secrets (for example in the password manager).
+
 The stack also references `rigtracker_mongo_uri`, which is used only by the one-off import from the old Mongo database (see below). On a new server with no Mongo, create it with any placeholder value, or remove it from the stack.
 
 The uploads folder must be writable by the container's `node` user (uid 1000):
@@ -49,11 +57,13 @@ The uploads folder must be writable by the container's `node` user (uid 1000):
 docker run --rm -v /srv/homelab-data/rigtracker/uploads:/u alpine chown -R 1000:1000 /u
 ```
 
-The container applies database migrations when it starts. The first admin:
+The container applies database migrations when it starts. The first admin gets a password link (open it, set a password, and you're signed in):
 
 ```bash
 docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com --admin "Your Name"
 ```
+
+Email stays off (`MAIL_MODE=off`, the default); the stack sets no `MAIL_*` or `SMTP_*` settings.
 
 ## Backups
 
@@ -143,6 +153,19 @@ Nothing to run by hand: migration 0003 adds the `media` table and 0004 copies th
 The old columns stay (a later release drops them), so rolling back to 2.0.0-alpha.4 still works. That version doesn't know about media, though: it shows the photos as they were at the upgrade, doesn't show photos added since, and shows a broken image for a migrated photo deleted since. Records changed by the old container during the rolling deploy keep their media from the copy.
 
 New uploads go in `uploads/<rig|gear|event>/<record id>/`. The 1.x folders (`rigs/`, `gear/`, `events/`) stay where they are; their files are deleted when their media rows are.
+
+## Passwords and the guest view (2.0.0-beta.1)
+
+Before deploying:
+
+1. **Create the secret** `rigtracker_app_secret` (above), and in the stack give the `rigtracker` service the secret and `APP_SECRET_FILE=/run/secrets/rigtracker_app_secret`.
+2. **Take a backup.** Migration 0006 adds the password, lockout and authenticator columns to `people`, guest sessions, the purpose of sign-in tokens, the `auth_attempts` table (per-IP limits) and an index on `media.url`. It only adds; rolling back to 2.0.0-alpha.6 still works (that version ignores the new columns and treats a guest session as signed out), but it signs people in with links only and never asks for authenticator codes, so keep a rollback short.
+
+After deploying:
+
+- **Everyone keeps their session** (up to 30 days from their last sign-in) and can set a password on **Account → Security** without a current one.
+- **Links already sent still work:** an unused sign-in link now opens the "Set your password" form, and saving signs in.
+- **Everyone else needs a password link:** on **People → ⋯ → Get password link** (or the script above), then text it to them. Nobody can sign in with an email and password until they've set one.
 
 ## Logs and status
 

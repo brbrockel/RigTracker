@@ -6,9 +6,9 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 
 ### Breaking
 
-- **Google sign-in is removed.** People sign in with single-use links from an admin, or from `dist/scripts/sign-in-link.js`. Passwords come before 2.0.0.
+- **Google sign-in is removed.** People sign in with an email and password, set from a single-use password link an admin gives them (or from `dist/scripts/sign-in-link.js`).
 - **People and sign-in accounts are one record.** Access is a role on the person. The old `users` collection was migrated and kept as `users_merged`.
-- **Sign-in is required for everything,** including reading records and opening uploaded media. A read-only guest view comes before 2.0.0.
+- **Sign-in is required for everything,** including reading records and opening uploaded media, except a read-only guest view of rigs, gear and events.
 - **API:**
   - Every change needs the session's CSRF token (`x-csrf-token`).
   - Request bodies are strict: unknown fields are refused, and gear and events no longer accept snake_case aliases.
@@ -22,12 +22,13 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - The new interface on TeeMate's design: Tailwind and shadcn/ui, light and dark themes, a bottom tab bar on phones.
 - An installable app (PWA), with an iPhone "Add to Home Screen" hint.
 - Rigs and Gear in Table, List, Gallery or Cards layouts, with sort, grouping, columns, multi-select actions, CSV export and a print sheet.
-- Sign-in access and sign-in links managed from People, and "Sign out everywhere".
-- The Activity log records sign-ins, sign-outs, links and access changes.
+- Passwords (Argon2id, NIST rules), lockouts, optional authenticator codes with recovery codes, and "Look around as a guest" (TeeMate's model).
+- Sign-in access and password links managed from People, "Unlock account", "Reset authenticator" and "Sign out everywhere".
+- The Activity log records sign-ins, failed sign-ins, lockouts, sign-outs, links, passwords, authenticator changes, guests and access changes.
 - Per-IP rate limits, security headers and a CSP.
 - `/api/health`, and the running version on Account.
 - Nightly verified backups.
-- 304 API end-to-end tests, 70 web tests, `pnpm check` and CI.
+- 411 API tests, 87 web tests, `pnpm check` and CI.
 
 ### Fixed
 
@@ -37,6 +38,20 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Deleting a person left dangling references, and gear whose rig was deleted couldn't be edited.
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
+
+### 2.0.0-beta.1
+
+- **Breaking: passwords.** Signing in is an email and password (`POST /api/auth/sign-in`), as in TeeMate:
+  - Passwords are Argon2id hashes and follow NIST rules: 10 to 128 characters, not one of about 2,300 common or breached passwords, not your email, not one character repeated.
+  - A wrong email and a wrong password get the same answer ("Email or password is incorrect").
+  - 5 wrong passwords or codes lock the account for 15 minutes, doubling with each lockout in a row up to 24 hours; a success resets it. Each visitor IP gets 30 password attempts per 15 minutes. Lockouts are in the Activity log, People shows "Locked until…", and admins can **Unlock account** (`POST /api/auth/people/:id/unlock`).
+- **Breaking: sign-in links are password links.** `/sign-in#token=…` (the same URL, so links already sent still work) shows who it's for and a **Set your password** form. `POST /api/auth/link/redeem` now needs `{ token, password }`: it sets the password, uses up the link, signs out other sessions and signs in. `POST /api/auth/link/check` also says `hasPassword`. People → **Get password link**; the `sign-in-link.js` script prints one.
+- **Authenticator codes (optional):** Account → **Security** sets up an authenticator app (QR code or key), with 8 one-time recovery codes shown once, new recovery codes and turning it off (both need the password). Signing in then answers `{ needsCode, token }` and finishes with `POST /api/auth/sign-in/code { token, code }`; a password link also asks for a code. Each code works once. The key is encrypted with AES-256-GCM using `APP_SECRET`. Admins can **Reset authenticator** (`POST /api/auth/people/:id/reset-authenticator`), which signs the person out everywhere.
+- **Account → Security:** change (or first set) your password, which signs out your other devices; the authenticator. New routes: `GET /api/auth/security`, `POST /api/auth/password`, `POST /api/auth/totp/start|enable|disable|recovery-codes`.
+- **Look around as a guest** (`POST /api/auth/guest`): a 12-hour, read-only session without a person. Guests get rigs, gear, events, their media and photos; people appear as "First L." (`primaryUserName` on rigs, `assignedPersonName` on gear) and nothing else about them. Everything else is 403. The app shows guests Home, Rigs, Gear and Events and a **Sign in** button.
+- People responses have `hasPassword`, `totpEnabled` and `lockedUntil`, never the hashes or the key.
+- TeeMate's mail guard (`MAIL_MODE=off` by default); RigTracker still sends no email.
+- **Deploy:** needs the `rigtracker_app_secret` Docker secret and `APP_SECRET_FILE` (the API refuses to start in production without it). Migration 0006 only adds columns, a table and an index. Existing sessions continue; everyone else needs a password link. See [Deployment.md](doc/Deployment.md#passwords-and-the-guest-view-200-beta1).
 
 ### 2.0.0-alpha.6
 

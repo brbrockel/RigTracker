@@ -4,6 +4,7 @@ import * as fs from 'node:fs';
 import express from 'express';
 import helmet from 'helmet';
 import { AuthService } from './auth/auth.service.js';
+import { MediaService } from './media/media.service.js';
 import { SERVED_UPLOAD_EXTENSIONS } from './uploads/uploads.service.js';
 import { PgErrorsFilter } from './common/pg-errors.filter.js';
 import { uploadsDir } from './common/uploads-dir.js';
@@ -93,8 +94,10 @@ export function configureApp(app: INestApplication) {
     fs.mkdirSync(uploadsPath, { recursive: true });
   }
 
-  // Uploaded media is for signed-in users only, and only known media types are served.
+  // Uploaded media is for signed-in users (and guests, for media of rigs, gear and events) only,
+  // and only known media types are served.
   const authService = app.get(AuthService);
+  const mediaService = app.get(MediaService);
   server.use(
     '/uploads',
     async (req, res, next) => {
@@ -108,8 +111,14 @@ export function configureApp(app: INestApplication) {
           req.headers.cookie,
           authService.getSessionCookieName(),
         );
-        if (!(await authService.getAuthenticatedUser(sessionId))) {
+        const auth = await authService.getAuthenticatedUser(sessionId);
+        if (!auth) {
           res.status(401).end();
+          return;
+        }
+        // Guests only get photos and videos of rigs, gear and events.
+        if (auth.user.isGuest && !(await mediaService.isGuestVisible(`/uploads${req.path}`))) {
+          res.status(403).end();
           return;
         }
         res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");

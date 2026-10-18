@@ -34,7 +34,7 @@ backup job (nightly) ── internal network ── MongoDB, uploads (read-only)
 2. **API (`api/`)**
    - **Stack:** NestJS 12 on Express 5, ESM, TypeScript 6, Drizzle ORM on PostgreSQL 18. Every request body and query is checked with zod. Migrations (`api/drizzle`) are applied at start-up.
    - **Modules:**
-     - `auth`: sign-in links, sessions, CSRF and roles;
+     - `auth`: passwords, lockouts, authenticator codes, password links, guest and member sessions, CSRF and roles;
      - `people`: people and their sign-in access;
      - `rigs`, `gear`, `events`, `audit`, `health`;
      - `media`: photos and videos of rigs, gear and events, through `uploads` (content checks, re-encoding, storage).
@@ -49,7 +49,7 @@ backup job (nightly) ── internal network ── MongoDB, uploads (read-only)
    - A person may have sign-in access: a `role` (admin, user or viewer; the API shows it as `roles`), `is_active`, and their last sign-in. Emails are unique among people who sign in (a partial unique index).
    - Gear points at a rig and/or a person (`rig_id`, `person_id`; `assignedRigId`, `assignedPersonId` in the API), and a rig at its primary person, with foreign keys that clear the reference when the record is deleted. On a rig, gear goes with the rig's primary person. Serial numbers are unique. A rig's container, main, reserve and AAD are gear in its slots (`gear.slot`, one of each per rig, a partial unique index); rig responses list them as `components`. The rig's old component columns are unused and are dropped in a later release.
    - Photos and videos are `media` rows: an owner (`owner_type` rig, gear or event, and `owner_id`), the `/uploads/...` URL, photo or video, a caption and a position (0 is the cover). Owners are in three tables, so there's no foreign key: deleting a rig, gear or event deletes its media rows and files. Records return `media` and `coverUrl`. The old photo columns (`image_url`, `event_photo_url`, `photo_urls`) are unused and are dropped in a later release.
-   - Sessions and sign-in links store only SHA-256 hashes of their tokens, and are deleted with their person.
+   - Sessions and sign-in links store only SHA-256 hashes of their tokens, and are deleted with their person. Passwords are Argon2id hashes; authenticator keys are encrypted with `APP_SECRET`.
    - The audit log is append-only (a trigger refuses UPDATE and DELETE) and keeps the record before and after each update.
 
 ## Security model

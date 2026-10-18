@@ -1,11 +1,12 @@
 import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { expect } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.js';
+import { hashPassword } from '../src/auth/password.js';
 import { hashToken, newToken } from '../src/auth/tokens.js';
 import { DB, type Database } from '../src/db/db.js';
 import { people, signInLinks } from '../src/db/schema.js';
@@ -35,7 +36,8 @@ export async function createTestApp(): Promise<TestApp> {
  */
 export async function resetDb(t: TestApp): Promise<void> {
   await t.db.execute(sql`truncate table
-    audit_log, sessions, sign_in_links, media, gear, rigs, events, people restart identity cascade`);
+    audit_log, auth_attempts, sessions, sign_in_links, media, gear, rigs, events, people
+    restart identity cascade`);
 }
 
 let ipCounter = Math.floor(Math.random() * 60_000);
@@ -76,7 +78,20 @@ export async function createPerson(
   return { id: row!.id, email: row!.email ?? undefined };
 }
 
-/** Stores a sign-in link for a person and returns its token (as an admin-made link would be). */
+/** The password signIn() gives people (one Argon2id hash, made once, keeps the tests quick). */
+export const TEST_PASSWORD = 'correct horse battery staple';
+let testHash: Promise<string> | undefined;
+export const testPasswordHash = () => (testHash ??= hashPassword(TEST_PASSWORD));
+
+/** Gives a person TEST_PASSWORD. */
+export async function givePassword(t: TestApp, personId: string): Promise<void> {
+  await t.db
+    .update(people)
+    .set({ passwordHash: await testPasswordHash() })
+    .where(eq(people.id, personId));
+}
+
+/** Stores a password link for a person and returns its token (as an admin-made link would be). */
 export async function createLinkToken(
   t: TestApp,
   personId: string,
@@ -112,26 +127,56 @@ export interface SignedIn {
   agent: ReturnType<typeof request.agent>;
 }
 
-/** Signs a person in through the real sign-in link flow. */
-export async function signIn(t: TestApp, personId: string): Promise<SignedIn> {
+/** A fresh agent (cookie jar) with its own visitor IP. */
+export function newAgent(t: TestApp) {
   const ip = nextIp();
   const agent = request
     .agent(t.app.getHttpServer())
     .set('CF-Connecting-IP', ip)
     .set('User-Agent', 'rigtracker-tests');
-  const token = await createLinkToken(t, personId);
-  const res = await agent.post('/api/auth/link/redeem').send({ token });
-  expect(res.status, JSON.stringify(res.body)).toBe(201);
+  return { ip, agent };
+}
+
+/** The session token in a response's Set-Cookie. */
+export function sessionCookie(res: request.Response): string | undefined {
   const cookie = ([] as string[])
     .concat(res.headers['set-cookie'] ?? [])
     .find((c) => c.startsWith(`${SESSION_COOKIE}=`));
-  const sessionToken = decodeURIComponent(cookie!.split(';')[0]!.slice(SESSION_COOKIE.length + 1));
+  return cookie
+    ? decodeURIComponent(cookie.split(';')[0]!.slice(SESSION_COOKIE.length + 1))
+    : undefined;
+}
+
+/** Signs a person in with email and password (they're given TEST_PASSWORD). */
+export async function signIn(t: TestApp, personId: string): Promise<SignedIn> {
+  await givePassword(t, personId);
+  const [person] = await t.db.select().from(people).where(eq(people.id, personId));
+  const { ip, agent } = newAgent(t);
+  const res = await agent
+    .post('/api/auth/sign-in')
+    .send({ email: person!.email, password: TEST_PASSWORD });
+  expect(res.status, JSON.stringify(res.body)).toBe(201);
   return {
     id: personId,
     email: res.body.user.email,
     ip,
     csrf: res.body.csrfToken,
-    sessionToken,
+    sessionToken: sessionCookie(res)!,
+    agent,
+  };
+}
+
+/** A guest session ("Look around as a guest"). */
+export async function signInGuest(t: TestApp): Promise<SignedIn> {
+  const { ip, agent } = newAgent(t);
+  const res = await agent.post('/api/auth/guest');
+  expect(res.status, JSON.stringify(res.body)).toBe(201);
+  return {
+    id: 'guest',
+    email: '',
+    ip,
+    csrf: res.body.csrfToken,
+    sessionToken: sessionCookie(res)!,
     agent,
   };
 }

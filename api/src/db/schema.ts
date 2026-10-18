@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigserial,
   boolean,
   check,
   date,
@@ -70,6 +71,24 @@ export const people = pgTable(
     lastLoginIp: text('last_login_ip'),
     /** Never returned by the API. */
     lastUserAgent: text('last_user_agent'),
+    // ── Password and authenticator (never returned by the API) ────────────────
+    /** Argon2id. Null: no password yet, so they can only get in with a password link. */
+    passwordHash: text('password_hash'),
+    passwordChangedAt: timestamp('password_changed_at', { withTimezone: true }),
+    /** Wrong passwords or codes since the last success or lockout. */
+    failedAttempts: integer('failed_attempts').notNull().default(0),
+    /** Cooling down after too many wrong tries; the API shows it as `lockedUntil` while in the future. */
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    /** Lockouts in a row: each one doubles the next (15 minutes up to 24 hours). */
+    lockoutCount: integer('lockout_count').notNull().default(0),
+    /** The authenticator app's key, AES-256-GCM encrypted with APP_SECRET (set during setup too). */
+    totpSecretEnc: text('totp_secret_enc'),
+    /** Set once a code confirmed the setup: authenticator codes are on. */
+    totpEnabledAt: timestamp('totp_enabled_at', { withTimezone: true }),
+    /** The 30-second step of the last code used, so each code works once. */
+    totpLastStep: integer('totp_last_step'),
+    /** SHA-256 hashes of the unused recovery codes. */
+    recoveryCodeHashes: jsonb('recovery_code_hashes').$type<string[]>(),
     legacyId: legacyId(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -189,6 +208,8 @@ export const media = pgTable(
     check('media_kind_check', sql`${t.kind} in ('photo', 'video')`),
     check('media_caption_length', sql`char_length(${t.caption}) <= 200`),
     index('media_owner_idx').on(t.ownerType, t.ownerId, t.position),
+    // Guests' /uploads requests are checked against the media table by url.
+    index('media_url_idx').on(t.url),
   ],
 );
 
@@ -198,9 +219,10 @@ export const sessions = pgTable(
     id: id(),
     /** SHA-256 hash of the session cookie's token; the token itself is never stored. */
     tokenHash: text('token_hash').notNull().unique(),
-    personId: uuid('person_id')
-      .notNull()
-      .references(() => people.id, { onDelete: 'cascade' }),
+    /** Null only for a guest session. */
+    personId: uuid('person_id').references(() => people.id, { onDelete: 'cascade' }),
+    /** "Look around as a guest": read-only rigs, gear and events, no person. */
+    isGuest: boolean('is_guest').notNull().default(false),
     /** Sent back in the x-csrf-token header with every change. */
     csrfToken: text('csrf_token'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -213,10 +235,23 @@ export const sessions = pgTable(
   (t) => [
     index('sessions_person_idx').on(t.personId),
     index('sessions_expires_idx').on(t.expiresAt),
+    check('sessions_person_or_guest', sql`(${t.personId} is not null) <> ${t.isGuest}`),
   ],
 );
 
-/** A single-use sign-in link. Only the SHA-256 hash of its token is stored. */
+/**
+ * What a sign-in token is for: 'password' is a link an admin passes on to set a password
+ * (72 hours); 'code_after_password' and 'code_after_link' are the short-lived step between
+ * a right password (or a password set from a link) and the authenticator code.
+ */
+export const SIGN_IN_TOKEN_PURPOSES = [
+  'password',
+  'code_after_password',
+  'code_after_link',
+] as const;
+export type SignInTokenPurpose = (typeof SIGN_IN_TOKEN_PURPOSES)[number];
+
+/** A single-use sign-in token (see purpose). Only the SHA-256 hash of its token is stored. */
 export const signInLinks = pgTable(
   'sign_in_links',
   {
@@ -225,6 +260,7 @@ export const signInLinks = pgTable(
     personId: uuid('person_id')
       .notNull()
       .references(() => people.id, { onDelete: 'cascade' }),
+    purpose: text('purpose').$type<SignInTokenPurpose>().notNull().default('password'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     usedAt: timestamp('used_at', { withTimezone: true }),
     /** Admin who made it; empty when made with the command-line script. */
@@ -235,7 +271,28 @@ export const signInLinks = pgTable(
   (t) => [
     index('sign_in_links_person_idx').on(t.personId),
     index('sign_in_links_expires_idx').on(t.expiresAt),
+    check(
+      'sign_in_links_purpose_check',
+      sql`${t.purpose} in ('password', 'code_after_password', 'code_after_link')`,
+    ),
   ],
+);
+
+/**
+ * Password and code attempts by visitor IP, for the per-IP limit (TeeMate's approach: each try
+ * is recorded before it's counted, so a burst of parallel tries can't slip past). Rows older
+ * than a day are deleted.
+ */
+export const authAttempts = pgTable(
+  'auth_attempts',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    /** password | code */
+    kind: text('kind').$type<'password' | 'code'>().notNull(),
+    ip: text('ip').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('auth_attempts_ip_idx').on(t.kind, t.ip, t.createdAt)],
 );
 
 /**
@@ -247,9 +304,13 @@ export const auditLog = pgTable(
   'audit_log',
   {
     id: id(),
-    /** CREATE | UPDATE | DELETE | SIGN_IN | SIGN_OUT | SIGN_IN_LINK */
+    /**
+     * CREATE | UPDATE | DELETE | SIGN_IN | SIGN_IN_FAILED | SIGN_OUT | SIGN_IN_LINK |
+     * PASSWORD_SET | PASSWORD_CHANGE | LOCKOUT | UNLOCK | TOTP_ON | TOTP_OFF | TOTP_RESET |
+     * RECOVERY_CODES | GUEST_SIGN_IN
+     */
     action: text('action').notNull(),
-    /** gear | rigs | people | events */
+    /** gear | rigs | people | events | guests */
     resource: text('resource').notNull(),
     resourceId: text('resource_id').notNull(),
     resourceName: text('resource_name'),

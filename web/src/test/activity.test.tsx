@@ -50,7 +50,7 @@ describe('activity log', () => {
     renderAt('/activity');
 
     expect(await screen.findByText('added gear Foo')).toBeInTheDocument();
-    expect(screen.getByText('made a sign-in link for sam@example.com')).toBeInTheDocument();
+    expect(screen.getByText('made a password link for sam@example.com')).toBeInTheDocument();
     expect(screen.getByText('Command line')).toBeInTheDocument();
 
     const signIn = screen.getByRole('button', { name: /signed in/ });

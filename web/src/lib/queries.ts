@@ -1,6 +1,8 @@
-import { useQuery, type QueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useUser } from '@/auth/session';
 import {
   api,
+  isGuest,
   type Gear,
   type MediaOwnerType,
   type Person,
@@ -44,8 +46,30 @@ export const useGear = () => useQuery({ queryKey: keys.gear, queryFn: () => api<
 export const useGearItem = (id: string) =>
   useQuery({ queryKey: keys.gearItem(id), queryFn: () => api<Gear>(`/gear/${id}`) });
 
-export const usePeople = () =>
-  useQuery({ queryKey: keys.people, queryFn: () => api<Person[]>('/people') });
+/**
+ * Everyone on People. Guests can't read People: for them it's the people that rigs and gear
+ * name, as "First L." (in firstName), so pages can show names the same way.
+ */
+export function usePeople() {
+  const guest = isGuest(useUser());
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: guest ? [...keys.people, 'guest'] : keys.people,
+    queryFn: guest ? () => guestPeople(qc) : () => api<Person[]>('/people'),
+  });
+}
+
+async function guestPeople(qc: QueryClient): Promise<Person[]> {
+  const [rigs, gear] = await Promise.all([
+    qc.ensureQueryData({ queryKey: keys.rigs, queryFn: () => api<Rig[]>('/rigs') }),
+    qc.ensureQueryData({ queryKey: keys.gear, queryFn: () => api<Gear[]>('/gear') }),
+  ]);
+  const names = new Map<string, string>();
+  for (const r of rigs) if (r.primaryUserId) names.set(r.primaryUserId, r.primaryUserName ?? '');
+  for (const g of gear)
+    if (g.assignedPersonId) names.set(g.assignedPersonId, g.assignedPersonName ?? '');
+  return [...names].map(([id, firstName]) => ({ id, firstName }));
+}
 export const usePerson = (id: string) =>
   useQuery({ queryKey: keys.person(id), queryFn: () => api<Person>(`/people/${id}`) });
 

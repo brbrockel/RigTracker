@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { PersonLink } from '@/components/people/PersonLink';
 import { GearSummary } from '@/components/gear/GearSummary';
 import { Card } from '@/components/ui/card';
 import { rigSlotLabel, type Gear, type Rig } from '@/lib/api';
@@ -32,9 +33,9 @@ export function GearCard({
               </Link>
             )}
             {g.assignedPersonId && (
-              <Link to={`/people/${g.assignedPersonId}`} className={pill}>
+              <PersonLink id={g.assignedPersonId} className={pill}>
                 Person: {personName ?? 'Unknown person'}
-              </Link>
+              </PersonLink>
             )}
             {!g.assignedRigId && !g.assignedPersonId && (
               <span className="text-xs text-muted-foreground">Unassigned</span>

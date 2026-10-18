@@ -63,3 +63,14 @@ export const asViewer = () => ({
   ...asAdmin(),
   body: { ...asAdmin().body, user: user(['viewer']) },
 });
+
+/** "Look around as a guest". */
+export const asGuest = () => ({
+  status: 200,
+  body: {
+    authenticated: true,
+    user: { id: 'guest', displayName: 'Guest', roles: [], isGuest: true },
+    csrfToken: 'csrf-guest',
+    sessionExpiresAt: '2026-10-18T12:00:00.000Z',
+  },
+});

@@ -10,8 +10,28 @@ export interface AuditActor {
   displayName: string;
 }
 
+export const AUDIT_ACTIONS = [
+  'CREATE',
+  'UPDATE',
+  'DELETE',
+  'SIGN_IN',
+  'SIGN_IN_FAILED',
+  'SIGN_OUT',
+  'SIGN_IN_LINK',
+  'PASSWORD_SET',
+  'PASSWORD_CHANGE',
+  'LOCKOUT',
+  'UNLOCK',
+  'TOTP_ON',
+  'TOTP_OFF',
+  'TOTP_RESET',
+  'RECOVERY_CODES',
+  'GUEST_SIGN_IN',
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
 export interface LogParams {
-  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'SIGN_IN' | 'SIGN_OUT' | 'SIGN_IN_LINK';
+  action: AuditAction;
   resource: string;
   resourceId: string;
   resourceName?: string | null | undefined;

@@ -43,6 +43,13 @@
       "when": 1792291940479,
       "tag": "0005_drop_1x_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792293345143,
+      "tag": "0006_passwords_and_guests",
+      "breakpoints": true
     }
   ]
 }

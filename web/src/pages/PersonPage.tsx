@@ -1,17 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowLeft,
-  KeyRound,
-  Link2Off,
-  LogOut,
-  Package,
-  Pencil,
-  Phone,
-  Plus,
-  ShieldCheck,
-  Trash2,
-  Wrench,
-} from 'lucide-react';
+import { ArrowLeft, Link2Off, Package, Pencil, Phone, Plus, Trash2, Wrench } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useUser } from '@/auth/session';
@@ -34,7 +22,6 @@ import {
   api,
   ApiError,
   canDelete,
-  canSignIn,
   canWrite,
   errorMessage,
   formatDate,
@@ -147,26 +134,7 @@ export function PersonPage() {
                   <Pencil /> Edit
                 </Button>
               )}
-              {admin && (
-                <RowMenu label={name}>
-                  <DropdownMenuItem onSelect={() => signIn.editAccess(p)}>
-                    <ShieldCheck /> Sign-in access…
-                  </DropdownMenuItem>
-                  {canSignIn(p) && (
-                    <>
-                      <DropdownMenuItem
-                        disabled={signIn.linkPending}
-                        onSelect={() => signIn.getLink(p)}
-                      >
-                        <KeyRound /> Get sign-in link
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => signIn.signOut(p)}>
-                        <LogOut /> Sign out everywhere
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </RowMenu>
-              )}
+              {admin && <RowMenu label={name}>{signIn.menuItems(p)}</RowMenu>}
               {admin && !isSelf && (
                 <Button
                   variant="ghost"

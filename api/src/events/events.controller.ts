@@ -2,6 +2,7 @@ import { Controller, Get, Param, Post, Body, Put, Delete, Req } from '@nestjs/co
 import { EventsService } from './events.service.js';
 import { RequireRoles } from '../auth/roles.decorator.js';
 import type { AuthedRequest } from '../auth/auth-user.js';
+import { GuestOk } from '../auth/public.decorator.js';
 import { IdPipe, ZodPipe } from '../common/validation.js';
 import { EventBody } from './event.dto.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -14,11 +15,13 @@ export class EventsController {
   ) {}
 
   @Get()
+  @GuestOk()
   getAll() {
     return this.eventsService.findAll();
   }
 
   @Get(':id')
+  @GuestOk()
   getOne(@Param('id', IdPipe) id: string) {
     return this.eventsService.findOne(id);
   }

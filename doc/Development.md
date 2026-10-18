@@ -30,7 +30,7 @@ PostgreSQL 18 with Drizzle. The schema is `api/src/db/schema.ts`; migrations are
 - **Migrations run at start-up:** `main.ts` applies any new ones before the API listens (a failed migration stops the start). By hand: `pnpm --filter rigtracker-api db:migrate`.
 - **A schema change:** edit `schema.ts`, then `pnpm --filter rigtracker-api db:generate` (drizzle-kit writes the next `drizzle/NNNN_*.sql`). SQL drizzle-kit can't express (like the audit log's trigger, `0001_audit_append_only.sql`) goes in a custom migration: `pnpm exec drizzle-kit generate --custom --name <name>` in `api/`.
 - **The audit log is append-only:** a trigger refuses `UPDATE` and `DELETE` on `audit_log`. `TRUNCATE` still works (the tests use it).
-- **Expired sessions and sign-in links** are deleted at start-up and every hour.
+- **Expired sessions and sign-in links** (and per-IP attempt records older than a day) are deleted at start-up and every hour.
 
 ## Checks
 
@@ -73,20 +73,23 @@ Sign-in:
 
 | Variable | Required | Used By | Purpose | Example |
 | --- | --- | --- | --- | --- |
-| `APP_URL` | Yes in production | API, `sign-in-link` script | Base URL that sign-in links point at. Without it, links made on Settings use the site the admin is on; the script refuses to run. | `https://rigtracker.bhbslp.org` |
+| `APP_URL` | Yes in production | API, `sign-in-link` script | Base URL that password links point at. Without it, links made on People use the site the admin is on; the script refuses to run. | `https://rigtracker.bhbslp.org` |
+| `APP_SECRET` / `APP_SECRET_FILE` | Yes in production | API | Encrypts authenticator-app keys (AES-256-GCM): 32+ random bytes as hex or base64 (`openssl rand -hex 32`). Without it (development), authenticator codes can't be turned on. | `/run/secrets/rigtracker_app_secret` |
+| `MAIL_MODE` | Optional | API | The mail guard: `off` (default) sends nothing; `allowlist` only to `MAIL_ALLOWLIST`; `all` needs the owner's consent. Nothing sends email yet. | `off` |
+| `MAIL_ALLOWLIST`, `MAIL_FROM`, `SMTP_*` | Not used yet | API | For a future "Email the link"; not set in the stack. | |
 
 Access rules:
 
-- Every API route and every file under `/uploads` needs a signed-in session, except the sign-in routes (`/api/auth/link/check`, `/api/auth/link/redeem`, `/api/auth/me`, `/api/auth/logout`).
-- There is no Google sign-in or password. People and sign-in accounts are the same records: on **People**, an admin uses **⋯ → Sign-in access…** to give someone a role (Viewer, User or Admin; it needs their email address), then **⋯ → Get sign-in link** gives a single-use link (valid 72 hours) to copy, text or email. Opening the link shows who it's for; pressing **Sign in** uses it up and starts a 30-day session. Only hashes of link and session tokens are stored.
+- Every API route and every file under `/uploads` needs a signed-in session, except the sign-in routes (`/api/auth/sign-in`, `/api/auth/sign-in/code`, `/api/auth/link/check`, `/api/auth/link/redeem`, `/api/auth/guest`, `/api/auth/me`, `/api/auth/logout`). Guest sessions get only the routes marked `@GuestOk()` (reading rigs, gear, events and media) and the media files of those.
+- People sign in with an email and password (and an authenticator code, if they turned one on); see [Security.md](Security.md). People and sign-in accounts are the same records: on **People**, an admin uses **⋯ → Sign-in access…** to give someone a role (Viewer, User or Admin; it needs their email address), then **⋯ → Get password link** gives a single-use link (valid 72 hours) to copy, text or email. Opening the link shows who it's for and asks for a password; saving uses it up and starts a 30-day session. Only hashes of link and session tokens are stored.
 - First admin, or if no admin can sign in:
 
   ```bash
   docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com --admin "Your Name"
   ```
 
-  Without `--admin` it prints a link for an existing user. Locally: `APP_URL=http://localhost:5173 node api/dist/scripts/sign-in-link.js you@example.com`.
-- Sign-ins, sign-outs, links made and access changes are in the audit log. **⋯ → Sign out everywhere** ends all of someone's sessions; removing sign-in access does that too.
+  It prints a password link. Without `--admin` it's for an existing user. Locally: `APP_URL=http://localhost:5173 node api/dist/scripts/sign-in-link.js you@example.com`.
+- Sign-ins, failed sign-ins, lockouts, sign-outs, links made, password and authenticator changes, guests and access changes are in the audit log. **⋯ → Sign out everywhere** ends all of someone's sessions; removing sign-in access does that too.
 - Writes (`POST`/`PUT`/`PATCH`/`DELETE`) from another site are refused (`Origin` must match the host).
 - Uploads are checked by content, not name: images are re-encoded to JPEG (no EXIF or GPS), and videos are kept only as MP4, MOV or WebM.
 

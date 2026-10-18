@@ -4,7 +4,7 @@ import { DB, type Database, type Executor } from '../db/db.js';
 import { RIG_SLOTS, gear, people, rigs, type Rig, type RigSlot } from '../db/schema.js';
 import { defined } from '../common/validation.js';
 import { omit } from '../common/omit.js';
-import { fullName } from '../people/person-view.js';
+import { fullName, guestName } from '../people/person-view.js';
 import { MediaService } from '../media/media.service.js';
 import type { RigBody } from './rig.dto.js';
 
@@ -86,8 +86,12 @@ export class RigsService {
     return { ...rigToApi(created!), components: emptyComponents(), media: [], coverUrl: null };
   }
 
-  /** Every rig, with its primary person's name ('' when none) and its components. */
-  async findAll() {
+  /**
+   * Every rig, with its primary person's name ('' when none) and its components. Guests see
+   * the name as "First L.".
+   */
+  async findAll(guest = false) {
+    const nameOf = guest ? guestName : fullName;
     const rows = await this.db
       .select({ rig: rigColumns, person: personNameColumns })
       .from(rigs)
@@ -98,13 +102,14 @@ export class RigsService {
       'rig',
       rows.map(({ rig, person }) => ({
         ...rig,
-        primaryUserName: person ? fullName(person) : '',
+        primaryUserName: person ? nameOf(person) : '',
         components: components.get(rig.id)!,
       })),
     );
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, guest = false) {
+    const nameOf = guest ? guestName : fullName;
     const [row] = await this.db
       .select({ rig: rigColumns, person: personNameColumns })
       .from(rigs)
@@ -115,7 +120,7 @@ export class RigsService {
     return this.mediaService.attachOne(
       'rig',
       row.rig.primaryUserId
-        ? { ...row.rig, primaryUserName: row.person ? fullName(row.person) : '', components }
+        ? { ...row.rig, primaryUserName: row.person ? nameOf(row.person) : '', components }
         : { ...row.rig, components },
     );
   }

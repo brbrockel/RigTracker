@@ -3,6 +3,7 @@ import { LogOut, Monitor, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useMe, useSignOut } from '@/auth/session';
 import { PageHeader } from '@/components/PageHeader';
+import { SecurityCard } from '@/components/SecurityCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,9 +41,14 @@ export function AccountPage() {
             <span>Signed in on this device until {formatDate(me.sessionExpiresAt)}</span>
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            Each sign-in lasts 30 days on its device. Changing your password signs you out
+            everywhere else; an admin can also sign you out on every device.
+          </p>
           <Button
             variant="outline"
+            className="w-fit"
             onClick={() =>
               signOut.mutate(undefined, {
                 onSettled: () => navigate('/sign-in', { replace: true }),
@@ -53,6 +59,7 @@ export function AccountPage() {
           </Button>
         </CardContent>
       </Card>
+      <SecurityCard isAdmin={isAdmin(me.user)} />
       <Card>
         <CardHeader>
           <CardTitle>Appearance</CardTitle>

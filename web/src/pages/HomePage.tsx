@@ -6,7 +6,15 @@ import { useUser } from '@/auth/session';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { canWrite, daysUntil, errorMessage, formatDate, rigLabel, type Rig } from '@/lib/api';
+import {
+  canWrite,
+  isGuest,
+  daysUntil,
+  errorMessage,
+  formatDate,
+  rigLabel,
+  type Rig,
+} from '@/lib/api';
 import { useEvents, useGear, usePeople, useRigs } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
@@ -18,8 +26,9 @@ export function HomePage() {
   const rigs = useRigs();
   const events = useEvents();
   const gear = useGear();
+  const guest = isGuest(user);
   const people = usePeople();
-  const firstName = user?.displayName?.split(' ')[0];
+  const firstName = guest ? undefined : user?.displayName?.split(' ')[0];
 
   return (
     <div className="flex flex-col gap-5">
@@ -27,7 +36,11 @@ export function HomePage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           {firstName ? `Hi, ${firstName}` : 'Welcome'}
         </h1>
-        <p className="text-sm text-muted-foreground">Repacks coming up and what's on next.</p>
+        <p className="text-sm text-muted-foreground">
+          {guest
+            ? "You're looking around as a guest: rigs, gear and events, read-only."
+            : "Repacks coming up and what's on next."}
+        </p>
       </div>
 
       <InstallHint />
@@ -37,10 +50,13 @@ export function HomePage() {
         <UpcomingEventsCard />
       </div>
 
-      <section aria-label="Totals" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section
+        aria-label="Totals"
+        className={cn('grid grid-cols-2 gap-3', guest ? 'sm:grid-cols-3' : 'sm:grid-cols-4')}
+      >
         <Stat to="/rigs" label="Rigs" icon={Wrench} count={rigs.data?.length} />
         <Stat to="/gear" label="Gear" icon={Package} count={gear.data?.length} />
-        <Stat to="/people" label="People" icon={Users} count={people.data?.length} />
+        {!guest && <Stat to="/people" label="People" icon={Users} count={people.data?.length} />}
         <Stat to="/events" label="Events" icon={CalendarDays} count={events.data?.length} />
       </section>
 

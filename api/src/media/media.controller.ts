@@ -18,6 +18,7 @@ import * as fs from 'node:fs';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthedRequest } from '../auth/auth-user.js';
 import { RequireRoles } from '../auth/roles.decorator.js';
+import { GuestOk } from '../auth/public.decorator.js';
 import { UPLOAD_LIMIT } from '../common/throttle.js';
 import { IdPipe, ZodPipe } from '../common/validation.js';
 import { incomingFileOptions } from '../uploads/uploads.service.js';
@@ -49,6 +50,7 @@ export class MediaController {
   }
 
   @Get()
+  @GuestOk()
   list(@Query(new ZodPipe(MediaQuery)) q: MediaQuery) {
     return this.mediaService.list(q.ownerType, q.ownerId);
   }

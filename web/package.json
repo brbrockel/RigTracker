@@ -1,6 +1,6 @@
 {
   "name": "rigtracker-web",
-  "version": "2.0.0-alpha.6",
+  "version": "2.0.0-beta.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +15,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.57.0",
+    "qrcode": "^1.5.4",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -26,6 +27,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vite-pwa/assets-generator": "^2.0.0",

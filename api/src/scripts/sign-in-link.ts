@@ -1,6 +1,7 @@
 /**
- * Prints a single-use sign-in link (valid 72 hours) without sending anything.
- * For the first admin on a server, or if every admin is signed out:
+ * Prints a single-use password link (valid 72 hours) without sending anything: opening it lets
+ * the person set a password and signs them in. The script keeps its 1.x name.
+ * For the first admin on a server, or if every admin is locked out:
  *
  *   docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com
  *   docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-in-link.js you@example.com --admin "Your Name"
@@ -98,7 +99,7 @@ async function main() {
     const expiresAt = new Date(Date.now() + SIGN_IN_LINK_TTL_MS);
     await db
       .insert(signInLinks)
-      .values({ tokenHash: hashToken(token), personId: user!.id, expiresAt });
+      .values({ tokenHash: hashToken(token), personId: user!.id, purpose: 'password', expiresAt });
     await db.insert(auditLog).values({
       action: 'SIGN_IN_LINK',
       resource: 'people',
@@ -107,7 +108,7 @@ async function main() {
       details: { via: 'command line' },
     });
     console.log(
-      `Sign-in link for ${email} (single use, expires ${expiresAt.toISOString()}):\n${signInLinkUrl(appUrl, token)}`,
+      `Password link for ${email} (single use, expires ${expiresAt.toISOString()}):\n${signInLinkUrl(appUrl, token)}`,
     );
   } finally {
     await pool.end();

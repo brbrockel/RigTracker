@@ -3,6 +3,7 @@ import {
   ExternalLink,
   History,
   Home,
+  LogIn,
   LogOut,
   Package,
   UserRound,
@@ -20,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { isAdmin } from '@/lib/api';
+import { isAdmin, isGuest } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 const tabs = [
@@ -38,6 +39,9 @@ export function AppLayout() {
   const { pathname } = useLocation();
   if (!me) return null;
   const admin = isAdmin(me.user);
+  const guest = isGuest(me.user);
+  // Guests don't see People.
+  const shown = guest ? tabs.filter((t) => t.to !== '/people') : tabs;
   const signOutAndLeave = () =>
     signOut.mutate(undefined, { onSettled: () => navigate('/sign-in', { replace: true }) });
 
@@ -51,7 +55,7 @@ export function AppLayout() {
           </NavLink>
 
           <nav className="ml-4 hidden items-center gap-1 md:flex">
-            {tabs.map((t) => (
+            {shown.map((t) => (
               <NavLink
                 key={t.to}
                 to={t.to}
@@ -69,37 +73,44 @@ export function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Account menu">
-                  <UserRound />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{me.user.displayName || me.user.email}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => navigate('/account')}>
-                  <UserRound /> Account
-                </DropdownMenuItem>
-                {admin && (
-                  <DropdownMenuItem onSelect={() => navigate('/activity')}>
-                    <History /> Activity log
+            {guest ? (
+              // Ends the guest session, then the sign-in page.
+              <Button size="sm" onClick={signOutAndLeave}>
+                <LogIn /> Sign in
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Account menu">
+                    <UserRound />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{me.user.displayName || me.user.email}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => navigate('/account')}>
+                    <UserRound /> Account
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem asChild>
-                  <a
-                    href="https://github.com/brbrockel/RigTracker"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink /> GitHub
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={signOutAndLeave}>
-                  <LogOut /> Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {admin && (
+                    <DropdownMenuItem onSelect={() => navigate('/activity')}>
+                      <History /> Activity log
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem asChild>
+                    <a
+                      href="https://github.com/brbrockel/RigTracker"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink /> GitHub
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={signOutAndLeave}>
+                    <LogOut /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </header>
@@ -116,7 +127,7 @@ export function AppLayout() {
         className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden"
       >
         <div className="mx-auto flex max-w-md">
-          {tabs.map((t) => (
+          {shown.map((t) => (
             <NavLink
               key={t.to}
               to={t.to}

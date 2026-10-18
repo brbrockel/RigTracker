@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router';
 import { useMe } from '@/auth/session';
 import { AppLayout } from '@/components/AppLayout';
-import { isAdmin } from '@/lib/api';
+import { isAdmin, isGuest } from '@/lib/api';
 import { AccountPage } from '@/pages/AccountPage';
 import { ActivityPage } from '@/pages/ActivityPage';
 import { EventPage } from '@/pages/EventPage';
@@ -15,12 +15,19 @@ import { RigPage } from '@/pages/RigPage';
 import { RigsPage } from '@/pages/RigsPage';
 import { SignInPage } from '@/pages/SignInPage';
 
-/** Everything except the sign-in page requires a session. */
+/** Everything except the sign-in page requires a session (a guest's will do for some). */
 function RequireSession() {
   const me = useMe();
   const location = useLocation();
   if (me.isPending) return <div className="min-h-dvh" />;
   if (!me.data) return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />;
+  return <Outlet />;
+}
+
+/** Pages for members: guests are sent home (the API refuses them anyway). */
+function RequireMember() {
+  const me = useMe();
+  if (isGuest(me.data?.user)) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 
@@ -45,14 +52,19 @@ export const routes = [
           { path: 'gear', element: <GearPage /> },
           { path: 'events', element: <EventsPage /> },
           { path: 'events/:id', element: <EventPage /> },
-          { path: 'people', element: <PeoplePage /> },
-          { path: 'people/:id', element: <PersonPage /> },
-          { path: 'account', element: <AccountPage /> },
-          // Sign-in is managed from People now.
-          { path: 'users', element: <Navigate to="/people" replace /> },
           {
-            element: <RequireAdmin />,
-            children: [{ path: 'activity', element: <ActivityPage /> }],
+            element: <RequireMember />,
+            children: [
+              { path: 'people', element: <PeoplePage /> },
+              { path: 'people/:id', element: <PersonPage /> },
+              { path: 'account', element: <AccountPage /> },
+              // Sign-in is managed from People now.
+              { path: 'users', element: <Navigate to="/people" replace /> },
+              {
+                element: <RequireAdmin />,
+                children: [{ path: 'activity', element: <ActivityPage /> }],
+              },
+            ],
           },
           { path: '*', element: <NotFoundPage /> },
         ],

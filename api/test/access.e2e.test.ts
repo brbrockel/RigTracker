@@ -11,6 +11,7 @@ import {
   nextIp,
   resetDb,
   signInAs,
+  signInGuest,
   type Role,
   type SignedIn,
   type TestApp,
@@ -52,11 +53,30 @@ const ROUTES: Array<[Method, string, Need]> = [
   ['patch', `/api/auth/people/${id}/access`, 'admin'],
   ['post', `/api/auth/people/${id}/link`, 'admin'],
   ['post', `/api/auth/people/${id}/sign-out`, 'admin'],
+  ['post', `/api/auth/people/${id}/unlock`, 'admin'],
+  ['post', `/api/auth/people/${id}/reset-authenticator`, 'admin'],
+  ['get', '/api/auth/security', 'read'],
+  ['post', '/api/auth/password', 'read'],
+  ['post', '/api/auth/totp/start', 'read'],
+  ['post', '/api/auth/totp/enable', 'read'],
+  ['post', '/api/auth/totp/disable', 'read'],
+  ['post', '/api/auth/totp/recovery-codes', 'read'],
   ['get', `/api/media?ownerType=rig&ownerId=${id}`, 'read'],
   ['post', '/api/media', 'write'],
   ['patch', `/api/media/${id}`, 'write'],
   ['delete', `/api/media/${id}`, 'write'],
 ];
+
+/** What a guest may do: read rigs, gear, events and their media. */
+const GUEST_ROUTES = new Set([
+  'get /api/rigs',
+  `get /api/rigs/${id}`,
+  'get /api/gear',
+  `get /api/gear/${id}`,
+  'get /api/events',
+  `get /api/events/${id}`,
+  `get /api/media?ownerType=rig&ownerId=${id}`,
+]);
 
 const ALLOWED: Record<Role, Need[]> = {
   viewer: ['read'],
@@ -93,7 +113,13 @@ describe('signed out', () => {
       .post('/api/auth/link/check', { token: 'x'.repeat(43) })
       .expect(404);
     await anon(t)
-      .post('/api/auth/link/redeem', { token: 'x'.repeat(43) })
+      .post('/api/auth/link/redeem', { token: 'x'.repeat(43), password: 'a fine long password' })
+      .expect(401);
+    await anon(t)
+      .post('/api/auth/sign-in', { email: 'nobody@example.com', password: 'whatever it is' })
+      .expect(401);
+    await anon(t)
+      .post('/api/auth/sign-in/code', { token: 'x'.repeat(43), code: '123456' })
       .expect(401);
     await anon(t).post('/api/auth/logout').expect(201, { ok: true });
   });
@@ -119,6 +145,23 @@ describe.each(['viewer', 'user', 'admin'] as Role[])('as %s', (role) => {
   it('can view uploaded files', async () => {
     fs.writeFileSync(path.join(process.env.UPLOADS_DIR!, `as-${role}.jpg`), 'x');
     await as(who).get(`/uploads/as-${role}.jpg`).expect(200);
+  });
+});
+
+describe('as a guest', () => {
+  let guest: SignedIn;
+  beforeEach(async () => {
+    guest = await signInGuest(t);
+  });
+
+  it.each(ROUTES)('%s %s', async (method, url) => {
+    const res = await as(guest)[method](url);
+    if (GUEST_ROUTES.has(`${method} ${url}`)) {
+      expect(res.status, `${method} ${url}: ${JSON.stringify(res.body)}`).not.toBe(401);
+      expect(res.status).not.toBe(403);
+    } else {
+      expect(res.status, `${method} ${url}`).toBe(403);
+    }
   });
 });
 

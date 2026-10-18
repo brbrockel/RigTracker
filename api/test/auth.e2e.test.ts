@@ -27,22 +27,27 @@ beforeEach(async () => resetDb(t));
 
 const HASH = /^[a-f0-9]{64}$/;
 
-describe('sign-in links', () => {
+const NEW_PASSWORD = 'plum tractor sideways';
+
+describe('password links', () => {
   it('checking a link says who it is for and does not use it up', async () => {
     const p = await createPerson(t, { firstName: 'Ada', lastName: 'Lovelace', roles: ['user'] });
     const token = await createLinkToken(t, p.id);
     const first = await anon(t).post('/api/auth/link/check', { token });
     expect(first.status).toBe(201);
-    expect(first.body).toEqual({ email: p.email, displayName: 'Ada Lovelace' });
+    expect(first.body).toEqual({ email: p.email, displayName: 'Ada Lovelace', hasPassword: false });
     await anon(t).post('/api/auth/link/check', { token }).expect(201);
-    await anon(t).post('/api/auth/link/redeem', { token }).expect(201);
+    await anon(t).post('/api/auth/link/redeem', { token, password: NEW_PASSWORD }).expect(201);
   });
 
-  it('redeeming signs in once; the same link then fails', async () => {
+  it('setting a password uses the link up and signs in; the password then works', async () => {
     const p = await createPerson(t, { roles: ['viewer'] });
     const token = await createLinkToken(t, p.id);
     const agent = request.agent(t.app.getHttpServer()).set('CF-Connecting-IP', nextIp());
-    const res = await agent.post('/api/auth/link/redeem').send({ token }).expect(201);
+    const res = await agent
+      .post('/api/auth/link/redeem')
+      .send({ token, password: NEW_PASSWORD })
+      .expect(201);
     expect(res.body).toMatchObject({
       authenticated: true,
       user: { id: p.id, email: p.email, roles: ['viewer'] },
@@ -55,15 +60,26 @@ describe('sign-in links', () => {
       csrfToken: res.body.csrfToken,
     });
 
-    await anon(t).post('/api/auth/link/redeem', { token }).expect(401);
+    await anon(t).post('/api/auth/link/redeem', { token, password: NEW_PASSWORD }).expect(401);
     await anon(t).post('/api/auth/link/check', { token }).expect(404);
+    await anon(t).post('/api/auth/sign-in', { email: p.email, password: NEW_PASSWORD }).expect(201);
+  });
+
+  it('a weak password is refused and the link still works', async () => {
+    const p = await createPerson(t, { roles: ['user'] });
+    const token = await createLinkToken(t, p.id);
+    const res = await anon(t)
+      .post('/api/auth/link/redeem', { token, password: 'short' })
+      .expect(400);
+    expect(res.body.message).toMatch(/at least 10/);
+    await anon(t).post('/api/auth/link/check', { token }).expect(201);
   });
 
   it('an expired link is 404 on check and 401 on redeem', async () => {
     const p = await createPerson(t, { roles: ['user'] });
     const token = await createLinkToken(t, p.id, new Date(Date.now() - 1000));
     await anon(t).post('/api/auth/link/check', { token }).expect(404);
-    await anon(t).post('/api/auth/link/redeem', { token }).expect(401);
+    await anon(t).post('/api/auth/link/redeem', { token, password: NEW_PASSWORD }).expect(401);
   });
 
   it('an unknown well-formed token is 404 on check and 401 on redeem', async () => {
@@ -71,7 +87,7 @@ describe('sign-in links', () => {
       .post('/api/auth/link/check', { token: 'a'.repeat(43) })
       .expect(404);
     await anon(t)
-      .post('/api/auth/link/redeem', { token: 'a'.repeat(43) })
+      .post('/api/auth/link/redeem', { token: 'a'.repeat(43), password: NEW_PASSWORD })
       .expect(401);
   });
 
@@ -82,27 +98,29 @@ describe('sign-in links', () => {
     ['missing', {}],
   ])('a malformed token (%s) is 400', async (_name, body) => {
     await anon(t).post('/api/auth/link/check', body).expect(400);
-    await anon(t).post('/api/auth/link/redeem', body).expect(400);
+    await anon(t)
+      .post('/api/auth/link/redeem', { ...body, password: NEW_PASSWORD })
+      .expect(400);
   });
 
   it('a person without sign-in access cannot use a link', async () => {
     const p = await createPerson(t, { roles: [] });
     const token = await createLinkToken(t, p.id);
     await anon(t).post('/api/auth/link/check', { token }).expect(404);
-    await anon(t).post('/api/auth/link/redeem', { token }).expect(401);
+    await anon(t).post('/api/auth/link/redeem', { token, password: NEW_PASSWORD }).expect(401);
   });
 
   it('a person with sign-in disabled (isActive: false) cannot use a link', async () => {
     const p = await createPerson(t, { roles: ['admin'], isActive: false });
     const token = await createLinkToken(t, p.id);
     await anon(t).post('/api/auth/link/check', { token }).expect(404);
-    await anon(t).post('/api/auth/link/redeem', { token }).expect(401);
+    await anon(t).post('/api/auth/link/redeem', { token, password: NEW_PASSWORD }).expect(401);
   });
 
   it('a person without an email cannot use a link', async () => {
     const p = await createPerson(t, { roles: ['user'], email: undefined });
     const token = await createLinkToken(t, p.id);
-    await anon(t).post('/api/auth/link/redeem', { token }).expect(401);
+    await anon(t).post('/api/auth/link/redeem', { token, password: NEW_PASSWORD }).expect(401);
   });
 
   it('disabling a signed-in person ends their access', async () => {
@@ -114,7 +132,9 @@ describe('sign-in links', () => {
   it('the session cookie is HttpOnly and SameSite=Lax', async () => {
     const p = await createPerson(t, { roles: ['user'] });
     const token = await createLinkToken(t, p.id);
-    const res = await anon(t).post('/api/auth/link/redeem', { token }).expect(201);
+    const res = await anon(t)
+      .post('/api/auth/link/redeem', { token, password: NEW_PASSWORD })
+      .expect(201);
     const cookie = ([] as string[])
       .concat(res.headers['set-cookie'] ?? [])
       .find((c) => c.startsWith(`${SESSION_COOKIE}=`))!;
@@ -150,7 +170,8 @@ describe('sign-in links', () => {
     const [row] = await t.db.select().from(signInLinks).where(eq(signInLinks.personId, p.id));
     expect(row!.tokenHash).toBe(hashToken(token));
     expect(row!.createdByEmail).toBe(admin.email);
-    await anon(t).post('/api/auth/link/redeem', { token }).expect(201);
+    expect(row!.purpose).toBe('password');
+    await anon(t).post('/api/auth/link/redeem', { token, password: NEW_PASSWORD }).expect(201);
   });
 
   it('logout ends the session and clears the cookie', async () => {
@@ -183,7 +204,7 @@ describe('sign-in links', () => {
     expect(person.lastLoginAt).toBeTruthy();
   });
 
-  it('rate-limits sign-in link checks: the 11th from one IP within a minute is 429', async () => {
+  it('rate-limits password link checks: the 11th from one IP within a minute is 429', async () => {
     const ip = nextIp();
     const check = () =>
       request(t.app.getHttpServer())
@@ -281,7 +302,7 @@ describe('sign-in access management (admins)', () => {
     await as(phone).get('/api/rigs').expect(401);
     await as(laptop).get('/api/rigs').expect(401);
     await as(admin).get('/api/rigs').expect(200);
-    // They can still sign in again with a new link.
+    // They can still sign in again.
     const again = await signIn(t, p.id);
     await as(again).get('/api/rigs').expect(200);
   });

@@ -100,7 +100,9 @@ Split in two on 2026-10-17:
 - **Import script:** reads a `mongodump` archive, keeps the old ids in `legacy_id`, reports conflicts instead of guessing, prints counts, and can be re-run.
 - **Rehearsal:** run it on a staging stack until step 2's API tests and the TestPlan pass. Then cut over with a short downtime, keep Mongo for 30 days as a rollback, and switch the backup job to `pg_dump`.
 
-### 5. Passwords, lockouts and the guest view (M)
+### 5. Passwords, lockouts and the guest view (M) — built (2.0.0-beta.1), not yet deployed
+
+**Status:** built on the `step5-passwords` branch as 2.0.0-beta.1 (migration 0006, 411 API and 87 web tests). Deploying needs the `rigtracker_app_secret` Docker secret and `APP_SECRET_FILE` in the stack ([Deployment.md](Deployment.md#passwords-and-the-guest-view-200-beta1)); after it, everyone without a live session needs a password link. Sign-in links became password links at the same URL, so links already sent still work. Email stays off: the mail guard is in place, with nothing that sends.
 
 - **Port from TeeMate:**
   - `auth/password.ts` (Argon2id, NIST rules, breached-password list);
@@ -108,7 +110,7 @@ Split in two on 2026-10-17:
   - per-account exponential lockout, and per-IP limits;
   - an optional authenticator (TOTP, AES-GCM-encrypted with `APP_SECRET`) with recovery codes;
   - a Security card on Account.
-- Sign-in links remain for first sign-in and resets.
+- Sign-in links remain for first sign-in and resets (as password links).
 - **Guest view:**
   - "Look around as a guest" on the sign-in page;
   - read-only;

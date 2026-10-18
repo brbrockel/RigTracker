@@ -9,6 +9,8 @@ const env = {
     process.env.TEST_DATABASE_URL ||
     'postgres://rigtracker:rigtracker@127.0.0.1:15433/rigtracker_test',
   /** A throwaway Mongo database for the import script's test (dropped by that test). */
+  /** Encrypts authenticator keys in the tests (any 32 bytes). */
+  APP_SECRET: 'a'.repeat(64),
   UPLOADS_DIR: path.join(os.tmpdir(), `rigtracker-test-uploads-${process.pid}`),
 };
 // Global setup runs in this process, before `test.env` reaches the workers.

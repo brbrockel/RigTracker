@@ -13,6 +13,7 @@ import { MediaModule } from './media/media.module.js';
 import { EventsModule } from './events/events.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AuditModule } from './audit/audit.module.js';
+import { MailModule } from './mail/mailer.js';
 import { HealthController } from './health/health.controller.js';
 
 @Module({
@@ -20,6 +21,7 @@ import { HealthController } from './health/health.controller.js';
     ThrottlerModule.forRoot([DEFAULT_LIMIT]),
     DbModule,
     AuditModule,
+    MailModule,
     GearModule,
     RigsModule,
     PeopleModule,

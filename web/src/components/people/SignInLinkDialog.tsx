@@ -13,7 +13,8 @@ export function formatDateTime(value: string): string {
 }
 
 /**
- * Shows a single-use sign-in link for the admin to pass on. Nothing is sent by the server:
+ * Shows a single-use password link for the admin to pass on: opening it lets the person set
+ * (or reset) their password and signs them in. Nothing is sent by the server:
  * Text and Email open the admin's own Messages or mail app with the link filled in.
  */
 export function SignInLinkDialog({
@@ -28,8 +29,8 @@ export function SignInLinkDialog({
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const until = formatDateTime(info.expiresAt);
-  const message = `Your RigTracker sign-in link (works once, until ${until}): ${info.link}`;
-  const mailHref = `mailto:${info.email}?subject=${encodeURIComponent('Your RigTracker sign-in link')}&body=${encodeURIComponent(message)}`;
+  const message = `Your RigTracker password link (works once, until ${until}). Open it to set your password: ${info.link}`;
+  const mailHref = `mailto:${info.email}?subject=${encodeURIComponent('Your RigTracker password link')}&body=${encodeURIComponent(message)}`;
 
   async function copy() {
     try {
@@ -44,12 +45,12 @@ export function SignInLinkDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        title={`Sign-in link for ${name}`}
-        description={`It works once, until ${until}. Anyone with the link can sign in as ${info.email}, so only send it to them.`}
+        title={`Password link for ${name}`}
+        description={`It works once, until ${until}, and sets a new password for ${info.email}. Anyone with the link can do that, so only send it to them.`}
       >
         <div className="flex flex-col gap-3">
           <Label htmlFor="sign-in-link" className="sr-only">
-            Sign-in link
+            Password link
           </Label>
           <textarea
             id="sign-in-link"

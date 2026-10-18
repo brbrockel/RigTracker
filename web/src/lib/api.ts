@@ -75,6 +75,8 @@ export interface User {
   isActive: boolean;
   lastLoginAt: string | null;
   loginCount: number;
+  /** "Look around as a guest": read-only rigs, gear and events, no account. */
+  isGuest?: boolean;
 }
 
 export interface Me {
@@ -84,6 +86,8 @@ export interface Me {
 }
 
 export const isAdmin = (u?: User | null) => !!u?.roles.includes('admin');
+/** A guest only looks: no People, no changes, people shown as "First L.". */
+export const isGuest = (u?: User | null) => !!u?.isGuest;
 /** Admins and users can add and change records; viewers can only look. */
 export const canWrite = (u?: User | null) => !!u?.roles.some((r) => r === 'admin' || r === 'user');
 /** Only admins delete. */
@@ -107,9 +111,14 @@ export interface Person {
   roles?: Role[];
   /** false means sign-in is turned off. */
   isActive?: boolean;
-  /** Only sent to admins. */
   lastLoginAt?: string | null;
   loginCount?: number;
+  /** They have set a password (people without one can only get in with a password link). */
+  hasPassword?: boolean;
+  /** Authenticator codes are on. */
+  totpEnabled?: boolean;
+  /** Cooling down after too many wrong passwords or codes, until then; null when not. */
+  lockedUntil?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -162,6 +171,8 @@ export interface Rig extends WithMedia {
   repackDue?: string;
   customFields?: Record<string, unknown>;
   primaryUserId?: string;
+  /** The primary person's name ("First L." for guests). */
+  primaryUserName?: string;
   notes?: string;
   /** Its container, main, reserve and AAD: the gear in each slot, or null. */
   components?: Record<RigSlot, RigComponent | null>;
@@ -178,6 +189,8 @@ export interface Gear extends WithMedia {
   notes?: string;
   assignedRigId?: string;
   assignedPersonId?: string;
+  /** Only for guests (who can't read People): the person as "First L.". */
+  assignedPersonName?: string | null;
   /** Which of its rig's components it is; null or missing for other gear. */
   slot?: RigSlot | null;
   createdAt?: string;

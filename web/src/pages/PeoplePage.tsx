@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { KeyRound, LogOut, Pencil, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
+import { Pencil, Trash2, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useUser } from '@/auth/session';
@@ -75,8 +75,8 @@ export function PeoplePage() {
             {admin && (
               <>
                 <br />
-                Anyone here can be given sign-in access. Each sign-in link works once and lasts 72
-                hours.
+                Anyone here can be given sign-in access. Each password link works once and lasts 72
+                hours, and lets them set a password.
               </>
             )}
           </>
@@ -157,22 +157,7 @@ export function PeoplePage() {
                     {admin && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => signIn.editAccess(p)}>
-                          <ShieldCheck /> Sign-in access…
-                        </DropdownMenuItem>
-                        {canSignIn(p) && (
-                          <>
-                            <DropdownMenuItem
-                              disabled={signIn.linkPending}
-                              onSelect={() => signIn.getLink(p)}
-                            >
-                              <KeyRound /> Get sign-in link
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => signIn.signOut(p)}>
-                              <LogOut /> Sign out everywhere
-                            </DropdownMenuItem>
-                          </>
-                        )}
+                        {signIn.menuItems(p)}
                       </>
                     )}
                     {admin && !isSelf && (

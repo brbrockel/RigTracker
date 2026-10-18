@@ -10,22 +10,37 @@ import {
   Post,
   Req,
   Res,
-  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { AuthService, ROLES, type Role } from './auth.service.js';
-import type { AuthedRequest } from './auth-user.js';
+import { z } from 'zod';
+import { AuthService, ROLES, type NeedsCode, type Role, type SignedIn } from './auth.service.js';
+import type { AuthedRequest, AuthUser } from './auth-user.js';
 import { Public } from './public.decorator.js';
 import { Throttle } from '@nestjs/throttler';
 import { SIGN_IN_LIMIT } from '../common/throttle.js';
-import { IdPipe } from '../common/validation.js';
+import { IdPipe, ZodPipe } from '../common/validation.js';
 import { RequireRoles } from './roles.decorator.js';
 import { signInLinkUrl } from './tokens.js';
 import { clientIp } from '../common/client-ip.js';
 import { AuditService } from '../audit/audit.service.js';
 import { shortName } from '../people/person-view.js';
 
-const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const Token = z
+  .string({ error: 'That link is not valid' })
+  .regex(/^[A-Za-z0-9_-]{43}$/, 'That link is not valid');
+/** Long enough for any real password; the rules (10–128 characters) are checked when setting one. */
+const Password = z.string().max(200);
+
+const TokenBody = z.object({ token: Token });
+const SignInBody = z.object({
+  email: z.string().trim().min(1).max(200),
+  password: Password.min(1),
+});
+const CodeStepBody = z.object({ token: Token, code: z.string().trim().min(6).max(20) });
+const SetPasswordBody = z.object({ token: Token, password: Password });
+const ChangePasswordBody = z.object({ current: Password.default(''), password: Password });
+const CodeBody = z.object({ code: z.string().trim().min(6).max(20) });
+const PasswordBody = z.object({ password: Password.min(1) });
 
 @Controller('auth')
 export class AuthController {
@@ -41,10 +56,8 @@ export class AuthController {
     );
   }
 
-  private tokenFrom(body: { token?: unknown }): string {
-    const token = typeof body?.token === 'string' ? body.token : '';
-    if (!TOKEN_PATTERN.test(token)) throw new BadRequestException('That sign-in link is not valid');
-    return token;
+  private meta(req: Request) {
+    return { ip: clientIp(req), userAgent: req.headers['user-agent'] || undefined };
   }
 
   /** The base URL for links: APP_URL in production, else the site the admin is using. */
@@ -55,58 +68,105 @@ export class AuthController {
     return `${proto}://${req.headers.host}`;
   }
 
-  /** Who a sign-in link is for. Doesn't use it up. */
-  @Public()
-  @Throttle(SIGN_IN_LIMIT)
-  @Post('link/check')
-  async checkLink(@Body() body: { token?: unknown }) {
-    const info = await this.authService.peekSignInLink(this.tokenFrom(body));
-    if (!info)
-      throw new NotFoundException(
-        'This sign-in link has expired or was already used. Ask an admin for a new one.',
-      );
-    return info;
-  }
-
-  /** Uses up a sign-in link and signs in. */
-  @Public()
-  @Throttle(SIGN_IN_LIMIT)
-  @Post('link/redeem')
-  async redeemLink(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-    @Body() body: { token?: unknown },
-  ) {
-    const result = await this.authService.redeemSignInLink(this.tokenFrom(body), {
-      ip: clientIp(req),
-      userAgent: req.headers['user-agent'] || undefined,
-    });
-    if (!result)
-      throw new UnauthorizedException(
-        'This sign-in link has expired or was already used. Ask an admin for a new one.',
-      );
-
-    res.cookie(this.authService.getSessionCookieName(), result.sessionToken, {
+  private setCookie(res: Response, token: string, expiresAt: Date) {
+    res.cookie(this.authService.getSessionCookieName(), token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: this.authService.getSessionDurationMs(),
+      maxAge: Math.max(0, expiresAt.getTime() - Date.now()),
       path: '/',
     });
-    await this.auditService.log({
-      action: 'SIGN_IN',
-      resource: 'people',
-      resourceId: result.user.id,
-      resourceName: result.user.email,
-      actor: result.user,
-      details: { method: 'link', ip: clientIp(req) },
-    });
+  }
+
+  /** Sets the cookie for a new session and answers like /me; passes { needsCode } through. */
+  private respond(res: Response, result: SignedIn | NeedsCode) {
+    if ('needsCode' in result) return result;
+    this.setCookie(res, result.sessionToken, result.expiresAt);
     return {
       authenticated: true,
       user: result.user,
       sessionExpiresAt: result.expiresAt,
       csrfToken: result.csrfToken,
     };
+  }
+
+  /**
+   * Email and password. Answers { needsCode: true, token } when the account also uses an
+   * authenticator app; the token (5 minutes) goes to POST /auth/sign-in/code with the code.
+   */
+  @Public()
+  @Post('sign-in')
+  async signIn(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body(new ZodPipe(SignInBody)) body: z.infer<typeof SignInBody>,
+  ) {
+    const result = await this.authService.signInWithPassword(
+      body.email,
+      body.password,
+      this.meta(req),
+    );
+    return this.respond(res, result);
+  }
+
+  /** The authenticator step: a 6-digit code or a recovery code. */
+  @Public()
+  @Post('sign-in/code')
+  async signInCode(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body(new ZodPipe(CodeStepBody)) body: z.infer<typeof CodeStepBody>,
+  ) {
+    return this.respond(
+      res,
+      await this.authService.signInWithCode(body.token, body.code, this.meta(req)),
+    );
+  }
+
+  /** "Look around as a guest": read-only rigs, gear and events for 12 hours. */
+  @Public()
+  @Throttle(SIGN_IN_LIMIT)
+  @Post('guest')
+  async guest(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.startGuestSession(this.meta(req));
+    this.setCookie(res, result.sessionToken, result.expiresAt);
+    return {
+      authenticated: true,
+      user: guestView(result.user),
+      sessionExpiresAt: result.expiresAt,
+      csrfToken: result.csrfToken,
+    };
+  }
+
+  /** Who a password link is for, and whether they have a password yet. Doesn't use it up. */
+  @Public()
+  @Throttle(SIGN_IN_LIMIT)
+  @Post('link/check')
+  async checkLink(@Body(new ZodPipe(TokenBody)) body: z.infer<typeof TokenBody>) {
+    const info = await this.authService.peekSignInLink(body.token);
+    if (!info)
+      throw new NotFoundException(
+        'This password link has expired or was already used. Ask an admin for a new one.',
+      );
+    return info;
+  }
+
+  /**
+   * Sets the password from a password link, uses the link up and signs in, or answers
+   * { needsCode: true, token } when the account also uses an authenticator app.
+   */
+  @Public()
+  @Throttle(SIGN_IN_LIMIT)
+  @Post('link/redeem')
+  async redeemLink(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body(new ZodPipe(SetPasswordBody)) body: z.infer<typeof SetPasswordBody>,
+  ) {
+    return this.respond(
+      res,
+      await this.authService.setPasswordWithLink(body.token, body.password, this.meta(req)),
+    );
   }
 
   @Public()
@@ -116,7 +176,7 @@ export class AuthController {
     if (!auth) return { authenticated: false };
     return {
       authenticated: true,
-      user: auth.user,
+      user: auth.user.isGuest ? guestView(auth.user) : auth.user,
       sessionExpiresAt: auth.expiresAt,
       csrfToken: auth.csrfToken,
     };
@@ -129,7 +189,7 @@ export class AuthController {
     const auth = await this.authService.getAuthenticatedUser(token);
     await this.authService.logout(token);
     res.clearCookie(this.authService.getSessionCookieName(), { path: '/' });
-    if (auth) {
+    if (auth && !auth.user.isGuest) {
       await this.auditService.log({
         action: 'SIGN_OUT',
         resource: 'people',
@@ -139,6 +199,56 @@ export class AuthController {
       });
     }
     return { ok: true };
+  }
+
+  // ── Your own security (Account → Security) ─────────────────────────────
+
+  @Get('security')
+  security(@Req() req: AuthedRequest) {
+    return this.authService.security(req.authUser!);
+  }
+
+  /** Changes (or first sets) your password; your other sessions are signed out. */
+  @Post('password')
+  changePassword(
+    @Req() req: AuthedRequest,
+    @Body(new ZodPipe(ChangePasswordBody)) body: z.infer<typeof ChangePasswordBody>,
+  ) {
+    return this.authService.changePassword(
+      req.authUser!,
+      req.authSessionId!,
+      body.current,
+      body.password,
+    );
+  }
+
+  @Post('totp/start')
+  totpStart(@Req() req: AuthedRequest) {
+    return this.authService.totpStart(req.authUser!);
+  }
+
+  @Post('totp/enable')
+  totpEnable(
+    @Req() req: AuthedRequest,
+    @Body(new ZodPipe(CodeBody)) body: z.infer<typeof CodeBody>,
+  ) {
+    return this.authService.totpEnable(req.authUser!, body.code);
+  }
+
+  @Post('totp/disable')
+  totpDisable(
+    @Req() req: AuthedRequest,
+    @Body(new ZodPipe(PasswordBody)) body: z.infer<typeof PasswordBody>,
+  ) {
+    return this.authService.totpDisable(req.authUser!, body.password);
+  }
+
+  @Post('totp/recovery-codes')
+  recoveryCodes(
+    @Req() req: AuthedRequest,
+    @Body(new ZodPipe(PasswordBody)) body: z.infer<typeof PasswordBody>,
+  ) {
+    return this.authService.regenerateRecoveryCodes(req.authUser!, body.password);
   }
 
   // ── Sign-in access for people (admins) ─────────────────────────────────
@@ -176,7 +286,7 @@ export class AuthController {
     return after;
   }
 
-  /** A single-use sign-in link (72 hours) for the admin to text or email to the person. */
+  /** A single-use password link (72 hours) for the admin to text or email to the person. */
   @Post('people/:id/link')
   @RequireRoles('admin')
   async createLink(@Req() req: AuthedRequest, @Param('id', IdPipe) id: string) {
@@ -209,4 +319,23 @@ export class AuthController {
     });
     return { ok: true };
   }
+
+  /** Ends a cooldown after too many wrong passwords or codes. */
+  @Post('people/:id/unlock')
+  @RequireRoles('admin')
+  unlock(@Req() req: AuthedRequest, @Param('id', IdPipe) id: string) {
+    return this.authService.unlock(id, req.authUser);
+  }
+
+  /** Turns off someone's authenticator codes (a lost phone); signs them out everywhere. */
+  @Post('people/:id/reset-authenticator')
+  @RequireRoles('admin')
+  resetAuthenticator(@Req() req: AuthedRequest, @Param('id', IdPipe) id: string) {
+    return this.authService.resetTotp(id, req.authUser);
+  }
+}
+
+/** What /me shows a guest. */
+function guestView(user: AuthUser) {
+  return { id: user.id, displayName: user.displayName, roles: user.roles, isGuest: true };
 }

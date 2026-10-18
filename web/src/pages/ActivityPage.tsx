@@ -20,6 +20,7 @@ const RESOURCES = [
   ['people', 'People'],
   ['events', 'Events'],
   ['user', 'Accounts and sign-in'],
+  ['guests', 'Guests'],
 ] as const;
 
 const ACTIONS = [
@@ -29,7 +30,17 @@ const ACTIONS = [
   ['DELETE', 'Deleted'],
   ['SIGN_IN', 'Signed in'],
   ['SIGN_OUT', 'Signed out'],
-  ['SIGN_IN_LINK', 'Sign-in links'],
+  ['SIGN_IN_FAILED', 'Failed sign-ins'],
+  ['LOCKOUT', 'Lockouts'],
+  ['UNLOCK', 'Unlocks'],
+  ['SIGN_IN_LINK', 'Password links'],
+  ['PASSWORD_SET', 'Passwords set'],
+  ['PASSWORD_CHANGE', 'Passwords changed'],
+  ['TOTP_ON', 'Authenticator on'],
+  ['TOTP_OFF', 'Authenticator off'],
+  ['TOTP_RESET', 'Authenticator reset'],
+  ['RECOVERY_CODES', 'New recovery codes'],
+  ['GUEST_SIGN_IN', 'Guests'],
 ] as const;
 
 const NOUNS: Record<string, string> = {
@@ -63,11 +74,40 @@ function describe(e: AuditEntry): string {
     case 'DELETE':
       return name ? `deleted ${noun}${name}` : `deleted ${noun === 'gear' ? 'gear' : `a ${noun}`}`;
     case 'SIGN_IN':
-      return 'signed in';
+      return e.details?.method === 'code'
+        ? 'signed in with an authenticator code'
+        : e.details?.method === 'link'
+          ? 'signed in with a password link'
+          : 'signed in';
+    case 'SIGN_IN_FAILED': {
+      const who = name || (typeof e.details?.email === 'string' ? ` ${e.details.email}` : '');
+      const why = typeof e.details?.reason === 'string' ? ` (${e.details.reason})` : '';
+      return `failed to sign in as${who || ' someone'}${why}`;
+    }
+    case 'LOCKOUT': {
+      const minutes = typeof e.details?.minutes === 'number' ? e.details.minutes : null;
+      return `locked${name || ' someone'} out${minutes ? ` for ${minutes} minutes` : ''} after too many wrong tries`;
+    }
+    case 'UNLOCK':
+      return `unlocked${name || ' someone'}`;
+    case 'PASSWORD_SET':
+      return e.details?.via === 'link' ? 'set a password with a password link' : 'set a password';
+    case 'PASSWORD_CHANGE':
+      return 'changed their password';
+    case 'TOTP_ON':
+      return 'turned on authenticator codes';
+    case 'TOTP_OFF':
+      return 'turned off authenticator codes';
+    case 'TOTP_RESET':
+      return `reset the authenticator of${name || ' someone'}`;
+    case 'RECOVERY_CODES':
+      return 'made new recovery codes';
+    case 'GUEST_SIGN_IN':
+      return 'looked around as a guest';
     case 'SIGN_OUT':
       return e.details?.everywhere ? `signed${name || ' someone'} out everywhere` : 'signed out';
     case 'SIGN_IN_LINK':
-      return `made a sign-in link for${name || ' someone'}`;
+      return `made a password link for${name || ' someone'}`;
     default:
       return `${e.action.toLowerCase()} ${noun}${name}`;
   }
@@ -214,7 +254,16 @@ const label = (k: string) => {
 
 function ActivityRow({ entry: e }: { entry: AuditEntry }) {
   const [open, setOpen] = useState(false);
-  const who = e.userDisplayName || e.userEmail || 'Command line';
+  const who =
+    e.userDisplayName ||
+    e.userEmail ||
+    (e.action === 'GUEST_SIGN_IN'
+      ? 'A guest'
+      : e.action === 'SIGN_IN_FAILED'
+        ? 'Someone'
+        : e.action === 'LOCKOUT'
+          ? 'RigTracker'
+          : 'Command line');
   const changes = changedFields(e);
   const hasDetails = (!!e.details && Object.keys(e.details).length > 0) || changes.length > 0;
   const summary = (

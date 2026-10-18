@@ -1,7 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Req } from '@nestjs/common';
 import { RigsService } from './rigs.service.js';
 import { RequireRoles } from '../auth/roles.decorator.js';
-import type { AuthedRequest } from '../auth/auth-user.js';
+import { isGuest, type AuthedRequest } from '../auth/auth-user.js';
+import { GuestOk } from '../auth/public.decorator.js';
 import { AuditService } from '../audit/audit.service.js';
 import { IdPipe, ZodPipe } from '../common/validation.js';
 import { RigBody } from './rig.dto.js';
@@ -14,13 +15,15 @@ export class RigsController {
   ) {}
 
   @Get()
-  getAll() {
-    return this.rigsService.findAll();
+  @GuestOk()
+  getAll(@Req() req: AuthedRequest) {
+    return this.rigsService.findAll(isGuest(req));
   }
 
   @Get(':id')
-  getOne(@Param('id', IdPipe) id: string) {
-    return this.rigsService.findOne(id);
+  @GuestOk()
+  getOne(@Param('id', IdPipe) id: string, @Req() req: AuthedRequest) {
+    return this.rigsService.findOne(id, isGuest(req));
   }
 
   @Post()

@@ -1,3 +1,4 @@
+import { PersonLink } from '@/components/people/PersonLink';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Link2, Pencil, Trash2, Unlink } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
@@ -102,12 +103,12 @@ export function RigPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{rigLabel(r)}</h1>
             <p className="text-sm text-muted-foreground">
               {r.primaryUserId ? (
-                <Link
-                  to={`/people/${r.primaryUserId}`}
+                <PersonLink
+                  id={r.primaryUserId}
                   className="text-primary underline-offset-4 hover:underline"
                 >
                   {primary ?? 'Unknown person'}
-                </Link>
+                </PersonLink>
               ) : (
                 'No primary person'
               )}

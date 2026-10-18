@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { PersonLink } from '@/components/people/PersonLink';
 import { csvDate } from '@/components/inventory/csv';
 import { timeOf } from '@/components/inventory/sort';
 import type { ColumnDef, GroupOption, ItemSummary, SortOption } from '@/components/inventory/types';
@@ -88,9 +89,9 @@ export function gearColumns({ rigOf, nameOf }: GearLookups): ColumnDef<Gear>[] {
       label: 'Person',
       render: (g) =>
         g.assignedPersonId ? (
-          <Link to={`/people/${g.assignedPersonId}`} className="whitespace-nowrap hover:underline">
+          <PersonLink id={g.assignedPersonId} className="whitespace-nowrap hover:underline">
             {personText(g)}
-          </Link>
+          </PersonLink>
         ) : (
           dash
         ),

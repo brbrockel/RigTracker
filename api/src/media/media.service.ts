@@ -116,6 +116,22 @@ export class MediaService {
     return (await this.attach(type, [record]))[0]!;
   }
 
+  /** Whether a guest may see this /uploads/... file: it's a photo or video of a rig, gear or event. */
+  async isGuestVisible(url: string): Promise<boolean> {
+    let path: string;
+    try {
+      path = decodeURI(url);
+    } catch {
+      return false;
+    }
+    const [row] = await this.db
+      .select({ id: media.id })
+      .from(media)
+      .where(and(eq(media.url, path), inArray(media.ownerType, ['rig', 'gear', 'event'])))
+      .limit(1);
+    return !!row;
+  }
+
   async list(type: MediaOwnerType, ownerId: string): Promise<MediaItem[]> {
     await this.owner(type, ownerId);
     return (await this.forOwners(type, [ownerId])).get(ownerId)!;

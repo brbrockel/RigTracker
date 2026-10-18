@@ -212,7 +212,7 @@ describe('people', () => {
       within(card('Ada Lovelace')).queryByText(/signed in|Admin|User|Viewer/),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(/Each sign-in link works once and lasts\s+72 hours/),
+      screen.getByText(/Each password link works once and lasts\s+72 hours/),
     ).toBeInTheDocument();
 
     const filter = screen.getByRole('combobox', { name: 'Filter people' });
@@ -243,7 +243,7 @@ describe('people', () => {
     const user = userEvent.setup();
     renderAt('/people');
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    expect(screen.queryByRole('menuitem', { name: /Get sign-in link/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Get password link/ })).not.toBeInTheDocument();
     await user.click(await screen.findByRole('menuitem', { name: /Sign-in access/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Sign-in access for Ada Lovelace' });
     expect(within(dialog).getByText(/needs an email address/)).toBeInTheDocument();
@@ -279,7 +279,7 @@ describe('people', () => {
     ).toBeInTheDocument();
   });
 
-  it('gets a sign-in link to copy, text or email', async () => {
+  it('gets a password link to copy, text or email', async () => {
     const link = 'https://rigs.example.com/sign-in#token=abc';
     mockApi({
       'GET /api/auth/me': asAdmin,
@@ -292,10 +292,10 @@ describe('people', () => {
     const user = userEvent.setup();
     renderAt('/people');
     await user.click(await screen.findByRole('button', { name: 'Actions for Sam Jones' }));
-    await user.click(await screen.findByRole('menuitem', { name: /Get sign-in link/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Get password link/ }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Sign-in link for Sam Jones' });
-    expect(within(dialog).getByRole('textbox', { name: 'Sign-in link' })).toHaveValue(link);
+    const dialog = await screen.findByRole('dialog', { name: 'Password link for Sam Jones' });
+    expect(within(dialog).getByRole('textbox', { name: 'Password link' })).toHaveValue(link);
     expect(within(dialog).getByText(/works once, until/)).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('button', { name: 'Copy link' }));
@@ -310,6 +310,49 @@ describe('people', () => {
       /^mailto:sam@example\.com\?subject=Your%20RigTracker/,
     );
     expect(decodeURIComponent(email.getAttribute('href')!)).toContain(link);
+  });
+
+  it('shows a lockout and unlocks the account', async () => {
+    const until = new Date(Date.now() + 15 * 60_000).toISOString();
+    const locked = { ...sam, lockedUntil: until, hasPassword: true };
+    let unlocked = false;
+    const calls = mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': () => ok(unlocked ? [sam] : [locked])(),
+      'POST /api/auth/people/p3/unlock': () => {
+        unlocked = true;
+        return { status: 201, body: { ok: true } };
+      },
+    });
+    const user = userEvent.setup();
+    renderAt('/people');
+    expect(await screen.findByText(/Locked until/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Actions for Sam Jones' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Unlock account/ }));
+    await waitFor(() => expect(screen.queryByText(/Locked until/)).not.toBeInTheDocument());
+    const call = calls.find((c) => c.key === 'POST /api/auth/people/p3/unlock')!;
+    expect((call.init?.headers as Record<string, string>)['x-csrf-token']).toBe('csrf-123');
+  });
+
+  it('resets the authenticator of someone who has one, after asking', async () => {
+    const calls = mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': ok([{ ...sam, totpEnabled: true }, kim]),
+      'POST /api/auth/people/p3/reset-authenticator': ok({ ok: true }),
+    });
+    const user = userEvent.setup();
+    renderAt('/people');
+    expect(await screen.findByText(/authenticator on/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Actions for Sam Jones' }));
+    expect(screen.queryByRole('menuitem', { name: /Unlock account/ })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('menuitem', { name: /Reset authenticator/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Reset authenticator?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Reset authenticator' }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.key === 'POST /api/auth/people/p3/reset-authenticator')).toBe(
+        true,
+      ),
+    );
   });
 
   it('signs someone out everywhere after asking', async () => {
@@ -333,7 +376,7 @@ describe('people', () => {
     const user = userEvent.setup();
     renderAt('/people');
     await user.click(await screen.findByRole('button', { name: 'Actions for Brian B' }));
-    expect(await screen.findByRole('menuitem', { name: /Get sign-in link/ })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: /Get password link/ })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Delete/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('menuitem', { name: /Sign-in access/ }));
     const dialog = await screen.findByRole('dialog');
@@ -389,11 +432,11 @@ describe('people', () => {
     await screen.findByRole('link', { name: 'Sam Jones' });
     expect(within(card('Sam Jones')).getByText('User')).toBeInTheDocument();
     expect(screen.queryByText(/signed in/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/sign-in link works once/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/password link works once/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Actions for Sam Jones' }));
     expect(await screen.findByRole('menuitem', { name: /Edit/ })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Sign-in access/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Get sign-in link/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Get password link/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Sign out everywhere/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Delete/ })).not.toBeInTheDocument();
   });

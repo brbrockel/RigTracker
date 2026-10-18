@@ -5,12 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, isNull, ne, type SQL } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, type SQL } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.js';
 import { gear, people, rigs, type Gear, type RigSlot } from '../db/schema.js';
 import { defined } from '../common/validation.js';
 import { omit } from '../common/omit.js';
 import { MediaService } from '../media/media.service.js';
+import { guestName } from '../people/person-view.js';
 import type { GearBody } from './gear.dto.js';
 
 /** Gear as the API returns it: no serialNumber key when it has none. */
@@ -40,7 +41,29 @@ export class GearService {
     return this.mediaService.attachOne('gear', row);
   }
 
-  async findAll(filters?: { rigId?: string; personId?: string; unassigned?: string }) {
+  /**
+   * For guests, who can't read people: each gear's person as "First L." (assignedPersonName).
+   */
+  private async withGuestNames<T extends { assignedPersonId: string | null }>(rows: T[]) {
+    const ids = [...new Set(rows.map((r) => r.assignedPersonId).filter((id) => id !== null))];
+    const names = new Map<string, string>();
+    if (ids.length) {
+      const found = await this.db
+        .select({ id: people.id, firstName: people.firstName, lastName: people.lastName })
+        .from(people)
+        .where(inArray(people.id, ids));
+      for (const p of found) names.set(p.id, guestName(p));
+    }
+    return rows.map((r) => ({
+      ...r,
+      assignedPersonName: r.assignedPersonId ? (names.get(r.assignedPersonId) ?? '') : null,
+    }));
+  }
+
+  async findAll(
+    filters?: { rigId?: string; personId?: string; unassigned?: string },
+    guest = false,
+  ) {
     const where: SQL[] = [];
     if (filters?.rigId) where.push(eq(gear.assignedRigId, filters.rigId));
     if (filters?.personId) where.push(eq(gear.assignedPersonId, filters.personId));
@@ -51,7 +74,8 @@ export class GearService {
       .from(gear)
       .where(where.length ? and(...where) : undefined)
       .orderBy(asc(gear.createdAt));
-    return this.mediaService.attach('gear', rows.map(gearToApi));
+    const list = rows.map(gearToApi);
+    return this.mediaService.attach('gear', guest ? await this.withGuestNames(list) : list);
   }
 
   private async get(id: string) {
@@ -60,8 +84,9 @@ export class GearService {
     return row;
   }
 
-  async findOne(id: string) {
-    return this.withMedia(gearToApi(await this.get(id)));
+  async findOne(id: string, guest = false) {
+    const row = gearToApi(await this.get(id));
+    return this.withMedia(guest ? (await this.withGuestNames([row]))[0]! : row);
   }
 
   async create(dto: GearBody) {
