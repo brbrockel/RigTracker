@@ -36,7 +36,7 @@ Track the club's rigs, gear, events and people, with:
 | 2026-10-17 | Installable PWA with an iPhone "Add to Home Screen" hint | `69120e1` |
 | 2026-10-17 | Step 1: strict zod schemas for rigs, gear and events (unknown fields, operator values and non-upload media URLs refused); query strings must be plain strings; per-IP rate limits (300/min, sign-in links 10/min, uploads 30/min); updates run validators; deleting a person clears references; gear whose rig was deleted stays editable; cleared serials removed; last name optional | `f56e534` |
 
-| 2026-10-17 | Rigs and Gear inventory layouts: Table, List, Gallery and Cards (remembered per device and page), sort, group by, column picker, multi-select (assign, unassign, delete), CSV export, print sheet | this commit |
+| 2026-10-17 | Rigs and Gear inventory layouts: Table, List, Gallery and Cards (remembered per device and page), sort, group by, column picker, multi-select (assign, unassign, delete), CSV export, print sheet | `bf97d3f` |
 
 ## Next steps
 
