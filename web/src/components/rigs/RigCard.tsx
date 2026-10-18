@@ -23,7 +23,7 @@ export function RigCard({
       <div className="flex items-center gap-3">
         {select}
         <Link to={`/rigs/${r.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-          <Thumb url={r.imageUrl} alt={rigLabel(r)} />
+          <Thumb url={r.coverUrl} alt={rigLabel(r)} />
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium">{rigLabel(r)}</div>
             <div className="truncate text-sm text-muted-foreground">

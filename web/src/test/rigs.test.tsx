@@ -27,7 +27,7 @@ const rigs = [
         type: 'Reserve',
         serialNumber: 'RES-111',
         dateOfManufacture: '2015-03-01',
-        imageUrl: null,
+        coverUrl: null,
       },
       aad: null,
     },
@@ -141,6 +141,44 @@ describe('rigs list', () => {
     });
     expect((post.init!.headers as Record<string, string>)['x-csrf-token']).toBe('csrf-123');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('uploads photos chosen for a new rig once it is created, and says which failed', async () => {
+    let rigPosts = 0;
+    const calls = mockApi({
+      'GET /api/auth/me': asAdmin,
+      ...lists,
+      'POST /api/rigs': () => {
+        rigPosts++;
+        return { status: 201, body: { id: 'r9', name: 'Red' } };
+      },
+      'PUT /api/rigs/r9': () => ({ status: 200, body: { id: 'r9', name: 'Red' } }),
+      'POST /api/media': (init) =>
+        ((init?.body as FormData).get('file') as File).name === 'bad.jpg'
+          ? { status: 400, body: { message: 'That image could not be read' } }
+          : { status: 201, body: { id: 'm1', url: '/uploads/rig/r9/a.jpg', kind: 'photo' } },
+    });
+    renderAt('/rigs');
+    await userEvent.click(await screen.findByRole('button', { name: /New rig/ }));
+    const dialog = within(await screen.findByRole('dialog'));
+    await userEvent.type(dialog.getByLabelText('Name'), 'Red');
+    await userEvent.upload(dialog.getByTestId('pending-media-input'), [
+      new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+      new File(['b'], 'bad.jpg', { type: 'image/jpeg' }),
+    ]);
+    await userEvent.click(dialog.getByRole('button', { name: 'Add rig' }));
+    expect(
+      await dialog.findByText(/The rig was added, but some files didn't upload\. bad\.jpg/),
+    ).toBeInTheDocument();
+    const forms = calls
+      .filter((c) => c.key === 'POST /api/media')
+      .map((c) => (c.init?.body as FormData).get('ownerId'));
+    expect(forms).toEqual(['r9', 'r9']);
+    // Saving again updates the new rig rather than adding another.
+    await userEvent.click(dialog.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(rigPosts).toBe(1);
+    expect(calls.some((c) => c.key === 'PUT /api/rigs/r9')).toBe(true);
   });
 });
 

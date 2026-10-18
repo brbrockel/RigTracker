@@ -1,5 +1,12 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
-import { api, type Gear, type Person, type Rig, type RigEvent } from '@/lib/api';
+import {
+  api,
+  type Gear,
+  type MediaOwnerType,
+  type Person,
+  type Rig,
+  type RigEvent,
+} from '@/lib/api';
 
 /** Query keys; invalidate the list key after a change (detail keys sit under it). */
 export const keys = {
@@ -20,6 +27,14 @@ export const invalidateGear = (qc: QueryClient) =>
     qc.invalidateQueries({ queryKey: keys.gear }),
     qc.invalidateQueries({ queryKey: keys.rigs }),
   ]);
+
+/** After a photo or video change: the owner's lists (gear covers also show on rigs). */
+export const invalidateMediaOwner = (qc: QueryClient, ownerType: MediaOwnerType) =>
+  ownerType === 'event'
+    ? qc.invalidateQueries({ queryKey: keys.events })
+    : ownerType === 'gear'
+      ? invalidateGear(qc)
+      : qc.invalidateQueries({ queryKey: keys.rigs });
 
 export const useRigs = () => useQuery({ queryKey: keys.rigs, queryFn: () => api<Rig[]>('/rigs') });
 export const useRig = (id: string) =>

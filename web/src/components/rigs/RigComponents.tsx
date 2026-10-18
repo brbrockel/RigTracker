@@ -67,11 +67,7 @@ export function ComponentsCard({
                 aria-label={label}
               >
                 {c ? (
-                  <Thumb
-                    url={c.imageUrl ?? undefined}
-                    alt={c.name || label}
-                    className="size-12 rounded-md"
-                  />
+                  <Thumb url={c.coverUrl} alt={c.name || label} className="size-12 rounded-md" />
                 ) : (
                   <div className="size-12 shrink-0 rounded-md border border-dashed" aria-hidden />
                 )}

@@ -36,17 +36,19 @@ backup job (nightly) ── internal network ── MongoDB, uploads (read-only)
    - **Modules:**
      - `auth`: sign-in links, sessions, CSRF and roles;
      - `people`: people and their sign-in access;
-     - `rigs`, `gear`, `events`, `uploads`, `audit`, `health`.
+     - `rigs`, `gear`, `events`, `audit`, `health`;
+     - `media`: photos and videos of rigs, gear and events, through `uploads` (content checks, re-encoding, storage).
    - **Global guards, in order:**
      1. rate limit per visitor IP;
      2. session and CSRF;
      3. roles.
    - **Scripts:** `dist/scripts/sign-in-link.js` (the first admin, or a lockout) and `dist/scripts/import-mongo.js` (the one-off import from MongoDB).
 
-3. **Data (PostgreSQL 18: `people`, `rigs`, `gear`, `events`, `sessions`, `sign_in_links`, `audit_log`; `api/src/db/schema.ts`)**
+3. **Data (PostgreSQL 18: `people`, `rigs`, `gear`, `events`, `media`, `sessions`, `sign_in_links`, `audit_log`; `api/src/db/schema.ts`)**
    - Records have UUID ids. Rows imported from MongoDB keep the old ObjectId in `legacy_id`.
    - A person may have sign-in access: a `role` (admin, user or viewer; the API shows it as `roles`), `is_active`, and their last sign-in. Emails are unique among people who sign in (a partial unique index).
    - Gear points at a rig and/or a person (`rig_id`, `person_id`; `assignedRigId`, `assignedPersonId` in the API), and a rig at its primary person, with foreign keys that clear the reference when the record is deleted. On a rig, gear goes with the rig's primary person. Serial numbers are unique. A rig's container, main, reserve and AAD are gear in its slots (`gear.slot`, one of each per rig, a partial unique index); rig responses list them as `components`. The rig's old component columns are unused and are dropped in a later release.
+   - Photos and videos are `media` rows: an owner (`owner_type` rig, gear or event, and `owner_id`), the `/uploads/...` URL, photo or video, a caption and a position (0 is the cover). Owners are in three tables, so there's no foreign key: deleting a rig, gear or event deletes its media rows and files. Records return `media` and `coverUrl`. The old photo columns (`image_url`, `event_photo_url`, `photo_urls`) are unused and are dropped in a later release.
    - Sessions and sign-in links store only SHA-256 hashes of their tokens, and are deleted with their person.
    - The audit log is append-only (a trigger refuses UPDATE and DELETE) and keeps the record before and after each update.
 

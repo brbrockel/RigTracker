@@ -52,7 +52,10 @@ const ROUTES: Array<[Method, string, Need]> = [
   ['patch', `/api/auth/people/${id}/access`, 'admin'],
   ['post', `/api/auth/people/${id}/link`, 'admin'],
   ['post', `/api/auth/people/${id}/sign-out`, 'admin'],
-  ['post', '/api/uploads/image', 'write'],
+  ['get', `/api/media?ownerType=rig&ownerId=${id}`, 'read'],
+  ['post', '/api/media', 'write'],
+  ['patch', `/api/media/${id}`, 'write'],
+  ['delete', `/api/media/${id}`, 'write'],
 ];
 
 const ALLOWED: Record<Role, Need[]> = {

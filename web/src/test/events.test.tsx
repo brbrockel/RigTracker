@@ -8,8 +8,11 @@ const events = [
     id: 'e1',
     name: 'Spring Boogie',
     eventDate: '2099-03-10T00:00:00.000Z',
-    photoUrls: ['/uploads/a.jpg', '/uploads/b.mp4'],
-    eventPhotoUrl: '/uploads/a.jpg',
+    media: [
+      { id: 'm1', url: '/uploads/a.jpg', kind: 'photo', caption: null, position: 0 },
+      { id: 'm2', url: '/uploads/b.mp4', kind: 'video', caption: null, position: 1 },
+    ],
+    coverUrl: '/uploads/a.jpg',
   },
   { id: 'e2', name: 'Summer Trip', eventDate: '2099-06-01T00:00:00.000Z' },
   { id: 'e3', name: 'Old Jump Day', eventDate: '2020-05-02T00:00:00.000Z' },
@@ -67,17 +70,11 @@ describe('events', () => {
     });
   });
 
-  it.each([
-    [false, 'false'],
-    [true, 'true'],
-  ])('deletes an event (also media: %s)', async (tick, expected) => {
+  it('deletes an event, saying its photos and videos go too', async () => {
     const calls = mockApi({
       'GET /api/auth/me': asAdmin,
       'GET /api/events/e1': () => ({ status: 200, body: events[0] }),
-      [`DELETE /api/events/e1?purgeMedia=${expected}`]: () => ({
-        status: 200,
-        body: { deleted: true },
-      }),
+      'DELETE /api/events/e1': () => ({ status: 200, body: { deleted: true } }),
       'GET /api/events': () => ({ status: 200, body: [] }),
     });
     const router = renderAt('/events/e1');
@@ -85,28 +82,46 @@ describe('events', () => {
     expect(screen.getAllByRole('button', { name: /Open (photo|video)/ })).toHaveLength(2);
     await userEvent.click(screen.getByRole('button', { name: 'Delete Spring Boogie' }));
     const d = within(await screen.findByRole('dialog'));
-    if (tick)
-      await userEvent.click(d.getByRole('checkbox', { name: 'Also delete its photos and videos' }));
+    expect(d.getByText(/its 2 photos and videos are deleted/)).toBeInTheDocument();
+    expect(d.queryByRole('checkbox')).not.toBeInTheDocument();
     await userEvent.click(d.getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/events'));
     const del = calls.find((c) => c.key.startsWith('DELETE'))!;
-    expect(del.key).toBe(`DELETE /api/events/e1?purgeMedia=${expected}`);
+    expect(del.key).toBe('DELETE /api/events/e1');
     expect((del.init?.headers as Record<string, string>)['x-csrf-token']).toBe('csrf-123');
   });
 
-  it('adds several photos one at a time, then saves them together', async () => {
-    let n = 0;
-    let saved: Record<string, unknown> = events[1]!;
+  it('shows the cover as the main photo', async () => {
+    mockApi({
+      'GET /api/auth/me': asViewer,
+      'GET /api/events/e1': () => ({ status: 200, body: events[0] }),
+    });
+    renderAt('/events/e1');
+    expect(await screen.findByAltText('Spring Boogie main photo')).toHaveAttribute(
+      'src',
+      '/uploads/a.jpg',
+    );
+    expect(screen.getByText('Cover')).toBeInTheDocument();
+  });
+
+  it('adds several photos and videos one at a time, each to the end of the event’s list', async () => {
+    const added: Array<Record<string, unknown>> = [];
+    const event = () => ({ ...events[1], media: added, coverUrl: added[0]?.url ?? null });
     const calls = mockApi({
       'GET /api/auth/me': asAdmin,
-      'GET /api/events/e2': () => ({ status: 200, body: saved }),
-      'POST /api/uploads/image?folder=events%2FSummer%20Trip': () => ({
-        status: 201,
-        body: { url: `/uploads/x${++n}.jpg` },
-      }),
-      'PUT /api/events/e2': (init) => {
-        saved = { ...saved, ...JSON.parse(String(init?.body)) };
-        return { status: 200, body: saved };
+      'GET /api/events/e2': () => ({ status: 200, body: event() }),
+      'POST /api/media': (init) => {
+        const form = init?.body as FormData;
+        const file = form.get('file') as File;
+        const item = {
+          id: `m${added.length + 1}`,
+          url: `/uploads/event/e2/${file.name}`,
+          kind: file.type.startsWith('video/') ? 'video' : 'photo',
+          caption: null,
+          position: added.length,
+        };
+        added.push(item);
+        return { status: 201, body: item };
       },
       'GET /api/events': () => ({ status: 200, body: events }),
     });
@@ -116,16 +131,22 @@ describe('events', () => {
       new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
       new File(['b'], 'b.mp4', { type: 'video/mp4' }),
     ];
-    await userEvent.upload(screen.getByTestId('event-media-input'), files);
+    await userEvent.upload(screen.getByTestId('media-input'), files);
     await waitFor(() =>
-      expect(screen.getAllByRole('button', { name: /Open photo/ })).toHaveLength(2),
+      expect(screen.getAllByRole('button', { name: /Open (photo|video)/ })).toHaveLength(2),
     );
-    const puts = calls.filter((c) => c.key === 'PUT /api/events/e2');
-    expect(puts).toHaveLength(1);
-    expect(JSON.parse(String(puts[0]!.init?.body))).toEqual({
-      photoUrls: ['/uploads/x1.jpg', '/uploads/x2.jpg'],
-      eventPhotoUrl: '/uploads/x1.jpg',
-    });
+    const posts = calls.filter((c) => c.key === 'POST /api/media');
+    expect(posts).toHaveLength(2);
+    expect(
+      posts.map((p) => {
+        const form = p.init?.body as FormData;
+        return [form.get('ownerType'), form.get('ownerId'), (form.get('file') as File).name];
+      }),
+    ).toEqual([
+      ['event', 'e2', 'a.jpg'],
+      ['event', 'e2', 'b.mp4'],
+    ]);
+    expect(calls.some((c) => c.key.startsWith('PUT'))).toBe(false);
   });
 
   it('says when an event is missing', async () => {

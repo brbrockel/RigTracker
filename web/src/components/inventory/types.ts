@@ -63,7 +63,8 @@ export interface ItemSummary {
   href?: string;
   subtitle?: string;
   badges?: ReactNode;
-  imageUrl?: string;
+  /** Its cover photo or video. */
+  coverUrl?: string;
 }
 
 /** Per-row selection, present while selecting. */

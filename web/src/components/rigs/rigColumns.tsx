@@ -72,8 +72,8 @@ export function rigColumns(nameOf: NameOf): ColumnDef<Rig>[] {
     {
       id: 'photo',
       label: 'Photo',
-      render: (r) => <Thumb url={r.imageUrl} alt={rigLabel(r)} className="size-10 rounded-md" />,
-      text: (r) => mediaUrl(r.imageUrl) ?? '',
+      render: (r) => <Thumb url={r.coverUrl} alt={rigLabel(r)} className="size-10 rounded-md" />,
+      text: (r) => mediaUrl(r.coverUrl) ?? '',
       className: 'w-14',
     },
     {
@@ -192,7 +192,7 @@ export function rigSummary(r: Rig, nameOf: NameOf): ItemSummary {
       r.primaryUserId ? nameOf(r.primaryUserId) || 'Unknown person' : 'No primary person',
       componentOf(r, 'container')?.name ?? undefined,
     ),
-    imageUrl: r.imageUrl,
+    coverUrl: r.coverUrl ?? undefined,
     badges: repackState(r) === 'none' ? undefined : <RepackBadge rig={r} />,
   };
 }

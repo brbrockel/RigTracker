@@ -5,6 +5,7 @@ import { RIG_SLOTS, gear, people, rigs, type Rig, type RigSlot } from '../db/sch
 import { defined } from '../common/validation.js';
 import { omit } from '../common/omit.js';
 import { fullName } from '../people/person-view.js';
+import { MediaService } from '../media/media.service.js';
 import type { RigBody } from './rig.dto.js';
 
 /** The 1.x component columns, kept until production is moved (scripts/rig-components.ts). */
@@ -25,10 +26,10 @@ const OLD_COMPONENT_COLUMNS = [
 
 /** A rig's own fields as the API returns them (and the audit log records them). */
 export function rigToApi(rig: Rig) {
-  return omit(rig, 'legacyId', ...OLD_COMPONENT_COLUMNS);
+  return omit(rig, 'legacyId', 'imageUrl', ...OLD_COMPONENT_COLUMNS);
 }
 
-const rigColumns = omit(getTableColumns(rigs), 'legacyId', ...OLD_COMPONENT_COLUMNS);
+const rigColumns = omit(getTableColumns(rigs), 'legacyId', 'imageUrl', ...OLD_COMPONENT_COLUMNS);
 
 const componentColumns = {
   rigId: gear.assignedRigId,
@@ -38,7 +39,6 @@ const componentColumns = {
   type: gear.type,
   serialNumber: gear.serialNumber,
   dateOfManufacture: gear.dateOfManufacture,
-  imageUrl: gear.imageUrl,
 };
 export type RigComponent = {
   id: string;
@@ -46,7 +46,8 @@ export type RigComponent = {
   type: string | null;
   serialNumber: string | null;
   dateOfManufacture: string | null;
-  imageUrl: string | null;
+  /** Its cover photo or video (its first media), or null. */
+  coverUrl: string | null;
 };
 export type RigComponents = Record<RigSlot, RigComponent | null>;
 
@@ -60,7 +61,10 @@ const personNameColumns = {
 
 @Injectable()
 export class RigsService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly mediaService: MediaService,
+  ) {}
 
   private async checkPerson(id: string | null | undefined, tx: Executor = this.db) {
     if (!id) return;
@@ -76,7 +80,15 @@ export class RigsService {
       .select(componentColumns)
       .from(gear)
       .where(and(inArray(gear.assignedRigId, rigIds), isNotNull(gear.slot)));
-    for (const { rigId, slot, ...component } of rows) byRig.get(rigId!)![slot!] = component;
+    const media = await this.mediaService.forOwners(
+      'gear',
+      rows.map((r) => r.id),
+    );
+    for (const { rigId, slot, ...component } of rows)
+      byRig.get(rigId!)![slot!] = {
+        ...component,
+        coverUrl: media.get(component.id)?.[0]?.url ?? null,
+      };
     return byRig;
   }
 
@@ -87,7 +99,7 @@ export class RigsService {
   async create(dto: RigBody) {
     await this.checkPerson(dto.primaryUserId);
     const [created] = await this.db.insert(rigs).values(defined(dto)).returning();
-    return { ...rigToApi(created!), components: emptyComponents() };
+    return { ...rigToApi(created!), components: emptyComponents(), media: [], coverUrl: null };
   }
 
   /** Every rig, with its primary person's name ('' when none) and its components. */
@@ -98,11 +110,14 @@ export class RigsService {
       .leftJoin(people, eq(people.id, rigs.primaryUserId))
       .orderBy(asc(rigs.createdAt));
     const components = await this.components(rows.map((r) => r.rig.id));
-    return rows.map(({ rig, person }) => ({
-      ...rig,
-      primaryUserName: person ? fullName(person) : '',
-      components: components.get(rig.id)!,
-    }));
+    return this.mediaService.attach(
+      'rig',
+      rows.map(({ rig, person }) => ({
+        ...rig,
+        primaryUserName: person ? fullName(person) : '',
+        components: components.get(rig.id)!,
+      })),
+    );
   }
 
   async findOne(id: string) {
@@ -113,9 +128,20 @@ export class RigsService {
       .where(eq(rigs.id, id));
     if (!row) throw new NotFoundException('Rig not found');
     const components = (await this.components([id])).get(id)!;
-    return row.rig.primaryUserId
-      ? { ...row.rig, primaryUserName: row.person ? fullName(row.person) : '', components }
-      : { ...row.rig, components };
+    return this.mediaService.attachOne(
+      'rig',
+      row.rig.primaryUserId
+        ? { ...row.rig, primaryUserName: row.person ? fullName(row.person) : '', components }
+        : { ...row.rig, components },
+    );
+  }
+
+  /** A rig's own fields (as update returns them) with its components and media. */
+  async withExtras<T extends { id: string }>(rig: T) {
+    return this.mediaService.attachOne('rig', {
+      ...rig,
+      components: await this.componentsOf(rig.id),
+    });
   }
 
   /**
@@ -143,9 +169,9 @@ export class RigsService {
     });
   }
 
-  /** Its gear (components too) comes off the rig and off the rig's person. */
+  /** Its gear (components too) comes off the rig and off the rig's person; its media goes. */
   async remove(id: string) {
-    return this.db.transaction(async (tx) => {
+    const urls = await this.db.transaction(async (tx) => {
       // The foreign key would clear gear.rig_id by itself; the person goes with the rig too.
       await tx
         .update(gear)
@@ -153,7 +179,9 @@ export class RigsService {
         .where(eq(gear.assignedRigId, id));
       const deleted = await tx.delete(rigs).where(eq(rigs.id, id)).returning({ id: rigs.id });
       if (!deleted.length) throw new NotFoundException('Rig not found');
-      return { deleted: true };
+      return this.mediaService.deleteForOwner(tx, 'rig', id);
     });
+    await this.mediaService.removeUnusedFiles(urls);
+    return { deleted: true };
   }
 }

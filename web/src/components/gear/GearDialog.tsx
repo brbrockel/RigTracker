@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Field } from '@/components/Field';
-import { MediaPicker } from '@/components/MediaPicker';
+import { MediaManager } from '@/components/media/MediaManager';
+import { PendingMedia } from '@/components/media/PendingMedia';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -14,12 +15,13 @@ import {
   RIG_SLOTS,
   rigLabel,
   SLOT_LABELS,
+  uploadAll,
   type Gear,
   type Person,
   type Rig,
   type RigSlot,
 } from '@/lib/api';
-import { invalidateGear } from '@/lib/queries';
+import { invalidateGear, useGear } from '@/lib/queries';
 
 const NOTES_MAX = 1000;
 
@@ -72,12 +74,19 @@ function GearForm({
   onDone: () => void;
 }) {
   const qc = useQueryClient();
+  const gearList = useGear();
+  // New gear whose photos didn't all upload: the form stays open on it to try again.
+  const [created, setCreated] = useState<Gear | null>(null);
+  const saved = gear ?? created;
+  // The latest copy (its photos change while the dialog is open).
+  const live = saved ? (gearList.data?.find((g) => g.id === saved.id) ?? saved) : null;
+  const [pending, setPending] = useState<File[]>([]);
+  const [progress, setProgress] = useState('');
   const [name, setName] = useState(gear?.name ?? '');
   const [type, setType] = useState(gear?.type ?? '');
   const [serialNumber, setSerialNumber] = useState(gear?.serialNumber ?? '');
   const [dom, setDom] = useState(dateInputValue(gear?.dateOfManufacture));
   const [notes, setNotes] = useState(gear?.notes ?? '');
-  const [imageUrl, setImageUrl] = useState<string | undefined>(gear?.imageUrl || undefined);
   const [rigId, setRigId] = useState(gear?.assignedRigId ?? '');
   const [slot, setSlot] = useState<RigSlot | ''>(gear?.slot ?? '');
   const [personId, setPersonId] = useState(
@@ -97,7 +106,7 @@ function GearForm({
     gear.assignedPersonId !== rig?.primaryUserId;
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const body: Record<string, string | null> = {
         name: name.trim(),
         type: type.trim(),
@@ -111,17 +120,28 @@ function GearForm({
       // Serial numbers are unique, so a blank one is left out rather than saved as "".
       if (serialNumber.trim()) body.serialNumber = serialNumber.trim();
       if (dom) body.dateOfManufacture = dom;
-      else if (gear) body.dateOfManufacture = null;
-      if (imageUrl) body.imageUrl = imageUrl;
-      else if (gear) body.imageUrl = null;
-      return gear
-        ? api<Gear>(`/gear/${gear.id}`, { method: 'PUT', body })
-        : api<Gear>('/gear', { method: 'POST', body });
+      else if (saved) body.dateOfManufacture = null;
+      if (saved) return api<Gear>(`/gear/${saved.id}`, { method: 'PUT', body });
+      setProgress('Saving…');
+      const item = await api<Gear>('/gear', { method: 'POST', body });
+      if (pending.length) {
+        setCreated(item);
+        const { failed } = await uploadAll('gear', item.id, pending, setProgress);
+        setPending([]);
+        if (failed.length)
+          throw new Error(
+            `The gear was added, but some files didn't upload. ${failed.join('; ')} Try them again below.`,
+          );
+      }
+      return item;
     },
     onSuccess: async () => {
       await invalidateGear(qc);
       onDone();
     },
+    // New gear may have been added before an upload failed.
+    onError: () => invalidateGear(qc),
+    onSettled: () => setProgress(''),
   });
 
   function submit(e: FormEvent) {
@@ -238,16 +258,22 @@ function GearForm({
           className="w-full rounded-lg border bg-card px-3 py-2 text-base shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
         />
       </Field>
-      <MediaPicker
-        value={imageUrl}
-        onChange={setImageUrl}
-        folder={`gear/${name.trim() || 'uncategorized'}`}
-      />
+      {live ? (
+        <MediaManager
+          bare
+          ownerType="gear"
+          ownerId={live.id}
+          ownerName={live.name || 'this gear'}
+          media={live.media ?? []}
+        />
+      ) : (
+        <PendingMedia files={pending} onChange={setPending} disabled={save.isPending} />
+      )}
 
       {save.isError && <Alert variant="destructive">{errorMessage(save.error)}</Alert>}
       <div className="flex gap-2">
         <Button type="submit" disabled={save.isPending || !name.trim() || !type.trim()}>
-          {save.isPending ? 'Saving…' : gear ? 'Save' : 'Add gear'}
+          {save.isPending ? progress || 'Saving…' : saved ? 'Save' : 'Add gear'}
         </Button>
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancel

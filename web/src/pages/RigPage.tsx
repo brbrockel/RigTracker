@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Field } from '@/components/Field';
 import { GearSummary } from '@/components/gear/GearSummary';
 import { RepackBadge } from '@/components/rigs/RepackBadge';
+import { MediaManager } from '@/components/media/MediaManager';
 import { ComponentsCard } from '@/components/rigs/RigComponents';
 import { RigDialog } from '@/components/rigs/RigDialog';
 import { RowMenu } from '@/components/RowMenu';
@@ -96,7 +97,7 @@ export function RigPage() {
 
       <Card className="p-4">
         <div className="flex items-start gap-4">
-          <Thumb url={r.imageUrl} alt={rigLabel(r)} className="size-24 sm:size-28" />
+          <Thumb url={r.coverUrl} alt={rigLabel(r)} className="size-24 sm:size-28" />
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">{rigLabel(r)}</h1>
             <p className="text-sm text-muted-foreground">
@@ -164,6 +165,14 @@ export function RigPage() {
         </CardContent>
       </Card>
 
+      <MediaManager
+        ownerType="rig"
+        ownerId={r.id}
+        ownerName={rigLabel(r)}
+        media={r.media ?? []}
+        title="Photos"
+      />
+
       <ComponentsCard rig={r} gear={gear.data ?? []} nameOf={nameOf} writer={writer} />
 
       <div className="flex flex-col gap-3">
@@ -208,7 +217,7 @@ export function RigPage() {
         open={deleting}
         onOpenChange={setDeleting}
         title={`Delete ${rigLabel(r)}?`}
-        description="Its gear stays in the list, unassigned. This can't be undone."
+        description="Its gear stays in the list, unassigned. Its photos and videos are deleted. This can't be undone."
         onConfirm={async () => {
           await api(`/rigs/${r.id}`, { method: 'DELETE' });
           qc.removeQueries({ queryKey: keys.rig(r.id) });

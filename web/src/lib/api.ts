@@ -124,6 +124,25 @@ export const SLOT_LABELS: Record<RigSlot, string> = {
   aad: 'AAD',
 };
 
+/** Who a photo or video belongs to. */
+export type MediaOwnerType = 'rig' | 'gear' | 'event';
+
+/** A photo or video of a rig, gear or event. Position 0 is the cover. */
+export interface Media {
+  id: string;
+  /** An /uploads/... path (members only), or an https link from 1.x. */
+  url: string;
+  kind: 'photo' | 'video';
+  caption: string | null;
+  position: number;
+}
+
+/** What rigs, gear and events have: their photos and videos in order, and the first one's URL. */
+export interface WithMedia {
+  media?: Media[];
+  coverUrl?: string | null;
+}
+
 /** The gear in one of a rig's slots, as rig responses include it. */
 export interface RigComponent {
   id: string;
@@ -131,10 +150,10 @@ export interface RigComponent {
   type: string | null;
   serialNumber: string | null;
   dateOfManufacture: string | null;
-  imageUrl: string | null;
+  coverUrl: string | null;
 }
 
-export interface Rig {
+export interface Rig extends WithMedia {
   id: string;
   name?: string;
   number?: string;
@@ -144,21 +163,19 @@ export interface Rig {
   customFields?: Record<string, unknown>;
   primaryUserId?: string;
   notes?: string;
-  imageUrl?: string;
   /** Its container, main, reserve and AAD: the gear in each slot, or null. */
   components?: Record<RigSlot, RigComponent | null>;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export interface Gear {
+export interface Gear extends WithMedia {
   id: string;
   serialNumber?: string;
   name?: string;
   type?: string;
   dateOfManufacture?: string;
   notes?: string;
-  imageUrl?: string;
   assignedRigId?: string;
   assignedPersonId?: string;
   /** Which of its rig's components it is; null or missing for other gear. */
@@ -167,14 +184,11 @@ export interface Gear {
   updatedAt?: string;
 }
 
-export interface RigEvent {
+export interface RigEvent extends WithMedia {
   id: string;
   name?: string;
   eventDate?: string;
   description?: string;
-  /** The event's main photo or video. */
-  eventPhotoUrl?: string;
-  photoUrls?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -242,27 +256,55 @@ export function rigSlotLabel(rig: Pick<Rig, 'number' | 'name'> | undefined, slot
 }
 
 const VIDEO = /\.(mp4|mov|webm|m4v)$/i;
-export const isVideo = (url?: string) => !!url && VIDEO.test(url.split('?')[0] ?? '');
+export const isVideo = (url?: string | null) => !!url && VIDEO.test(url.split('?')[0] ?? '');
 
 /** Uploaded media lives under /uploads (members only); anything else is shown as given. */
-export function mediaUrl(url?: string): string | undefined {
+export function mediaUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
   if (/^https?:\/\//i.test(url) || url.startsWith('/')) return url;
   return `/${url}`;
 }
 
 /**
- * Uploads a photo or video. The server checks the file's content, re-encodes photos (no
- * location data) and picks the file name. folder is e.g. "gear/<name>", "rigs/<name>" or "events/<name>".
+ * Adds a photo or video to the end of a rig's, gear's or event's list (the cover if it's the
+ * first). The server checks the file's content, re-encodes photos (no location data) and
+ * picks the file name.
  */
-export async function uploadMedia(file: File, folder: string): Promise<string> {
+export async function uploadMedia(
+  ownerType: MediaOwnerType,
+  ownerId: string,
+  file: File,
+  caption?: string,
+): Promise<Media> {
   const form = new FormData();
+  form.append('ownerType', ownerType);
+  form.append('ownerId', ownerId);
+  if (caption?.trim()) form.append('caption', caption.trim());
   form.append('file', file);
-  const { url } = await api<{ url: string }>(
-    `/uploads/image?folder=${encodeURIComponent(folder)}`,
-    { method: 'POST', body: form },
-  );
-  return url;
+  return api<Media>('/media', { method: 'POST', body: form });
+}
+
+/**
+ * Uploads files one at a time, reporting progress ("Uploading 2 of 5…"). Files that fail are
+ * listed with the reason; the rest are still added.
+ */
+export async function uploadAll(
+  ownerType: MediaOwnerType,
+  ownerId: string,
+  files: File[],
+  onProgress?: (message: string) => void,
+): Promise<{ uploaded: Media[]; failed: string[] }> {
+  const uploaded: Media[] = [];
+  const failed: string[] = [];
+  for (const [i, file] of files.entries()) {
+    onProgress?.(files.length > 1 ? `Uploading ${i + 1} of ${files.length}…` : 'Uploading…');
+    try {
+      uploaded.push(await uploadMedia(ownerType, ownerId, file));
+    } catch (err) {
+      failed.push(`${file.name}: ${errorMessage(err, 'upload failed')}`);
+    }
+  }
+  return { uploaded, failed };
 }
 
 /**

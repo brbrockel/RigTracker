@@ -301,7 +301,7 @@ describe('rigs layouts', () => {
           type: 'Container',
           serialNumber: 'J-1',
           dateOfManufacture: null,
-          imageUrl: null,
+          coverUrl: null,
         },
         main: null,
         reserve: null,

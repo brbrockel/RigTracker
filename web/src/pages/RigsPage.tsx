@@ -187,7 +187,7 @@ export function RigsPage() {
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
         title={`Delete ${rigLabel(deleting)}?`}
-        description="Its gear stays in the list, unassigned. This can't be undone."
+        description="Its gear stays in the list, unassigned. Its photos and videos are deleted. This can't be undone."
         onConfirm={async () => {
           await api(`/rigs/${deleting!.id}`, { method: 'DELETE' });
           await invalidate();
@@ -197,7 +197,7 @@ export function RigsPage() {
         open={!!bulkDeleting}
         onOpenChange={(o) => !o && !bulk.busy && setBulkDeleting(null)}
         title={`Delete ${bulkDeleting?.rigs.length ?? 0} rig${bulkDeleting?.rigs.length === 1 ? '' : 's'}?`}
-        description="Their gear stays in the list, unassigned. This can't be undone."
+        description="Their gear stays in the list, unassigned. Their photos and videos are deleted. This can't be undone."
         confirmLabel={`Delete ${bulkDeleting?.rigs.length ?? 0}`}
         onConfirm={async () => {
           const { rigs: list, clear } = bulkDeleting!;

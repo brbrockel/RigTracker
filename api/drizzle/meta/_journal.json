@@ -22,6 +22,20 @@
       "when": 1792287479521,
       "tag": "0002_rig_component_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792289545680,
+      "tag": "0003_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792289546633,
+      "tag": "0004_media_from_url_columns",
+      "breakpoints": true
     }
   ]
 }

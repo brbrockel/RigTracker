@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   MISSING_ID,
@@ -24,14 +22,6 @@ beforeEach(async () => {
   user = await signInAs(t, 'user');
 });
 
-const uploads = () => process.env.UPLOADS_DIR!;
-function plant(rel: string): string {
-  const file = path.join(uploads(), rel);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, 'x');
-  return file;
-}
-
 describe('events', () => {
   it('create, read, update and delete', async () => {
     const ev = (
@@ -39,7 +29,7 @@ describe('events', () => {
         .post('/api/events', { name: 'Boogie', eventDate: '2025-07-04', description: 'Fun' })
         .expect(201)
     ).body;
-    expect(ev).toMatchObject({ name: 'Boogie', description: 'Fun', photoUrls: [] });
+    expect(ev).toMatchObject({ name: 'Boogie', description: 'Fun', media: [], coverUrl: null });
     expect(ev.eventDate).toBe('2025-07-04');
     expect((await as(user).get(`/api/events/${ev.id}`).expect(200)).body.name).toBe('Boogie');
     const updated = (
@@ -63,94 +53,19 @@ describe('events', () => {
     expect(names).toEqual(['Earlier', 'Later']);
   });
 
-  it('the main photo is always one of the event’s photos', async () => {
-    const withList = (
-      await as(user)
-        .post('/api/events', {
-          name: 'A',
-          photoUrls: ['/uploads/events/1.jpg'],
-          eventPhotoUrl: '/uploads/events/main.jpg',
-        })
-        .expect(201)
-    ).body;
-    expect(withList.photoUrls).toEqual(['/uploads/events/1.jpg', '/uploads/events/main.jpg']);
-
-    const alone = (
-      await as(user)
-        .post('/api/events', { name: 'B', eventPhotoUrl: '/uploads/events/b.jpg' })
-        .expect(201)
-    ).body;
-    expect(alone.photoUrls).toEqual(['/uploads/events/b.jpg']);
-
-    const already = (
-      await as(user)
-        .post('/api/events', {
-          name: 'C',
-          photoUrls: ['/uploads/c.jpg'],
-          eventPhotoUrl: '/uploads/c.jpg',
-        })
-        .expect(201)
-    ).body;
-    expect(already.photoUrls).toEqual(['/uploads/c.jpg']);
-
-    // Changing just the main photo adds it to the existing photos.
-    const changed = (
-      await as(user)
-        .put(`/api/events/${withList.id}`, { eventPhotoUrl: 'https://example.com/new.jpg' })
-        .expect(200)
-    ).body;
-    expect(changed.eventPhotoUrl).toBe('https://example.com/new.jpg');
-    expect(changed.photoUrls).toEqual([
-      '/uploads/events/1.jpg',
-      '/uploads/events/main.jpg',
-      'https://example.com/new.jpg',
-    ]);
-  });
-
-  it('deleting without purgeMedia keeps the files', async () => {
-    const file = plant('events/keep/a.jpg');
-    const ev = (
-      await as(user)
-        .post('/api/events', { name: 'Keep', photoUrls: ['/uploads/events/keep/a.jpg'] })
-        .expect(201)
-    ).body;
-    await as(admin).delete(`/api/events/${ev.id}`).expect(200);
-    expect(fs.existsSync(file)).toBe(true);
-  });
-
-  it('deleting with purgeMedia=true deletes only files inside the uploads folder', async () => {
-    const a = plant('events/purge/a.jpg');
-    const main = plant('events/purge/main.jpg');
-    const other = plant('events/other/keep.jpg');
-    // A file next to (not inside) the uploads folder, reachable only by ../ tricks.
-    const outsideDir = `${uploads()}-outside`;
-    fs.mkdirSync(outsideDir, { recursive: true });
-    const outside = path.join(outsideDir, 'secret.jpg');
-    fs.writeFileSync(outside, 'secret');
-    const outsideUrl = `/uploads/../${path.basename(outsideDir)}/secret.jpg`;
-
-    const ev = (
-      await as(user)
-        .post('/api/events', {
-          name: 'Purge',
-          eventPhotoUrl: '/uploads/events/purge/main.jpg',
-          photoUrls: [
-            '/uploads/events/purge/a.jpg',
-            outsideUrl,
-            'https://example.com/x.jpg',
-            '/uploads/events/purge/missing.jpg',
-          ],
-        })
-        .expect(201)
-    ).body;
-    await as(admin).delete(`/api/events/${ev.id}?purgeMedia=true`).expect(200);
-    expect(fs.existsSync(a)).toBe(false);
-    expect(fs.existsSync(main)).toBe(false);
-    // Its emptied folder is removed too, but not the uploads folder or other folders.
-    expect(fs.existsSync(path.dirname(a))).toBe(false);
-    expect(fs.existsSync(other)).toBe(true);
-    expect(fs.existsSync(uploads())).toBe(true);
-    expect(fs.existsSync(outside)).toBe(true);
-    fs.rmSync(outsideDir, { recursive: true, force: true });
+  it('photos are media: the 1.x photo fields are refused and not returned', async () => {
+    for (const body of [
+      { name: 'A', eventPhotoUrl: '/uploads/events/main.jpg' },
+      { name: 'A', photoUrls: ['/uploads/events/1.jpg'] },
+    ])
+      await as(user).post('/api/events', body).expect(400);
+    const ev = (await as(user).post('/api/events', { name: 'A' }).expect(201)).body;
+    await as(user).put(`/api/events/${ev.id}`, { photoUrls: [] }).expect(400);
+    const read = (await as(user).get(`/api/events/${ev.id}`).expect(200)).body;
+    expect(read).not.toHaveProperty('photoUrls');
+    expect(read).not.toHaveProperty('eventPhotoUrl');
+    expect(read).toMatchObject({ media: [], coverUrl: null });
+    const updated = (await as(user).put(`/api/events/${ev.id}`, { name: 'B' }).expect(200)).body;
+    expect(updated).toMatchObject({ name: 'B', media: [], coverUrl: null });
   });
 });

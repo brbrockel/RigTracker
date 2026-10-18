@@ -90,4 +90,20 @@ describe('changed fields', () => {
     ]);
     expect(changedFields({ before: null, after: null })).toEqual([]);
   });
+
+  it('describes photo and video changes on a record', async () => {
+    const logs = [
+      entry(0, { details: { media: 'added', url: '/uploads/rig/r0/a.jpg' } }),
+      entry(1, { resource: 'events', details: { media: 'removed', url: '/uploads/e/b.mp4' } }),
+      entry(2, { resource: 'gear', details: { media: 'cover', url: '/uploads/g/c.jpg' } }),
+    ];
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/audit?page=1&limit=50': () => ({ status: 200, body: { logs, total: 3 } }),
+    });
+    renderAt('/activity');
+    expect(await screen.findByText('added a photo to rig Rig 0')).toBeInTheDocument();
+    expect(screen.getByText('removed a video from event Rig 1')).toBeInTheDocument();
+    expect(screen.getByText('changed the cover of gear Rig 2')).toBeInTheDocument();
+  });
 });

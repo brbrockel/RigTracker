@@ -24,6 +24,7 @@ import { MongoClient, ObjectId, type Document } from 'mongodb';
 import { readSecret } from '../common/secrets.js';
 import { loadConfig } from '../config.js';
 import { createDb, createPool, type Database } from '../db/db.js';
+import { copyUrlColumnsToMedia } from '../db/media-from-url-columns.js';
 import {
   auditLog,
   events,
@@ -718,6 +719,11 @@ export async function importMongo(opts: ImportOptions): Promise<ImportReport> {
             )
             .onConflictDoNothing({ target: auditLog.legacyId });
         }
+
+        // Photos and videos are media rows (migration 0004 moved the URL columns; this does the
+        // same for what was just imported, skipping records that already have media).
+        const mediaAdded = await copyUrlColumnsToMedia(tx);
+        report.notes.push(`media: ${mediaAdded} photos and videos added from the photo URLs`);
 
         await tally(tx);
         if (report.collections.some((c) => c.postgres !== c.toImport)) throw new Mismatch();

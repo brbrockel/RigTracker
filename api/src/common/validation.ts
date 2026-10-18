@@ -56,17 +56,6 @@ export class IdPipe implements PipeTransform<unknown, string> {
   }
 }
 
-/** A photo or video: one of our uploads, or an https link. */
-export const mediaUrlSchema = z
-  .string()
-  .max(500)
-  .refine(
-    (u) => u.startsWith('/uploads/') || /^https:\/\/[^\s]+$/.test(u),
-    'must be an uploaded file or an https link',
-  );
-
-export const mediaUrl = () => z.preprocess(blankToNull, mediaUrlSchema.nullable().optional());
-
 /** Free-form extra fields: a flat object of short strings, numbers or booleans. */
 export const customFields = () =>
   z

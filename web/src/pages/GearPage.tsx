@@ -294,7 +294,7 @@ export function GearPage() {
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
         title={`Delete ${deleting?.name || 'this gear'}?`}
-        description="This can't be undone."
+        description="Its photos and videos are deleted too. This can't be undone."
         onConfirm={async () => {
           await api(`/gear/${deleting!.id}`, { method: 'DELETE' });
           await invalidateGear(qc);
@@ -304,7 +304,7 @@ export function GearPage() {
         open={!!bulkDeleting}
         onOpenChange={(o) => !o && !bulk.busy && setBulkDeleting(null)}
         title={`Delete ${bulkDeleting?.gear.length ?? 0} gear item${bulkDeleting?.gear.length === 1 ? '' : 's'}?`}
-        description="This can't be undone."
+        description="Their photos and videos are deleted too. This can't be undone."
         confirmLabel={`Delete ${bulkDeleting?.gear.length ?? 0}`}
         onConfirm={async () => {
           const { gear: list, clear } = bulkDeleting!;

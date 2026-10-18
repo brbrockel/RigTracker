@@ -27,7 +27,7 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Per-IP rate limits, security headers and a CSP.
 - `/api/health`, and the running version on Account.
 - Nightly verified backups.
-- 268 API end-to-end tests, 51 web tests, `pnpm check` and CI.
+- 304 API end-to-end tests, 70 web tests, `pnpm check` and CI.
 
 ### Fixed
 
@@ -37,6 +37,17 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Deleting a person left dangling references, and gear whose rig was deleted couldn't be edited.
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
+
+### 2.0.0-alpha.5
+
+- **Breaking:** photos and videos are a `media` table with owners (a rig, gear or event), in order; the first is the cover (an event's main photo).
+  - `POST /api/media` (multipart: `file`, `ownerType`, `ownerId`, `caption`) adds one at the end of the record's list, `GET /api/media?ownerType=&ownerId=` lists them, `PATCH /api/media/:id` changes the caption or the order (`makeCover`, `position`), and `DELETE /api/media/:id` deletes it and its file. Users and admins make changes; anyone signed in looks. Uploads are checked and re-encoded as before, and stored in `uploads/<type>/<id>/`.
+  - Rig, gear and event responses have `media` and `coverUrl` instead of `imageUrl`, `eventPhotoUrl` and `photoUrls`, and bodies refuse those fields. Rig components have `coverUrl`.
+  - `POST /api/uploads/image` is gone. `/uploads/...` is served as before.
+  - Deleting a rig, gear or event deletes its photos and videos (`?purgeMedia=` on event deletes is ignored). A file shared by two records is kept until both are gone.
+  - Migration 0004 copies the old photo columns into media at start-up; the columns stay, unused, until a later release.
+- Rigs have a **Photos** card, gear its photos in the edit form, and events manage theirs the same way: take a photo or add several photos and videos, make one the cover, add captions, delete, and open them full size. Photos chosen for a new rig or gear upload as soon as it's saved.
+- The Activity log records photos and videos added, removed, made the cover or captioned, as changes of their record.
 
 ### 2.0.0-alpha.4
 

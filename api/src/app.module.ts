@@ -9,6 +9,7 @@ import { GearModule } from './gear/gear.module.js';
 import { RigsModule } from './rigs/rigs.module.js';
 import { PeopleModule } from './people/people.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
+import { MediaModule } from './media/media.module.js';
 import { EventsModule } from './events/events.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AuditModule } from './audit/audit.module.js';
@@ -23,6 +24,7 @@ import { HealthController } from './health/health.controller.js';
     RigsModule,
     PeopleModule,
     UploadsModule,
+    MediaModule,
     EventsModule,
     AuthModule,
   ],

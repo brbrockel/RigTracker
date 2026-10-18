@@ -86,7 +86,7 @@ Split in two on 2026-10-17:
 - **4a: the database and framework move,** with the same API behaviour (the 252 tests as the contract). Done in 2.0.0-alpha.3.
 - **4b: the model changes:** rig components as gear rows, and a media table for photos and videos with owners. These change the rig and event screens.
   - **Part 1, rig components as gear** (2.0.0-alpha.4, built, not yet deployed): `gear.slot` (one container, main, reserve and AAD per rig), `components` on rig responses, the Components card and Position select, and `scripts/rig-components.ts` to move the rig columns into gear ([Deployment.md](Deployment.md#rig-components-into-gear-200-alpha4)). The old columns are dropped in a later release, once production has been moved.
-  - **Part 2, a media table,** still to do.
+  - **Part 2, a media table** (2.0.0-alpha.5, built, not yet deployed): photos and videos of rigs, gear and events in a `media` table with owners and an order (the first is the cover), `/api/media` to add, list, reorder, caption and delete them, `media` and `coverUrl` on the records, a Photos card on rigs, photos in the gear form and on events, and migration 0004 copying the old photo columns ([Deployment.md](Deployment.md#photos-and-videos-into-media-200-alpha5)). The old columns are dropped in a later release with the old rig component columns.
 
 - **Upgrade:** ESM, NestJS 12, Express 5 and TypeScript 6, which clears the last audit finding.
 - **Schema:**

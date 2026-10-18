@@ -33,8 +33,8 @@ export function gearColumns({ rigOf, nameOf }: GearLookups): ColumnDef<Gear>[] {
     {
       id: 'photo',
       label: 'Photo',
-      render: (g) => <Thumb url={g.imageUrl} alt={gearName(g)} className="size-10 rounded-md" />,
-      text: (g) => mediaUrl(g.imageUrl) ?? '',
+      render: (g) => <Thumb url={g.coverUrl} alt={gearName(g)} className="size-10 rounded-md" />,
+      text: (g) => mediaUrl(g.coverUrl) ?? '',
       className: 'w-14',
     },
     {
@@ -186,7 +186,7 @@ export function gearSummary(g: Gear, { rigOf, nameOf }: GearLookups): ItemSummar
     ]
       .filter(Boolean)
       .join(' · '),
-    imageUrl: g.imageUrl,
+    coverUrl: g.coverUrl ?? undefined,
     badges: !g.assignedRigId && !g.assignedPersonId ? <Badge>Unassigned</Badge> : undefined,
   };
 }

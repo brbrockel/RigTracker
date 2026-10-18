@@ -252,7 +252,7 @@ export function PersonPage() {
                     to={`/rigs/${r.id}`}
                     className="flex min-h-11 items-center gap-3 rounded-lg p-2 hover:bg-accent"
                   >
-                    <Thumb url={r.imageUrl} alt={rigLabel(r)} className="size-11" />
+                    <Thumb url={r.coverUrl} alt={rigLabel(r)} className="size-11" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{rigLabel(r)}</div>
                       {r.repackDue && (
@@ -297,7 +297,7 @@ export function PersonPage() {
                 const rig = g.assignedRigId ? rigById.get(g.assignedRigId) : undefined;
                 return (
                   <li key={g.id} className="flex items-center gap-3 rounded-lg border p-2">
-                    <Thumb url={g.imageUrl} alt={g.name || 'Gear'} className="size-11" />
+                    <Thumb url={g.coverUrl} alt={g.name || 'Gear'} className="size-11" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{g.name || 'Unnamed gear'}</div>
                       <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">

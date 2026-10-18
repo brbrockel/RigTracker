@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { RIG_SLOTS } from '../db/schema.js';
-import { date, mediaUrl, queryId, queryString, ref, text } from '../common/validation.js';
+import { date, queryId, queryString, ref, text } from '../common/validation.js';
 
+/** Photos are media (POST /api/media); the 1.x imageUrl is refused like any unknown key. */
 export const GearBody = z
   .object({
     name: text(),
@@ -10,7 +11,6 @@ export const GearBody = z
     serialNumber: text(60),
     dateOfManufacture: date(),
     notes: text(1000),
-    imageUrl: mediaUrl(),
     assignedRigId: ref(),
     assignedPersonId: ref(),
     /** Which of its rig's components it is; needs a rig. '' or null: not a component. */

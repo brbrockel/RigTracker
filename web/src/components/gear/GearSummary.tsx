@@ -11,7 +11,7 @@ export function GearSummary({ gear: g, children }: { gear: Gear; children?: Reac
   ].filter(Boolean);
   return (
     <div className="flex min-w-0 flex-1 items-start gap-3">
-      <Thumb url={g.imageUrl} alt={g.name || 'Gear'} />
+      <Thumb url={g.coverUrl} alt={g.name || 'Gear'} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate font-medium">{g.name || 'Unnamed gear'}</span>

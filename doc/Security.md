@@ -50,7 +50,7 @@ docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-i
 - **Login is required by default:** every API route and every uploaded file needs a session. The exceptions are the sign-in routes and `/api/health`.
 - **Bodies and queries** are checked with strict zod schemas:
   - unknown fields, operator objects such as `{"$gt": ""}` and non-string query values are refused;
-  - media URLs must be uploads or `https`.
+  - photo and video URLs are never taken from requests: the server stores the file and picks the URL.
 - **Rate limits per visitor IP** (from Cloudflare's `CF-Connecting-IP`): 300 requests a minute, 10 sign-in link tries a minute, 30 uploads a minute.
 - **Same-origin only:** no CORS headers unless `RIGTRACKER_CORS_ORIGIN` is set.
 - **Headers** (helmet) on everything:
@@ -62,7 +62,9 @@ docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/sign-i
 
 - **Checked by content, not by name:** only JPEG, PNG, GIF, WebP or AVIF images, and MP4, MOV or WebM videos.
 - **Images are re-encoded to JPEG** (up to 2560 px), which turns them upright and drops all metadata, including GPS location. Images can be up to 30 MB and videos up to 200 MB.
-- **The server picks the file name.** Folders are limited to `gear/`, `rigs/` and `events/`.
+- **The server picks the file name and folder:** `uploads/<rig|gear|event>/<record id>/<random id>.<ext>`. An upload names the record it belongs to (`POST /api/media`), which must exist.
+- **Users and admins** add, caption, reorder and delete photos and videos; viewers only look. Each change is in the Activity log as a change of its record.
+- **Deleting a record deletes its files,** and deleting a photo deletes its file, unless another record still uses it. Only files inside the uploads folder are ever deleted.
 - **Served to signed-in people only,** with `Content-Security-Policy: sandbox` and `nosniff`. Other file types are never served.
 
 ## Audit log

@@ -63,7 +63,7 @@ export function InventoryList<T>({
                       className="-ml-1"
                     />
                   )}
-                  <Thumb url={item.imageUrl} alt={item.title} className="size-10 rounded-md" />
+                  <Thumb url={item.coverUrl} alt={item.title} className="size-10 rounded-md" />
                   <div className="flex min-w-0 flex-1 flex-col gap-x-3 gap-y-1 sm:flex-row sm:items-center">
                     <div className="flex min-w-0 flex-1 flex-col">
                       <ItemTitle item={item} />

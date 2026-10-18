@@ -49,7 +49,6 @@ describe('rigs', () => {
       lastPacked: '2024-01-02T03:04:05Z',
       primaryUserId: p.id,
       customFields: { color: 'blue', jumps: 300, checked: true },
-      imageUrl: '/uploads/rigs/a.jpg',
     });
     expect(rig).toMatchObject({
       name: 'Javelin',
@@ -144,30 +143,19 @@ describe('validation', () => {
     ['rigs', 'imageUrl'],
     ['gear', 'imageUrl'],
     ['events', 'eventPhotoUrl'],
-  ])('/api/%s %s must be an upload or an https link', async (resource, field) => {
-    for (const url of [
-      'javascript:alert(1)',
-      'http://example.com/a.jpg',
-      'data:text/html,hi',
-      '//evil.example/a.jpg',
-    ]) {
-      await as(user)
-        .post(`/api/${resource}`, { name: 'x', [field]: url })
-        .expect(400);
-    }
-    await as(user)
-      .post(`/api/${resource}`, { name: 'x', [field]: '/uploads/a.jpg' })
-      .expect(201);
-    await as(user)
-      .post(`/api/${resource}`, { name: 'x', [field]: 'https://example.com/a.jpg' })
-      .expect(201);
-  });
-
-  it('event photoUrls must all be uploads or https links', async () => {
-    await as(user)
-      .post('/api/events', { name: 'x', photoUrls: ['/uploads/a.jpg', 'javascript:alert(1)'] })
+    ['events', 'photoUrls'],
+  ])('/api/%s refuses the 1.x photo field %s (photos are media)', async (resource, field) => {
+    const value = field === 'photoUrls' ? ['/uploads/a.jpg'] : '/uploads/a.jpg';
+    const res = await as(user)
+      .post(`/api/${resource}`, { name: 'x', [field]: value })
       .expect(400);
-    await as(user).post('/api/events', { name: 'x', photoUrls: 'not-a-list' }).expect(400);
+    expect(res.body.message).toMatch(/unrecognized|unknown/i);
+    const created = (await as(user).post(`/api/${resource}`, { name: 'x' }).expect(201)).body;
+    expect(created).not.toHaveProperty(field);
+    expect(created).toMatchObject({ media: [], coverUrl: null });
+    await as(user)
+      .put(`/api/${resource}/${created.id}`, { [field]: value })
+      .expect(400);
   });
 
   it.each([

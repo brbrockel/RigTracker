@@ -40,7 +40,7 @@ export function InventoryGallery<T>({
                 >
                   <div className="aspect-square w-full">
                     <Thumb
-                      url={item.imageUrl}
+                      url={item.coverUrl}
                       alt={item.title}
                       className="size-full rounded-none"
                     />

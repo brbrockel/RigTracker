@@ -125,6 +125,23 @@ Done once, after deploying 2.0.0-alpha.4 (its migration adds `gear.slot`). Until
    (`docker exec $(docker ps -qf name=rigtracker_rigtracker) node dist/scripts/rig-components.js [--apply]` does the same from the running container.)
 4. Check a few rigs on their pages, and look at any "Unplaced …" custom fields the conflicts left (for example rig #12's container shares serial 12376 with rig #11's).
 
+## Photos and videos into media (2.0.0-alpha.5)
+
+Nothing to run by hand: migration 0003 adds the `media` table and 0004 copies the photo columns into it (`rigs.image_url` and `gear.image_url` as each record's cover; an event's `event_photo_url` first, then its other `photo_urls` in order, each once). They run when the container starts. Blank values are skipped, and only `/uploads/...` paths and `https` links are kept, as the API allowed. If 2.0.0-alpha.4 isn't deployed yet, deploy this instead and do its rig components step afterwards (above, with this image's tag).
+
+1. Take a Postgres backup (see Backups).
+2. Deploy: `./build.sh --deploy`.
+3. Check that a rig, a gear item and an event with photos still show them, and that the counts look right:
+
+   ```bash
+   docker exec $(docker ps -qf name=rigtracker_backup) sh -c \
+     'PGPASSWORD="$(cat /run/secrets/rigtracker_db_password)" psql -c "select owner_type, kind, count(*) from media group by 1, 2 order by 1, 2"'
+   ```
+
+The old columns stay (a later release drops them), so rolling back to 2.0.0-alpha.4 still works. That version doesn't know about media, though: it shows the photos as they were at the upgrade, doesn't show photos added since, and shows a broken image for a migrated photo deleted since. Records changed by the old container during the rolling deploy keep their media from the copy.
+
+New uploads go in `uploads/<rig|gear|event>/<record id>/`. The 1.x folders (`rigs/`, `gear/`, `events/`) stay where they are; their files are deleted when their media rows are.
+
 ## Logs and status
 
 ```bash

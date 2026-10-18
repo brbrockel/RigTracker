@@ -3,7 +3,16 @@ import { MongoClient, ObjectId } from 'mongodb';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hashToken, newToken } from '../src/auth/tokens.js';
-import { auditLog, events, gear, people, rigs, sessions, signInLinks } from '../src/db/schema.js';
+import {
+  auditLog,
+  events,
+  gear,
+  media,
+  people,
+  rigs,
+  sessions,
+  signInLinks,
+} from '../src/db/schema.js';
 import { importMongo, type ImportReport } from '../src/scripts/import-mongo.js';
 import { SESSION_COOKIE, createTestApp, nextIp, resetDb, type TestApp } from './helpers.js';
 
@@ -231,6 +240,10 @@ describe('import-mongo', () => {
 
     const [ev] = await t.db.select().from(events);
     expect(ev).toMatchObject({ eventDate: '2026-07-04', photoUrls: ['/uploads/events/a.jpg'] });
+    // Its photo becomes a media row, as migration 0004 did for data already in Postgres.
+    expect(
+      (await t.db.select().from(media)).map((m) => [m.ownerType, m.ownerId, m.url, m.position]),
+    ).toEqual([['event', ev!.id, '/uploads/events/a.jpg', 0]]);
 
     const ss = await t.db.select().from(sessions);
     expect(ss).toHaveLength(1);
@@ -290,6 +303,7 @@ describe('import-mongo', () => {
     expect(await t.db.select().from(gear)).toHaveLength(3);
     expect(await t.db.select().from(sessions)).toHaveLength(1);
     expect(await t.db.select().from(signInLinks)).toHaveLength(1);
+    expect(await t.db.select().from(media)).toHaveLength(1);
     const allAudit = await t.db.select().from(auditLog);
     expect(allAudit.filter((a) => a.legacyId)).toHaveLength(2);
     expect(allAudit.find((a) => a.legacyId === auditEntry.toHexString())).toEqual(audit1);

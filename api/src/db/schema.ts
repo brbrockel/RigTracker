@@ -115,6 +115,7 @@ export const rigs = pgTable(
       onDelete: 'set null',
     }),
     notes: text('notes'),
+    /** 1.x photo (deprecated): copied into media by migration 0004; unused, dropped later. */
     imageUrl: text('image_url'),
     legacyId: legacyId(),
     createdAt: createdAt(),
@@ -137,6 +138,7 @@ export const gear = pgTable(
     type: text('type'),
     dateOfManufacture: day('date_of_manufacture'),
     notes: text('notes'),
+    /** 1.x photo (deprecated): copied into media by migration 0004; unused, dropped later. */
     imageUrl: text('image_url'),
     assignedRigId: uuid('rig_id').references(() => rigs.id, { onDelete: 'set null' }),
     assignedPersonId: uuid('person_id').references(() => people.id, { onDelete: 'set null' }),
@@ -165,7 +167,7 @@ export const events = pgTable('events', {
   name: text('name'),
   eventDate: day('event_date'),
   description: text('description'),
-  /** The main photo or video; it's always also in photoUrls. */
+  // 1.x photos (deprecated): copied into media by migration 0004; unused, dropped later.
   eventPhotoUrl: text('event_photo_url'),
   photoUrls: text('photo_urls')
     .array()
@@ -175,6 +177,43 @@ export const events = pgTable('events', {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+/** Who a photo or video belongs to (media.owner_type). */
+export const MEDIA_OWNER_TYPES = ['rig', 'gear', 'event'] as const;
+export type MediaOwnerType = (typeof MEDIA_OWNER_TYPES)[number];
+export const MEDIA_KINDS = ['photo', 'video'] as const;
+export type MediaKind = (typeof MEDIA_KINDS)[number];
+
+/**
+ * The photos and videos of rigs, gear and events, in order: position 0 is the cover (an
+ * event's main photo). url is an /uploads/... path (or an https link carried over from 1.x).
+ * No foreign key to the owner, as owners live in three tables: the rig, gear and event
+ * services delete an owner's media (rows and files) when they delete it. Migration 0004
+ * copied the old image_url, event_photo_url and photo_urls columns in; a later release drops
+ * those columns.
+ */
+export const media = pgTable(
+  'media',
+  {
+    id: id(),
+    ownerType: text('owner_type').$type<MediaOwnerType>().notNull(),
+    ownerId: uuid('owner_id').notNull(),
+    url: text('url').notNull(),
+    kind: text('kind').$type<MediaKind>().notNull(),
+    caption: text('caption'),
+    /** 0 is the cover; then the order they're shown in. */
+    position: integer('position').notNull().default(0),
+    /** The person who added it (no foreign key: it outlives them). */
+    uploadedBy: uuid('uploaded_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('media_owner_type_check', sql`${t.ownerType} in ('rig', 'gear', 'event')`),
+    check('media_kind_check', sql`${t.kind} in ('photo', 'video')`),
+    check('media_caption_length', sql`char_length(${t.caption}) <= 200`),
+    index('media_owner_idx').on(t.ownerType, t.ownerId, t.position),
+  ],
+);
 
 export const sessions = pgTable(
   'sessions',
@@ -257,4 +296,5 @@ export type Person = typeof people.$inferSelect;
 export type Rig = typeof rigs.$inferSelect;
 export type Gear = typeof gear.$inferSelect;
 export type Event = typeof events.$inferSelect;
+export type Media = typeof media.$inferSelect;
 export type AuditLogRow = typeof auditLog.$inferSelect;

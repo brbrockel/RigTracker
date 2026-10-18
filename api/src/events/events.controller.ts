@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, Put, Delete, Query, Req } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { EventsService } from './events.service.js';
 import { RequireRoles } from '../auth/roles.decorator.js';
 import type { AuthedRequest } from '../auth/auth-user.js';
@@ -54,25 +54,24 @@ export class EventsController {
       before,
       after,
     });
-    return after;
+    return this.eventsService.withMedia(after);
   }
 
+  /**
+   * Its photos and videos are deleted with it. ?purgeMedia= (1.x: whether to delete the
+   * files) is accepted and ignored.
+   */
   @Delete(':id')
   @RequireRoles('admin')
-  async remove(
-    @Param('id', IdPipe) id: string,
-    @Query('purgeMedia') purgeMedia?: unknown,
-    @Req() req?: AuthedRequest,
-  ) {
-    const shouldPurgeMedia = String(purgeMedia).toLowerCase() === 'true';
-    const result = await this.eventsService.remove(id, shouldPurgeMedia);
+  async remove(@Param('id', IdPipe) id: string, @Req() req: AuthedRequest) {
+    const { mediaDeleted } = await this.eventsService.remove(id);
     await this.auditService.log({
       action: 'DELETE',
       resource: 'events',
       resourceId: id,
-      details: { purgeMedia: shouldPurgeMedia },
-      actor: req?.authUser,
+      details: { mediaDeleted },
+      actor: req.authUser,
     });
-    return result;
+    return { deleted: true };
   }
 }

@@ -1,8 +1,15 @@
 import { eq, sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { runMigrations } from '../src/db/migrate.js';
-import { auditLog, gear, people, rigs } from '../src/db/schema.js';
+import { copyUrlColumnsToMedia } from '../src/db/media-from-url-columns.js';
+import { MIGRATIONS_DIR, runMigrations } from '../src/db/migrate.js';
+import * as schema from '../src/db/schema.js';
+import { auditLog, gear, media, people, rigs } from '../src/db/schema.js';
 import {
   as,
   createPerson,
@@ -207,6 +214,7 @@ describe('migrations', () => {
           'audit_log',
           'events',
           'gear',
+          'media',
           'people',
           'rigs',
           'sessions',
@@ -219,7 +227,7 @@ describe('migrations', () => {
         const { rows: applied } = await check.query(
           'select count(*)::int as n from drizzle.__drizzle_migrations',
         );
-        expect(applied[0].n).toBe(3);
+        expect(applied[0].n).toBe(5);
       } finally {
         await check.end();
       }
@@ -227,5 +235,141 @@ describe('migrations', () => {
       await client.query(`drop database if exists "${name}" with (force)`);
       await client.end();
     }
+  });
+});
+
+describe('migration 0004: photo URL columns into media', () => {
+  /** A fresh database migrated up to (not including) 0003, as production was before. */
+  async function databaseAtAlpha4(name: string) {
+    const url = new URL(process.env.DATABASE_URL!);
+    const admin = new URL(url);
+    admin.pathname = '/postgres';
+    const client = new pg.Client({ connectionString: admin.toString() });
+    await client.connect();
+    await client.query(`drop database if exists "${name}" with (force)`);
+    await client.query(`create database "${name}"`);
+    const target = new URL(url);
+    target.pathname = `/${name}`;
+    // The migrations as they were in 2.0.0-alpha.4: the first three, and a journal of them.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rigtracker-migrations-'));
+    fs.mkdirSync(path.join(dir, 'meta'));
+    const journal = JSON.parse(
+      fs.readFileSync(path.join(MIGRATIONS_DIR, 'meta', '_journal.json'), 'utf8'),
+    );
+    journal.entries = journal.entries.slice(0, 3);
+    fs.writeFileSync(path.join(dir, 'meta', '_journal.json'), JSON.stringify(journal));
+    for (const e of journal.entries)
+      fs.copyFileSync(path.join(MIGRATIONS_DIR, `${e.tag}.sql`), path.join(dir, `${e.tag}.sql`));
+    const pool = new pg.Pool({ connectionString: target.toString() });
+    await migrate(drizzle(pool), { migrationsFolder: dir });
+    fs.rmSync(dir, { recursive: true, force: true });
+    return {
+      url: target.toString(),
+      pool,
+      async drop() {
+        await pool.end();
+        await client.query(`drop database if exists "${name}" with (force)`);
+        await client.end();
+      },
+    };
+  }
+
+  it('copies rig, gear and event photos into media, in order, at start-up', async () => {
+    const db = await databaseAtAlpha4(`rigtracker_test_media_move_${process.pid}`);
+    try {
+      const q = (text: string, values: unknown[] = []) => db.pool.query(text, values);
+      const id = async (text: string, values: unknown[]) => (await q(text, values)).rows[0].id;
+      const rigPhoto = await id(
+        `insert into rigs (name, image_url) values ('A', $1) returning id`,
+        ['/uploads/rigs/a.jpg'],
+      );
+      const rigVideo = await id(
+        `insert into rigs (name, image_url) values ('B', $1) returning id`,
+        ['https://example.com/clip.MP4?x=1'],
+      );
+      await q(`insert into rigs (name, image_url) values ('Blank', ''), ('None', null),
+        ('Bad', 'javascript:alert(1)'), ('Http', 'http://example.com/a.jpg')`);
+      const relative = await id(
+        `insert into gear (name, image_url) values ('G', $1) returning id`,
+        [' uploads/gear/g.png '],
+      );
+      const event = await id(
+        `insert into events (name, event_photo_url, photo_urls) values ('E', $1, $2) returning id`,
+        [
+          '/uploads/events/main.jpg',
+          ['/uploads/events/1.jpg', '/uploads/events/main.jpg', '', '/uploads/events/2.mov'],
+        ],
+      );
+      const noMain = await id(
+        `insert into events (name, event_photo_url, photo_urls) values ('F', '', $1) returning id`,
+        [['/uploads/events/x.webm', '/uploads/events/y.jpg', '/uploads/events/x.webm']],
+      );
+      await q(`insert into events (name) values ('Empty')`);
+
+      await runMigrations(db.url);
+
+      const { rows } = await q(
+        `select owner_type, owner_id, url, kind, position, caption from media
+         order by owner_type, owner_id, position`,
+      );
+      const of = (ownerId: string) =>
+        rows
+          .filter((r) => r.owner_id === ownerId)
+          .map((r) => [r.owner_type, r.url, r.kind, r.position]);
+      expect(rows).toHaveLength(8);
+      expect(of(rigPhoto)).toEqual([['rig', '/uploads/rigs/a.jpg', 'photo', 0]]);
+      expect(of(rigVideo)).toEqual([['rig', 'https://example.com/clip.MP4?x=1', 'video', 0]]);
+      expect(of(relative)).toEqual([['gear', '/uploads/gear/g.png', 'photo', 0]]);
+      expect(of(event)).toEqual([
+        ['event', '/uploads/events/main.jpg', 'photo', 0],
+        ['event', '/uploads/events/1.jpg', 'photo', 1],
+        ['event', '/uploads/events/2.mov', 'video', 2],
+      ]);
+      expect(of(noMain)).toEqual([
+        ['event', '/uploads/events/x.webm', 'video', 0],
+        ['event', '/uploads/events/y.jpg', 'photo', 1],
+      ]);
+      expect(rows.every((r) => r.caption === null)).toBe(true);
+      // The old columns are kept (a later release drops them).
+      expect((await q(`select image_url from rigs where id = $1`, [rigPhoto])).rows[0]).toEqual({
+        image_url: '/uploads/rigs/a.jpg',
+      });
+
+      // Running the data move again adds nothing for records that already have media.
+      const again = drizzle(db.pool, { schema });
+      expect(await copyUrlColumnsToMedia(again)).toBe(0);
+      expect((await q('select count(*)::int as n from media')).rows[0].n).toBe(8);
+    } finally {
+      await db.drop();
+    }
+  });
+
+  it('re-running it fills in only records without media (as after an import)', async () => {
+    const [withMedia] = await t.db
+      .insert(rigs)
+      .values({ name: 'Has media', imageUrl: '/uploads/rigs/old.jpg' })
+      .returning();
+    await as(user).post('/api/rigs', { name: 'x' }).expect(201);
+    await t.db.insert(media).values({
+      ownerType: 'rig',
+      ownerId: withMedia!.id,
+      url: '/uploads/rig/new.jpg',
+      kind: 'photo',
+    });
+    const [imported] = await t.db
+      .insert(gear)
+      .values({ name: 'Imported', imageUrl: '/uploads/gear/i.jpg' })
+      .returning();
+    expect(await copyUrlColumnsToMedia(t.db)).toBe(1);
+    const got = (await as(user).get(`/api/gear/${imported!.id}`).expect(200)).body;
+    expect(got).toMatchObject({
+      coverUrl: '/uploads/gear/i.jpg',
+      media: [{ url: '/uploads/gear/i.jpg', kind: 'photo', position: 0, caption: null }],
+    });
+    expect(got).not.toHaveProperty('imageUrl');
+    expect((await as(user).get(`/api/rigs/${withMedia!.id}`)).body.coverUrl).toBe(
+      '/uploads/rig/new.jpg',
+    );
+    expect(await copyUrlColumnsToMedia(t.db)).toBe(0);
   });
 });

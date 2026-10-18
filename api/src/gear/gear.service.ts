@@ -10,11 +10,12 @@ import { DB, type Database } from '../db/db.js';
 import { gear, people, rigs, type Gear, type RigSlot } from '../db/schema.js';
 import { defined } from '../common/validation.js';
 import { omit } from '../common/omit.js';
+import { MediaService } from '../media/media.service.js';
 import type { GearBody } from './gear.dto.js';
 
 /** Gear as the API returns it: no serialNumber key when it has none. */
 export function gearToApi(row: Gear) {
-  const rest = omit(row, 'legacyId', 'serialNumber');
+  const rest = omit(row, 'legacyId', 'serialNumber', 'imageUrl');
   return row.serialNumber == null ? rest : { ...rest, serialNumber: row.serialNumber };
 }
 
@@ -29,7 +30,15 @@ export const SLOT_LABELS: Record<RigSlot, string> = {
 
 @Injectable()
 export class GearService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly mediaService: MediaService,
+  ) {}
+
+  /** Gear with its `media` and `coverUrl`. */
+  withMedia<T extends { id: string }>(row: T) {
+    return this.mediaService.attachOne('gear', row);
+  }
 
   async findAll(filters?: { rigId?: string; personId?: string; unassigned?: string }) {
     const where: SQL[] = [];
@@ -42,7 +51,7 @@ export class GearService {
       .from(gear)
       .where(where.length ? and(...where) : undefined)
       .orderBy(asc(gear.createdAt));
-    return rows.map(gearToApi);
+    return this.mediaService.attach('gear', rows.map(gearToApi));
   }
 
   private async get(id: string) {
@@ -52,13 +61,13 @@ export class GearService {
   }
 
   async findOne(id: string) {
-    return gearToApi(await this.get(id));
+    return this.withMedia(gearToApi(await this.get(id)));
   }
 
   async create(dto: GearBody) {
     const values = await this.normalizeAssignment(undefined, defined(dto), dto);
     const [created] = await this.db.insert(gear).values(values).returning();
-    return gearToApi(created!);
+    return { ...gearToApi(created!), media: [], coverUrl: null };
   }
 
   /** Returns the gear before and after (for the audit log). */
@@ -72,9 +81,14 @@ export class GearService {
     return { before: gearToApi(current), after: gearToApi(updated) };
   }
 
+  /** Its photos and videos go with it. */
   async remove(id: string) {
-    const deleted = await this.db.delete(gear).where(eq(gear.id, id)).returning({ id: gear.id });
-    if (!deleted.length) throw new NotFoundException('Gear not found');
+    const urls = await this.db.transaction(async (tx) => {
+      const deleted = await tx.delete(gear).where(eq(gear.id, id)).returning({ id: gear.id });
+      if (!deleted.length) throw new NotFoundException('Gear not found');
+      return this.mediaService.deleteForOwner(tx, 'gear', id);
+    });
+    await this.mediaService.removeUnusedFiles(urls);
     return { ok: true };
   }
 

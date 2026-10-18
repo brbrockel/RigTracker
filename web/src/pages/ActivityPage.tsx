@@ -6,7 +6,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
-import { api, errorMessage, type AuditEntry, type AuditPage } from '@/lib/api';
+import { api, errorMessage, isVideo, type AuditEntry, type AuditPage } from '@/lib/api';
 import { keys } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +51,14 @@ function describe(e: AuditEntry): string {
     case 'UPDATE':
       if (e.resource === 'user' && role)
         return `made${name || ' someone'} ${role === 'admin' ? 'an admin' : 'a user'}`;
+      if (typeof e.details?.media === 'string') {
+        const url = typeof e.details.url === 'string' ? e.details.url : '';
+        const what = isVideo(url) ? 'a video' : 'a photo';
+        if (e.details.media === 'added') return `added ${what} to ${noun}${name}`;
+        if (e.details.media === 'removed') return `removed ${what} from ${noun}${name}`;
+        if (e.details.media === 'cover') return `changed the cover of ${noun}${name}`;
+        if (e.details.media === 'caption') return `changed a caption on ${noun}${name}`;
+      }
       return `changed ${noun}${name}`;
     case 'DELETE':
       return name ? `deleted ${noun}${name}` : `deleted ${noun === 'gear' ? 'gear' : `a ${noun}`}`;

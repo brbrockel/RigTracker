@@ -55,7 +55,7 @@ export class GearController {
       before,
       after,
     });
-    return after;
+    return this.gearService.withMedia(after);
   }
 
   @Delete(':id')

@@ -149,12 +149,11 @@ function MonthGroups({ events }: { events: RigEvent[] }) {
 }
 
 function EventCard({ event: e }: { event: RigEvent }) {
-  const count = new Set([...(e.photoUrls ?? []), ...(e.eventPhotoUrl ? [e.eventPhotoUrl] : [])])
-    .size;
+  const count = e.media?.length ?? 0;
   return (
     <Card className="transition-colors hover:bg-accent/50">
       <Link to={`/events/${e.id}`} className="flex items-center gap-3 p-3">
-        <Thumb url={e.eventPhotoUrl || e.photoUrls?.[0]} alt={e.name || 'Event'} />
+        <Thumb url={e.coverUrl} alt={e.name || 'Event'} />
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{e.name || 'Untitled event'}</div>
           <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">

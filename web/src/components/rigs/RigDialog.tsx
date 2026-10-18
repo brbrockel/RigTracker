@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Field } from '@/components/Field';
-import { MediaPicker } from '@/components/MediaPicker';
+import { PendingMedia } from '@/components/media/PendingMedia';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input, Select } from '@/components/ui/input';
-import { api, dateInputValue, errorMessage, personName, type Rig } from '@/lib/api';
+import { api, dateInputValue, errorMessage, personName, uploadAll, type Rig } from '@/lib/api';
 import { keys, usePeople } from '@/lib/queries';
 
 // The container, main, reserve and AAD are gear, set on the rig's page (Components).
@@ -28,7 +28,7 @@ function initialValues(rig?: Rig | null): Values {
  * The request body. New rigs leave blank fields out; edits send null for a blank field so it's
  * cleared (dates arrive as yyyy-mm-dd; the API stores them as dates).
  */
-function rigBody(values: Values, imageUrl: string | undefined, editing: boolean) {
+function rigBody(values: Values, editing: boolean) {
   const body: Record<string, string | null> = {};
   const keysToSend: Key[] = [...TEXT, ...DATES, 'primaryUserId'];
   for (const k of keysToSend) {
@@ -36,8 +36,6 @@ function rigBody(values: Values, imageUrl: string | undefined, editing: boolean)
     if (value) body[k] = value;
     else if (editing) body[k] = null;
   }
-  if (imageUrl) body.imageUrl = imageUrl;
-  else if (editing) body.imageUrl = null;
   return body;
 }
 
@@ -57,7 +55,7 @@ export function RigDialog({
         title={rig ? 'Edit rig' : 'New rig'}
         description={
           rig
-            ? 'Its container, main, reserve and AAD are set under Components on the rig’s page.'
+            ? 'Its container, main, reserve and AAD, and its photos, are on the rig’s page.'
             : 'Only the name is required. Add its container, main, reserve and AAD on the rig’s page.'
         }
         className="sm:max-w-2xl"
@@ -73,23 +71,42 @@ function RigForm({ rig, onDone }: { rig?: Rig | null; onDone: () => void }) {
   const qc = useQueryClient();
   const people = usePeople();
   const [values, setValues] = useState<Values>(() => initialValues(rig));
-  const [imageUrl, setImageUrl] = useState<string | undefined>(rig?.imageUrl || undefined);
+  const [pending, setPending] = useState<File[]>([]);
+  const [progress, setProgress] = useState('');
+  // A new rig whose photos didn't all upload: saving again updates it instead of adding another.
+  const [created, setCreated] = useState<Rig | null>(null);
+  const saved = rig ?? created;
 
+  const refresh = () =>
+    // A new primary person also moves the rig's gear to them.
+    Promise.all([
+      qc.invalidateQueries({ queryKey: keys.rigs }),
+      qc.invalidateQueries({ queryKey: keys.gear }),
+    ]);
   const save = useMutation({
-    mutationFn: () => {
-      const body = rigBody(values, imageUrl, !!rig);
-      return rig
-        ? api<Rig>(`/rigs/${rig.id}`, { method: 'PUT', body })
-        : api<Rig>('/rigs', { method: 'POST', body });
+    mutationFn: async () => {
+      const body = rigBody(values, !!saved);
+      if (saved) return api<Rig>(`/rigs/${saved.id}`, { method: 'PUT', body });
+      setProgress('Saving…');
+      const item = await api<Rig>('/rigs', { method: 'POST', body });
+      if (pending.length) {
+        setCreated(item);
+        const { failed } = await uploadAll('rig', item.id, pending, setProgress);
+        setPending([]);
+        if (failed.length)
+          throw new Error(
+            `The rig was added, but some files didn't upload. ${failed.join('; ')} Add them on the rig's page.`,
+          );
+      }
+      return item;
     },
     onSuccess: async () => {
-      // A new primary person also moves the rig's gear to them.
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: keys.rigs }),
-        qc.invalidateQueries({ queryKey: keys.gear }),
-      ]);
+      await refresh();
       onDone();
     },
+    // A new rig may have been added before an upload failed.
+    onError: () => refresh(),
+    onSettled: () => setProgress(''),
   });
 
   const set = (k: Key) => (e: { target: { value: string } }) =>
@@ -153,16 +170,12 @@ function RigForm({ rig, onDone }: { rig?: Rig | null; onDone: () => void }) {
           className="w-full rounded-lg border bg-card px-3 py-2 text-base shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
         />
       </Field>
-      <MediaPicker
-        value={imageUrl}
-        onChange={setImageUrl}
-        folder={`rigs/${values.name.trim() || 'uncategorized'}`}
-      />
+      {!saved && <PendingMedia files={pending} onChange={setPending} disabled={save.isPending} />}
 
       {save.isError && <Alert variant="destructive">{errorMessage(save.error)}</Alert>}
       <div className="flex gap-2">
         <Button type="submit" disabled={save.isPending || !values.name.trim()}>
-          {save.isPending ? 'Saving…' : rig ? 'Save' : 'Add rig'}
+          {save.isPending ? progress || 'Saving…' : saved ? 'Save' : 'Add rig'}
         </Button>
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancel

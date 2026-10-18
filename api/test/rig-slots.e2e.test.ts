@@ -47,7 +47,6 @@ describe('rig components (gear slots)', () => {
       type: 'Main',
       serialNumber: 'ST-1',
       dateOfManufacture: '2019-01-02',
-      imageUrl: '/uploads/gear/a.jpg',
       assignedRigId: rig.id,
       slot: 'main',
     });
@@ -63,7 +62,7 @@ describe('rig components (gear slots)', () => {
         type: 'Main',
         serialNumber: 'ST-1',
         dateOfManufacture: '2019-01-02',
-        imageUrl: '/uploads/gear/a.jpg',
+        coverUrl: null,
       },
       reserve: null,
       aad: {
@@ -72,7 +71,7 @@ describe('rig components (gear slots)', () => {
         type: null,
         serialNumber: null,
         dateOfManufacture: null,
-        imageUrl: null,
+        coverUrl: null,
       },
     };
     expect((await getRig(rig.id)).components).toEqual(expected);

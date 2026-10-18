@@ -35,7 +35,7 @@ export async function createTestApp(): Promise<TestApp> {
  */
 export async function resetDb(t: TestApp): Promise<void> {
   await t.db.execute(sql`truncate table
-    audit_log, sessions, sign_in_links, gear, rigs, events, people restart identity cascade`);
+    audit_log, sessions, sign_in_links, media, gear, rigs, events, people restart identity cascade`);
 }
 
 let ipCounter = Math.floor(Math.random() * 60_000);

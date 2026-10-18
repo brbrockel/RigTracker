@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import express from 'express';
 import helmet from 'helmet';
 import { AuthService } from './auth/auth.service.js';
-import { SERVED_UPLOAD_EXTENSIONS } from './uploads/uploads.controller.js';
+import { SERVED_UPLOAD_EXTENSIONS } from './uploads/uploads.service.js';
 import { PgErrorsFilter } from './common/pg-errors.filter.js';
 import { uploadsDir } from './common/uploads-dir.js';
 

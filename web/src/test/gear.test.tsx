@@ -18,7 +18,7 @@ const rigs = [
         type: 'Main',
         serialNumber: null,
         dateOfManufacture: null,
-        imageUrl: null,
+        coverUrl: null,
       },
       reserve: null,
       aad: null,
@@ -192,5 +192,105 @@ describe('gear list', () => {
     await userEvent.selectOptions(within(dialog).getByLabelText('Rig'), '');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(body).toMatchObject({ assignedRigId: null, slot: null }));
+  });
+
+  it('editing gear shows its photos, and adding one uploads it to the gear', async () => {
+    const withPhoto = gear.map((g) =>
+      g.id === 'g3'
+        ? {
+            ...g,
+            media: [
+              {
+                id: 'm1',
+                url: '/uploads/gear/g3/a.jpg',
+                kind: 'photo',
+                caption: null,
+                position: 0,
+              },
+            ],
+            coverUrl: '/uploads/gear/g3/a.jpg',
+          }
+        : g,
+    );
+    const calls = mockApi({
+      'GET /api/auth/me': asUser,
+      ...lists,
+      'GET /api/gear': () => ({ status: 200, body: withPhoto }),
+      'POST /api/media': () => ({
+        status: 201,
+        body: {
+          id: 'm2',
+          url: '/uploads/gear/g3/b.jpg',
+          kind: 'photo',
+          caption: null,
+          position: 1,
+        },
+      }),
+    });
+    renderAt('/gear');
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for Hook knife' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Edit/ }));
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(dialog.getAllByRole('button', { name: /Open photo/ })).toHaveLength(1);
+    await userEvent.upload(dialog.getByTestId('media-input'), [
+      new File(['b'], 'b.jpg', { type: 'image/jpeg' }),
+    ]);
+    await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/media')).toBe(true));
+    const form = calls.find((c) => c.key === 'POST /api/media')!.init?.body as FormData;
+    expect([form.get('ownerType'), form.get('ownerId')]).toEqual(['gear', 'g3']);
+    // Uploading doesn't save (or close) the form.
+    expect(calls.some((c) => c.key.startsWith('PUT'))).toBe(false);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('new gear: chosen photos upload right after it is created', async () => {
+    let body: Record<string, unknown> = {};
+    const calls = mockApi({
+      'GET /api/auth/me': asAdmin,
+      ...lists,
+      'POST /api/gear': (init) => {
+        body = JSON.parse(init!.body as string);
+        return { status: 201, body: { id: 'g9', name: 'Helmet 2', media: [], coverUrl: null } };
+      },
+      'POST /api/media': (init) => ({
+        status: 201,
+        body: {
+          id: 'm1',
+          url: `/uploads/gear/g9/${((init?.body as FormData).get('file') as File).name}`,
+          kind: 'photo',
+          caption: null,
+          position: 0,
+        },
+      }),
+    });
+    renderAt('/gear');
+    await userEvent.click(await screen.findByRole('button', { name: /New gear/ }));
+    const dialog = within(await screen.findByRole('dialog'));
+    await userEvent.type(dialog.getByLabelText('Name'), 'Helmet 2');
+    await userEvent.type(dialog.getByLabelText('Type'), 'Helmet');
+    await userEvent.upload(dialog.getByTestId('pending-media-input'), [
+      new File(['a'], 'front.jpg', { type: 'image/jpeg' }),
+      new File(['b'], 'side.jpg', { type: 'image/jpeg' }),
+    ]);
+    expect(dialog.getByText('2 to upload when you save. The first is the cover.')).toBeVisible();
+    await userEvent.click(dialog.getByRole('button', { name: 'Remove side.jpg' }));
+    await userEvent.upload(dialog.getByTestId('pending-media-input'), [
+      new File(['c'], 'back.jpg', { type: 'image/jpeg' }),
+    ]);
+    expect(calls.some((c) => c.key === 'POST /api/media')).toBe(false);
+    await userEvent.click(dialog.getByRole('button', { name: 'Add gear' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(body).not.toHaveProperty('imageUrl');
+    const posts = calls.filter((c) => c.key === 'POST /api/media' || c.key === 'POST /api/gear');
+    expect(
+      posts.map((c) =>
+        c.key === 'POST /api/gear'
+          ? 'gear'
+          : [
+              (c.init?.body as FormData).get('ownerId'),
+              ((c.init?.body as FormData).get('file') as File).name,
+            ],
+      ),
+    ).toEqual(['gear', ['g9', 'front.jpg'], ['g9', 'back.jpg']]);
   });
 });

@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { customFields, date, mediaUrl, ref, text } from '../common/validation.js';
+import { customFields, date, ref, text } from '../common/validation.js';
 
 /**
  * Every field a rig can have; all optional so the same schema serves create and update. Its
  * container, main, reserve and AAD are gear in the rig's slots (see GearBody.slot): the old
- * component fields (container, mainSize, aadSerialNumber, …) are refused like any unknown key.
+ * component fields (container, mainSize, aadSerialNumber, …) are refused like any unknown key,
+ * and so is the 1.x imageUrl: photos are media (POST /api/media).
  */
 export const RigBody = z
   .object({
@@ -16,7 +17,6 @@ export const RigBody = z
     customFields: customFields(),
     primaryUserId: ref(),
     notes: text(2000),
-    imageUrl: mediaUrl(),
   })
   .strict();
 export type RigBody = z.infer<typeof RigBody>;
