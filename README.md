@@ -7,7 +7,7 @@ It provides a web UI and API for equipment records, assignment tracking, and ope
 ## Executive Summary
 
 - Purpose: centralize rig and people tracking for operational visibility.
-- Runtime: MongoDB-backed API and React frontend.
+- Runtime: NestJS API on PostgreSQL, and a React web app (installable as a PWA).
 - Deployment: one container (Node serving the API and the web app) on Docker Swarm behind Traefik/Cloudflare.
 - Status: 2.0.0 in progress (see [CHANGELOG.md](CHANGELOG.md) and [doc/Plan.md](doc/Plan.md)).
 
@@ -18,14 +18,15 @@ It provides a web UI and API for equipment records, assignment tracking, and ope
 - Sign-in and security: [doc/Security.md](doc/Security.md)
 - Changes by version: [CHANGELOG.md](CHANGELOG.md)
 - High-level architecture: [doc/Architecture.md](doc/Architecture.md)
-- Roadmap and enhancement specs: [doc/Enhancements.md](doc/Enhancements.md)
+- Hands-on test checklist: [doc/TestPlan.md](doc/TestPlan.md)
+- 1.x enhancement specs (superseded by the plan): [doc/Enhancements.md](doc/Enhancements.md)
 - API-specific notes: [api/README.md](api/README.md)
 - v2 rebuild plan and migration path: [doc/Plan.md](doc/Plan.md)
 - Independent review and modernization roadmap (Oct 2026): [doc/Review-2026-10.md](doc/Review-2026-10.md)
 
 ## Repository Layout
 
-- `api/` - NestJS + Mongoose API
+- `api/` - NestJS + Drizzle API (PostgreSQL)
 - `web/` - React + Vite frontend
 
 ## Audience

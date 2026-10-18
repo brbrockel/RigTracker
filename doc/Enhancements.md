@@ -2,6 +2,8 @@
 
 This page tracks planned enhancements in a consistent, reviewable format.
 
+> **Superseded (2026-10):** these specs were written for 1.x (MongoDB and Google sign-in). 2.0.0 replaced both: see [Plan.md](Plan.md). EH-001 (sign-in and roles) and EH-002 (audit trail) are done there in a different form. The rest are kept as ideas.
+
 ## Table of Contents
 
 1. [How To Document An Enhancement](#how-to-document-an-enhancement)

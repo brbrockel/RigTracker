@@ -15,7 +15,7 @@ Security headers come from helmet on every response, including the CSP.
 ```
 Cloudflare tunnel → Traefik (rigtracker.bhbslp.org) → rigtracker:4000 ─┬─ PostgreSQL (internal network)
                                                                        └─ /app/uploads (host bind mount)
-backup job (nightly) ── internal network ── MongoDB, uploads (read-only)
+backup job (nightly) ── internal network ── PostgreSQL (pg_dump), uploads (read-only)
 ```
 
 ## Components
@@ -44,13 +44,13 @@ backup job (nightly) ── internal network ── MongoDB, uploads (read-only)
      1. rate limit per visitor IP;
      2. session and CSRF;
      3. roles.
-   - **Scripts:** `dist/scripts/sign-in-link.js` (the first admin, or a lockout) and `dist/scripts/import-mongo.js` (the one-off import from MongoDB).
+   - **Script:** `dist/scripts/sign-in-link.js` makes a password link for the first admin, or anyone locked out.
 
 3. **Data (PostgreSQL 18: `people`, `rigs`, `gear`, `events`, `media`, `notices`, `notice_reads`, `notice_dismissals`, `sessions`, `sign_in_links`, `auth_attempts`, `audit_log`; `api/src/db/schema.ts`)**
    - Records have UUID ids. Rows imported from MongoDB keep the old ObjectId in `legacy_id`.
    - A person may have sign-in access: a `role` (admin, user or viewer; the API shows it as `roles`), `is_active`, and their last sign-in. Emails are unique among people who sign in (a partial unique index).
-   - Gear points at a rig and/or a person (`rig_id`, `person_id`; `assignedRigId`, `assignedPersonId` in the API), and a rig at its primary person, with foreign keys that clear the reference when the record is deleted. On a rig, gear goes with the rig's primary person. Serial numbers are unique. A rig's container, main, reserve and AAD are gear in its slots (`gear.slot`, one of each per rig, a partial unique index); rig responses list them as `components`. The rig's old component columns are unused and are dropped in a later release.
-   - Photos and videos are `media` rows: an owner (`owner_type` rig, gear or event, and `owner_id`), the `/uploads/...` URL, photo or video, a caption and a position (0 is the cover). Owners are in three tables, so there's no foreign key: deleting a rig, gear or event deletes its media rows and files. Records return `media` and `coverUrl`. The old photo columns (`image_url`, `event_photo_url`, `photo_urls`) are unused and are dropped in a later release.
+   - Gear points at a rig and/or a person (`rig_id`, `person_id`; `assignedRigId`, `assignedPersonId` in the API), and a rig at its primary person, with foreign keys that clear the reference when the record is deleted. On a rig, gear goes with the rig's primary person. Serial numbers are unique. A rig's container, main, reserve and AAD are gear in its slots (`gear.slot`, one of each per rig, a partial unique index); rig responses list them as `components`.
+   - Photos and videos are `media` rows: an owner (`owner_type` rig, gear or event, and `owner_id`), the `/uploads/...` URL, photo or video, a caption and a position (0 is the cover). Owners are in three tables, so there's no foreign key: deleting a rig, gear or event deletes its media rows and files. Records return `media` and `coverUrl`.
    - Notices have an audience (`everyone`, `person` with a `recipient_id` deleted with the person, or `public`), `pinned` (must see) and `banner_until`. The author is kept as an id and a name with no foreign key, so notices outlive them. `notice_reads` keeps each person's read and dismissed time (compared with the notice's last edit, so an edited notice is new again); `notice_dismissals` keeps dismissed automatic banners by key (`repack:<rig id>:<due date>`, or `repacks:<digest>` for the admins' summary). Both are deleted with the person.
    - Sessions and sign-in links store only SHA-256 hashes of their tokens, and are deleted with their person. Passwords are Argon2id hashes; authenticator keys are encrypted with `APP_SECRET`.
    - The audit log is append-only (a trigger refuses UPDATE and DELETE) and keeps the record before and after each update.

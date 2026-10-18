@@ -1,6 +1,6 @@
 # RigTracker Plan
 
-How RigTracker gets to TeeMate's stack and security model, step by step, while the live app keeps working. Background: [Review-2026-10.md](Review-2026-10.md). Last updated 2026-10-17.
+How RigTracker gets to TeeMate's stack and security model, step by step, while the live app keeps working. Background: [Review-2026-10.md](Review-2026-10.md). Last updated 2026-10-18.
 
 ## Objective
 
@@ -42,7 +42,7 @@ Track the club's rigs, gear, events and people, with:
 | 2026-10-18 | Production cutover to Postgres: about 5 minutes of downtime, the import verified every collection, a backup was taken right after; Mongo kept as the rollback until about 2026-11-17 | 2.0.0-alpha.3 |
 | 2026-10-18 | Step 4a (2.0.0-alpha.3): PostgreSQL 18 + Drizzle, NestJS 12, Express 5, ESM, TS 6; UUID ids; FKs; append-only audit with before/after (shown in the Activity log); importer from Mongo with verification; `pg_dump` backups; 268 API tests | 2.0.0-alpha.3 |
 | 2026-10-18 | Step 4b: rig components as gear slots (alpha.4, the move matched 9 gear by serial and created 11), the media table for photos and videos (alpha.5, 61 photos moved), and the 1.x columns and one-off scripts removed (alpha.6) | 2.0.0-alpha.6 |
-| 2026-10-17 | Notices (2.0.0-beta.3, TeeMate's): admins post to everyone, one person or the public (guests too), as stacked banners on every page and in the horn's list, with must-see, banner end dates, read and dismissed state per person, an "Also text it" group text from the admin's phone, People → ⋯ → Send notice, and automatic repack reminders (the primary person within 14 days or overdue, a summary for admins); migration 0007; nothing is emailed or pushed | 2.0.0-beta.3 |
+| 2026-10-18 | Notices (2.0.0-beta.3, TeeMate's): admins post to everyone, one person or the public (guests too), as stacked banners on every page and in the horn's list, with must-see, banner end dates, read and dismissed state per person, an "Also text it" group text from the admin's phone, People → ⋯ → Send notice, and automatic repack reminders (the primary person within 14 days or overdue, a summary for admins); migration 0007; nothing is emailed or pushed | 2.0.0-beta.3 |
 
 ## Releases
 
@@ -101,9 +101,9 @@ Split in two on 2026-10-17:
 - **Import script:** reads a `mongodump` archive, keeps the old ids in `legacy_id`, reports conflicts instead of guessing, prints counts, and can be re-run.
 - **Rehearsal:** run it on a staging stack until step 2's API tests and the TestPlan pass. Then cut over with a short downtime, keep Mongo for 30 days as a rollback, and switch the backup job to `pg_dump`.
 
-### 5. Passwords, lockouts and the guest view (M) — built (2.0.0-beta.1), not yet deployed
+### 5. Passwords, lockouts and the guest view (M) — done 2026-10-18 (2.0.0-beta.1 to beta.3)
 
-**Status:** built on the `step5-passwords` branch as 2.0.0-beta.1 (migration 0006, 411 API and 87 web tests). Deploying needs the `rigtracker_app_secret` Docker secret and `APP_SECRET_FILE` in the stack ([Deployment.md](Deployment.md#passwords-and-the-guest-view-200-beta1)); after it, everyone without a live session needs a password link. Sign-in links became password links at the same URL, so links already sent still work. Email stays off: the mail guard is in place, with nothing that sends.
+**Status:** deployed as 2.0.0-beta.1 (migration 0006), with password links by text in beta.2 and notices in beta.3. Deploying needs the `rigtracker_app_secret` Docker secret and `APP_SECRET_FILE` in the stack ([Deployment.md](Deployment.md#passwords-and-the-guest-view-200-beta1)); after it, everyone without a live session needs a password link. Sign-in links became password links at the same URL, so links already sent still work. Email stays off: the mail guard is in place, with nothing that sends.
 
 - **Port from TeeMate:**
   - `auth/password.ts` (Argon2id, NIST rules, breached-password list);
@@ -120,7 +120,7 @@ Split in two on 2026-10-17:
 
 ### 6. Finish (S)
 
-- **`TestPlan.md`:** a phone and desktop checklist for each page.
-- **Docs:** update `Architecture.md` and `Development.md`.
+- **`TestPlan.md`:** a phone and desktop checklist for each page. Written 2026-10-18 ([TestPlan.md](TestPlan.md)); to be worked through before 2.0.0-rc.1.
+- **Docs:** `Architecture.md`, `README.md` and `Enhancements.md` brought up to date (2026-10-18).
 - **Retire** Mongo, the `users_merged` collection and the Google OAuth client in Google Cloud Console.
 - **Optional:** move the other homelab stacks' plaintext passwords (Grafana, Frigate, Komodo, Nextcloud) to Docker secrets.
