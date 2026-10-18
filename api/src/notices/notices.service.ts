@@ -1,12 +1,12 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray, isNotNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { AuthUser } from '../auth/auth-user.js';
 import { AuditService } from '../audit/audit.service.js';
 import { DB, type Database } from '../db/db.js';
 import { noticeDismissals, noticeReads, notices, people, rigs, type Notice } from '../db/schema.js';
 import { shortName } from '../people/person-view.js';
-import { bannerState, repackBanners } from './banners.js';
+import { bannerState, passwordToDo, repackBanners } from './banners.js';
 import type { EditNotice, NewNotice } from './notice.dto.js';
 
 const recipient = alias(people, 'recipient');
@@ -107,7 +107,10 @@ export class NoticesService {
     });
   }
 
-  /** Stored notices showing as banners, and the automatic repack reminders, most urgent first. */
+  /**
+   * Stored notices showing as banners, the automatic repack reminders, and the admins'
+   * "needs a password" to-do, most urgent first.
+   */
   async banners(user: AuthUser) {
     const listed = (await this.list(user, 100)).filter((n) => n.banner);
     const stored = listed.map((n) => ({
@@ -176,6 +179,31 @@ export class NoticesService {
           createdAt: a.createdAt,
           rank: a.urgent ? 1 : a.kind === 'repack' ? 2 : 3,
         }));
+      if (admin) {
+        const todo = passwordToDo(
+          await this.db
+            .select({ firstName: people.firstName, lastName: people.lastName, email: people.email })
+            .from(people)
+            .where(
+              and(isNotNull(people.role), eq(people.isActive, true), isNull(people.passwordHash)),
+            )
+            .orderBy(asc(people.firstName)),
+        );
+        if (todo)
+          automatic.unshift({
+            id: todo.key,
+            automatic: true,
+            title: todo.title,
+            body: todo.body,
+            label: todo.label,
+            urgent: true,
+            dismissible: false,
+            read: true,
+            link: todo.link,
+            createdAt: new Date().toISOString(),
+            rank: 0,
+          });
+      }
     }
     return [...stored, ...automatic]
       .sort((a, b) => a.rank - b.rank || b.createdAt.localeCompare(a.createdAt))

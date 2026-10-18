@@ -229,6 +229,42 @@ describe('people', () => {
     expect(screen.queryByRole('link', { name: 'Brian B' })).not.toBeInTheDocument();
   });
 
+  it('flags people who can sign in but have no password, and filters to them', async () => {
+    const dana = {
+      ...sam,
+      id: 'p5',
+      firstName: 'Dana',
+      lastName: 'B',
+      email: 'dana@example.com',
+      roles: ['admin'],
+      hasPassword: false,
+      lastLoginAt: '2026-06-17T21:27:19.137Z',
+      loginCount: 9,
+    };
+    const kat = {
+      ...sam,
+      id: 'p6',
+      firstName: 'Kat',
+      lastName: 'C',
+      email: undefined,
+      hasPassword: false,
+    };
+    mockApi({
+      'GET /api/auth/me': asAdmin,
+      'GET /api/people': ok([...everyone, dana, kat].map((p) => ({ hasPassword: true, ...p }))),
+    });
+    renderAt('/people?filter=password');
+    await screen.findByRole('link', { name: 'Dana B' });
+    const d = within(card('Dana B'));
+    expect(d.getByText('Needs a password')).toBeInTheDocument();
+    expect(d.getByText(/Last signed in .* \(before passwords\)/)).toBeInTheDocument();
+    expect(within(card('Kat C')).getByText('Needs an email and a password')).toBeInTheDocument();
+    // The banner's link opens People filtered to them.
+    expect(screen.getByRole('combobox', { name: 'Filter people' })).toHaveValue('password');
+    expect(screen.queryByRole('link', { name: 'Sam Jones' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Brian B' })).not.toBeInTheDocument();
+  });
+
   it('gives someone sign-in access with the CSRF header', async () => {
     let list: unknown[] = everyone;
     const calls = mockApi({

@@ -24,6 +24,7 @@ Everything here works on real club data, so use a **"Test"** rig, gear item, eve
 - [ ] **Account → Security:** change your password (it asks for the current one). Your other browser is signed out.
 - [ ] **Authenticator (optional):** set it up, scan the QR code, enter a code and save the recovery codes. Sign out and in: it asks for a code. A recovery code works once. As Admin, **⋯ → Reset authenticator** for the Test person.
 - [ ] **⋯ → Sign out everywhere** on the Test person signs out their other browser.
+- [ ] **Needs a password:** while anyone with sign-in access has no password, Admins get a red to-do banner naming them, with no ✕. It opens People filtered to **Needs a password**, where each has a badge (or **Needs an email and a password**). It goes away once each has set one, or their access is off.
 - [ ] Pasting a password link into the address bar while already on the sign-in page opens the set-password form.
 
 ## 2. Guests

@@ -114,4 +114,26 @@ describe('Account → Security', () => {
       expect(screen.getByRole('button', { name: 'Set up authenticator' })).toBeDisabled(),
     );
   });
+
+  it('someone signed in without a password sets one before anything else', async () => {
+    let has = false;
+    mockApi({
+      'GET /api/auth/me': asUser,
+      'GET /api/rigs': () => ({ status: 200, body: [] }),
+      'GET /api/auth/security': () => ({ status: 200, body: security({ hasPassword: has }) }),
+      'POST /api/auth/password': () => {
+        has = true;
+        return ok({ ok: true })();
+      },
+    });
+    const user = userEvent.setup();
+    renderAt('/rigs');
+    expect(await screen.findByText(/Set a password to keep using RigTracker/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Rigs' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Current password')).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('New password'), 'plum tractor sideways');
+    await user.type(screen.getByLabelText('Type it again'), 'plum tractor sideways');
+    await user.click(screen.getByRole('button', { name: 'Save password' }));
+    expect(await screen.findByRole('heading', { name: 'Rigs' })).toBeInTheDocument();
+  });
 });

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Megaphone, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useUser } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { NoticeDialog } from '@/components/NoticesPanel';
@@ -19,12 +19,14 @@ import { api, canDelete, canSignIn, canWrite, errorMessage, type Person } from '
 import { keys, usePeople } from '@/lib/queries';
 
 type Sort = 'first' | 'last';
-type Filter = '' | 'sign-in' | 'admin' | 'none';
+type Filter = '' | 'sign-in' | 'admin' | 'password' | 'none';
+const FILTERS: Filter[] = ['sign-in', 'admin', 'password', 'none'];
 
 const matchesFilter = (p: Person, f: Filter) =>
   f === '' ||
   (f === 'sign-in' && canSignIn(p)) ||
   (f === 'admin' && canSignIn(p) && !!p.roles?.includes('admin')) ||
+  (f === 'password' && canSignIn(p) && p.hasPassword === false) ||
   (f === 'none' && !canSignIn(p));
 
 export function PeoplePage() {
@@ -33,7 +35,12 @@ export function PeoplePage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<Sort>('first');
-  const [filter, setFilter] = useState<Filter>('');
+  const [params] = useSearchParams();
+  // ?filter=password comes from the admins' "needs a password" banner.
+  const [filter, setFilter] = useState<Filter>(() => {
+    const f = params.get('filter') as Filter | null;
+    return f && FILTERS.includes(f) ? f : '';
+  });
   const [editing, setEditing] = useState<Person | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Person | null>(null);
   const [noticeFor, setNoticeFor] = useState<Person | null>(null);
@@ -117,6 +124,7 @@ export function PeoplePage() {
           <option value="">Everyone</option>
           <option value="sign-in">Can sign in</option>
           <option value="admin">Admins</option>
+          {admin && <option value="password">Needs a password</option>}
           <option value="none">No sign-in</option>
         </Select>
       </div>

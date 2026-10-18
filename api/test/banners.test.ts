@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bannerState, repackBanners, shortDay } from '../src/notices/banners.js';
+import { bannerState, passwordToDo, repackBanners, shortDay } from '../src/notices/banners.js';
 
 const created = new Date('2027-05-05T12:00:00Z');
 const at = (days: number) => new Date(created.getTime() + days * 86_400_000);
@@ -75,5 +75,20 @@ describe('repack banners', () => {
   it('shows the year only when it is not this year', () => {
     expect(shortDay('2027-06-08', today)).toBe('Jun 8');
     expect(shortDay('2026-12-30', today)).toBe('Dec 30, 2026');
+  });
+});
+
+describe('the password to-do', () => {
+  const p = (firstName: string, email: string | null = `${firstName}@example.com`) => ({
+    firstName,
+    lastName: null,
+    email,
+  });
+  it('lists who needs a password, and who needs an email first', () => {
+    expect(passwordToDo([])).toBeNull();
+    expect(passwordToDo([p('Dana')])).toMatchObject({ title: 'Dana needs a password' });
+    const todo = passwordToDo([p('Ann'), p('Bo', null), p('Cy', null)]);
+    expect(todo?.title).toBe('Ann, Bo and Cy need a password');
+    expect(todo?.body).toContain('Bo and Cy need an email address first.');
   });
 });

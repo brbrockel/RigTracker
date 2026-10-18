@@ -46,6 +46,11 @@ export function AccessBadges({ person, isSelf }: { person: Person; isSelf: boole
       {!!person.roles?.length && person.isActive === false && (
         <Badge className="bg-destructive/15 text-destructive">Sign-in off</Badge>
       )}
+      {canSignIn(person) && person.hasPassword === false && (
+        <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
+          {person.email ? 'Needs a password' : 'Needs an email and a password'}
+        </Badge>
+      )}
       {isLocked(person) && (
         <Badge className="bg-destructive/15 text-destructive">
           Locked until {formatDateTime(person.lockedUntil!)}
@@ -60,8 +65,8 @@ export const isLocked = (p: Person) =>
   !!p.lockedUntil && new Date(p.lockedUntil).getTime() > Date.now();
 
 /**
- * "Last signed in Mar 4, 2026 · 3 sign-ins · authenticator on", or "Never signed in", and
- * "no password yet" (admins see this).
+ * "Last signed in Mar 4, 2026 · 3 sign-ins · authenticator on", or "Never signed in". Without
+ * a password, a sign-in on record was from before passwords (Google or an old link), and says so.
  */
 export function lastSignInText(p: Person): string {
   const parts: string[] = [];
@@ -69,11 +74,10 @@ export function lastSignInText(p: Person): string {
   else {
     const n = p.loginCount ?? 0;
     parts.push(
-      `Last signed in ${formatDate(p.lastLoginAt)}`,
+      `Last signed in ${formatDate(p.lastLoginAt)}${p.hasPassword === false ? ' (before passwords)' : ''}`,
       `${n} ${n === 1 ? 'sign-in' : 'sign-ins'}`,
     );
   }
-  if (p.hasPassword === false) parts.push('no password yet');
   if (p.totpEnabled) parts.push('authenticator on');
   return parts.join(' · ');
 }

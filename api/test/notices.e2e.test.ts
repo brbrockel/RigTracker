@@ -1,11 +1,19 @@
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { auditLog, noticeDismissals, noticeReads, notices, rigs } from '../src/db/schema.js';
+import {
+  auditLog,
+  noticeDismissals,
+  noticeReads,
+  notices,
+  people,
+  rigs,
+} from '../src/db/schema.js';
 import {
   anon,
   as,
   createPerson,
   createTestApp,
+  givePassword,
   MISSING_ID,
   resetDb,
   signIn,
@@ -409,5 +417,35 @@ describe('repack reminders', () => {
     expect((await as(admin).get('/api/notices/banners')).body).toEqual([
       expect.objectContaining({ title: '2 rigs overdue' }),
     ]);
+  });
+
+  it("admins get a to-do for people who can sign in but have no password, that can't be cleared", async () => {
+    const dana = await createPerson(t, { firstName: 'Dana', roles: ['admin'] });
+    await createPerson(t, { firstName: 'Kat', roles: ['user'], email: null });
+    // No sign-in access, or access turned off: not on the list.
+    await createPerson(t, { firstName: 'Nobody' });
+    await createPerson(t, { firstName: 'Off', roles: ['user'], isActive: false });
+
+    const [todo] = (await as(admin).get('/api/notices/banners')).body;
+    expect(todo).toMatchObject({
+      id: 'passwords',
+      automatic: true,
+      title: 'Dana and Kat need a password',
+      label: 'To do',
+      urgent: true,
+      dismissible: false,
+      link: '/people?filter=password',
+    });
+    expect(todo.body).toContain('Kat needs an email address first.');
+    // Only admins get it.
+    for (const who of [user, viewer, guest])
+      expect((await as(who).get('/api/notices/banners')).body).toEqual([]);
+    // Dismissing doesn't clear it.
+    await as(admin).post('/api/notices/dismiss', { keys: ['passwords'] });
+    expect((await as(admin).get('/api/notices/banners')).body[0].id).toBe('passwords');
+
+    await givePassword(t, dana.id);
+    await t.db.update(people).set({ role: null }).where(eq(people.firstName, 'Kat'));
+    expect((await as(admin).get('/api/notices/banners')).body).toEqual([]);
   });
 });

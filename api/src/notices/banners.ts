@@ -131,3 +131,41 @@ export function repackBanners(
 
 /** Keys of automatic banners, as dismiss accepts them. */
 export const AUTO_KEY = /^(repack:[0-9a-f-]{36}:\d{4}-\d{2}-\d{2}|repacks:[0-9a-f]{16})$/;
+
+export interface PasswordToDo {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}
+
+/**
+ * The admins' "needs a password" to-do: people with sign-in access who haven't set a password
+ * yet (so can't get in), and who of them needs an email address before a link can work. It
+ * can't be dismissed; it goes away when each has a password or their access is turned off.
+ */
+export function passwordToDo(waiting: PasswordToDo[]) {
+  if (!waiting.length) return null;
+  const name = (p: PasswordToDo) => p.firstName || p.lastName || 'Someone';
+  const list = (ps: PasswordToDo[]) => {
+    const names = ps.map(name);
+    return names.length < 3
+      ? names.join(' and ')
+      : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  };
+  const noEmail = waiting.filter((p) => !p.email);
+  const body = [
+    'They can’t sign in until they do. Send each a password link: People → ⋯ → Get password link.',
+    noEmail.length
+      ? `${list(noEmail)} ${noEmail.length === 1 ? 'needs' : 'need'} an email address first.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return {
+    key: 'passwords',
+    title: `${list(waiting)} ${waiting.length === 1 ? 'needs' : 'need'} a password`,
+    body,
+    label: 'To do',
+    link: '/people?filter=password',
+  };
+}

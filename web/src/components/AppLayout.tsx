@@ -15,6 +15,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useMe, useSignOut } from '@/auth/session';
 import { NoticeBanners } from '@/components/NoticeBanners';
 import { NoticesButton } from '@/components/NoticesPanel';
+import { PasswordGate } from '@/components/PasswordGate';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -130,7 +131,9 @@ export function AppLayout() {
         className="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-6 md:pb-10"
       >
         <NoticeBanners guest={guest} />
-        <Outlet />
+        <PasswordGate guest={guest} isAdmin={admin}>
+          <Outlet />
+        </PasswordGate>
       </main>
 
       <nav

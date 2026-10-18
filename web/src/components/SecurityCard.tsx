@@ -9,7 +9,7 @@ import { Input, Label } from '@/components/ui/input';
 import { api, formatDate } from '@/lib/api';
 import { authError, MIN_PASSWORD, PASSWORD_HINT } from '@/lib/passwords';
 
-interface Security {
+export interface Security {
   hasPassword: boolean;
   passwordChangedAt: string | null;
   totpEnabled: boolean;

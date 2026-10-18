@@ -6,10 +6,23 @@ import { routes } from '@/router';
 
 type Handler = (init: RequestInit | undefined) => { status: number; body?: unknown };
 
-/** Every page asks for notices (the horn and the banners): none, unless a test says so. */
+/**
+ * Every page asks for notices (the horn and the banners): none, unless a test says so. And
+ * members' pages check they have a password (the password gate): they do, unless a test says so.
+ */
 const NOTICE_DEFAULTS: Record<string, Handler> = {
   'GET /api/notices?limit=50': () => ({ status: 200, body: [] }),
   'GET /api/notices/banners': () => ({ status: 200, body: [] }),
+  'GET /api/auth/security': () => ({
+    status: 200,
+    body: {
+      hasPassword: true,
+      passwordChangedAt: null,
+      totpEnabled: false,
+      recoveryCodesLeft: null,
+      totpAvailable: true,
+    },
+  }),
 };
 
 /** Stubs fetch with handlers keyed by "METHOD /api/path"; unmatched requests fail the test. */
