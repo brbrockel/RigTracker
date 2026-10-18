@@ -43,6 +43,8 @@ Track the club's rigs, gear, events and people, with:
 | 2026-10-18 | Step 4a (2.0.0-alpha.3): PostgreSQL 18 + Drizzle, NestJS 12, Express 5, ESM, TS 6; UUID ids; FKs; append-only audit with before/after (shown in the Activity log); importer from Mongo with verification; `pg_dump` backups; 268 API tests | 2.0.0-alpha.3 |
 | 2026-10-18 | Step 4b: rig components as gear slots (alpha.4, the move matched 9 gear by serial and created 11), the media table for photos and videos (alpha.5, 61 photos moved), and the 1.x columns and one-off scripts removed (alpha.6) | 2.0.0-alpha.6 |
 | 2026-10-18 | Notices (2.0.0-beta.3, TeeMate's): admins post to everyone, one person or the public (guests too), as stacked banners on every page and in the horn's list, with must-see, banner end dates, read and dismissed state per person, an "Also text it" group text from the admin's phone, People → ⋯ → Send notice, and automatic repack reminders (the primary person within 14 days or overdue, a summary for admins); migration 0007; nothing is emailed or pushed | 2.0.0-beta.3 |
+| 2026-10-18 | A password is required (2.0.0-beta.4): admins' to-do banner that can't be dismissed, People badge and **Needs a password** filter, and a set-password screen for anyone signed in without one | 2.0.0-beta.4 |
+| 2026-10-18 | Ready to go public: history rewritten (the club spreadsheet, import logs and unused images removed; members' names and author emails scrubbed; gitleaks clean), MIT license, force-pushed; repo still private. Homelab commits pushed | `5530cd0` |
 
 ## Releases
 
@@ -123,4 +125,5 @@ Split in two on 2026-10-17:
 - **`TestPlan.md`:** a phone and desktop checklist for each page. Written 2026-10-18 ([TestPlan.md](TestPlan.md)); to be worked through before 2.0.0-rc.1.
 - **Docs:** `Architecture.md`, `README.md` and `Enhancements.md` brought up to date (2026-10-18).
 - **Retire** Mongo, the `users_merged` collection and the Google OAuth client in Google Cloud Console.
+- **Go public:** GitHub Support purges the old commits (still served by SHA), then delete `~/backups/RigTracker-*` and switch the repo to public.
 - **Optional:** move the other homelab stacks' plaintext passwords (Grafana, Frigate, Komodo, Nextcloud) to Docker secrets.
