@@ -12,6 +12,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { EventsModule } from './events/events.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
+import { HealthController } from './health/health.controller';
 import { readSecret } from './common/secrets';
 
 @Module({
@@ -26,6 +27,7 @@ import { readSecret } from './common/secrets';
     AuthModule,
     AuditModule,
   ],
+  controllers: [HealthController],
   providers: [
     // Order matters: rate limit first, then the session (and CSRF) check, then roles.
     { provide: APP_GUARD, useClass: ClientIpThrottlerGuard },

@@ -1,54 +1,50 @@
 #!/bin/sh
-set -e
+# Builds the RigTracker image, tagged with the release in package.json.
+#   ./build.sh            build only
+#   ./build.sh --deploy   build, push to GHCR and roll the homelab stack onto it
+# Each deploy needs a new version: bump "version" in package.json first (e.g. 2.0.0-alpha.3).
+set -eu
 
-# --- Configurable variables ---
-IMAGE_NAME="ghcr.io/brbrockel/rigtracker:combined-latest"
-STACK_DIR="/home/brian/repos/homelab-docker-linux/rigtracker"
+REPO=ghcr.io/brbrockel/rigtracker
+STACK_FILE=/home/brian/repos/homelab-docker-linux/rigtracker/rigtracker-stack.yml
 
-# Load .env if present
-if [ -f "./.env" ]; then
-  set -o allexport
-  # shellcheck disable=SC1090
+# GITHUB_GHCR_TOKEN for pushing
+if [ -f ./.env ]; then
+  set -a
+  # shellcheck disable=SC1091
   . ./.env
-  set +o allexport
+  set +a
 fi
 
-echo "Building $IMAGE_NAME using Dockerfile"
-docker build -f Dockerfile -t "$IMAGE_NAME" .
-echo "Built $IMAGE_NAME"
+VERSION=$(node -p "require('./package.json').version")
+COMMIT=$(git rev-parse --short HEAD)
+DIRTY=$( [ -n "$(git status --porcelain)" ] && echo "-dirty" || true )
+APP_VERSION="$VERSION+$COMMIT$DIRTY"
 
-if [ "$1" = "--deploy" ]; then
-  if [ -z "${GITHUB_GHCR_TOKEN:-}" ]; then
-    echo "GITHUB_GHCR_TOKEN not set — cannot push images" >&2
-    exit 1
-  fi
-  echo "Logging in to ghcr.io as brbrockel"
-  echo "$GITHUB_GHCR_TOKEN" | docker login ghcr.io -u brbrockel --password-stdin
-  echo "Pushing image to GHCR"
-  docker push "$IMAGE_NAME"
+echo "Building $REPO:$VERSION ($APP_VERSION)"
+docker build --build-arg APP_VERSION="$APP_VERSION" -t "$REPO:$VERSION" -t "$REPO:latest" .
 
-  # Remove existing stack if present
-  if docker stack ls --format '{{.Name}}' | grep -q '^rigtracker$'; then
-    echo "Existing stack found — removing to ensure clean restart"
-    docker stack rm rigtracker || true
-    echo "Waiting up to 60s for stack containers to stop..."
-    SECS=0
-    while [ $SECS -lt 60 ]; do
-      CNT=$(docker ps -a --filter "label=com.docker.stack.namespace=rigtracker" -q | wc -l)
-      if [ "$CNT" -eq 0 ]; then
-        echo "All stack containers stopped"
-        break
-      fi
-      echo "Waiting — $CNT rigtracker containers still present..."
-      sleep 2
-      SECS=$((SECS+2))
-    done
-  fi
-
-  echo "Deploying stack using GHCR image"
-  docker stack deploy -c "$STACK_DIR/rigtracker-stack.yml" rigtracker
-  echo "Deploy complete."
-else
-  echo "Build complete. To push and deploy run:"
-  echo "  $0 --deploy"
+if [ "${1:-}" != "--deploy" ]; then
+  echo "Built. To push and deploy: $0 --deploy"
+  exit 0
 fi
+
+if [ -n "$DIRTY" ]; then
+  echo "Commit your changes first: a deployed version must match a commit." >&2
+  exit 1
+fi
+if [ -z "${GITHUB_GHCR_TOKEN:-}" ]; then
+  echo "GITHUB_GHCR_TOKEN not set (see .env.example)" >&2
+  exit 1
+fi
+echo "$GITHUB_GHCR_TOKEN" | docker login ghcr.io -u brbrockel --password-stdin
+if docker manifest inspect "$REPO:$VERSION" >/dev/null 2>&1; then
+  echo "$REPO:$VERSION is already published. Bump the version in package.json first." >&2
+  exit 1
+fi
+docker push "$REPO:$VERSION"
+docker push "$REPO:latest"
+
+# A new tag means Swarm rolls the service onto it (no forced restarts needed).
+RIGTRACKER_TAG="$VERSION" docker stack deploy --prune -c "$STACK_FILE" rigtracker
+echo "Deployed $APP_VERSION"

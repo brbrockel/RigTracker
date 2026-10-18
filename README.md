@@ -8,12 +8,15 @@ It provides a web UI and API for equipment records, assignment tracking, and ope
 
 - Purpose: centralize rig and people tracking for operational visibility.
 - Runtime: MongoDB-backed API and React frontend.
-- Deployment: combined container (nginx + API) deployed to Docker Swarm behind Traefik/Cloudflare.
-- Status: production path is Mongo-only; Prisma/PostgreSQL runtime path has been removed.
+- Deployment: one container (Node serving the API and the web app) on Docker Swarm behind Traefik/Cloudflare.
+- Status: 2.0.0 in progress (see [CHANGELOG.md](CHANGELOG.md) and [doc/Plan.md](doc/Plan.md)).
 
 ## Documentation Index
 
 - Development guide: [doc/Development.md](doc/Development.md)
+- Deployment, versions, backups: [doc/Deployment.md](doc/Deployment.md)
+- Sign-in and security: [doc/Security.md](doc/Security.md)
+- Changes by version: [CHANGELOG.md](CHANGELOG.md)
 - High-level architecture: [doc/Architecture.md](doc/Architecture.md)
 - Roadmap and enhancement specs: [doc/Enhancements.md](doc/Enhancements.md)
 - API-specific notes: [api/README.md](api/README.md)
@@ -24,8 +27,6 @@ It provides a web UI and API for equipment records, assignment tracking, and ope
 
 - `api/` - NestJS + Mongoose API
 - `web/` - React + Vite frontend
-- `packages/shared/` - shared package(s)
-- `docker/` - runtime nginx and container entrypoint
 
 ## Audience
 

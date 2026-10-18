@@ -1,45 +1,36 @@
-FROM node:24 AS builder
-WORKDIR /app
+# RigTracker: one container, one Node process serving the API and the built web app on port 4000.
 
-# copy package manifests to leverage caching
+FROM node:24-slim AS build
+WORKDIR /repo
+RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY api/package.json ./api/
-COPY web/package.json ./web/
-
-RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
-# Install workspace deps required for both api and web
-RUN pnpm install --frozen-lockfile --shamefully-hoist --filter ./api... --filter ./web...
-
+COPY api/package.json api/
+COPY web/package.json web/
+RUN pnpm install --frozen-lockfile
 COPY . .
+RUN pnpm --filter rigtracker-api build \
+ && pnpm --filter rigtracker-web build
+# Production-only node_modules for the API.
+RUN pnpm --filter rigtracker-api deploy --prod --legacy /out/api \
+ && rm -rf /out/api/dist /out/api/src /out/api/test \
+ && cp -r api/dist /out/api/dist
 
-WORKDIR /app
-RUN pnpm --filter ./api run build
-RUN pnpm --filter ./web run build
-
-FROM node:24-slim AS runtime
-WORKDIR /app
-
-# Install nginx, curl and required system libs
-RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends nginx curl openssl libssl3 ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-# Remove Debian default site and broken symlink to avoid duplicate default_server conflicts and runtime errors
-RUN rm -f /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default || true
-
-# Copy compiled server
-COPY --from=builder /app/api/dist ./dist
-# Copy workspace node_modules (pnpm places deps at workspace root)
-COPY --from=builder /app/node_modules ./node_modules
-
-# Copy built frontend into nginx html root
-COPY --from=builder /app/web/dist /usr/share/nginx/html
-
-# nginx config and entrypoint
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
+FROM node:24-slim
+# The release and commit, shown at /api/health and on Account: docker build --build-arg APP_VERSION=2.0.0-alpha.2+abc1234
+ARG APP_VERSION=dev
 ENV NODE_ENV=production \
-    HOST=127.0.0.1
-EXPOSE 80
-CMD ["/usr/local/bin/docker-entrypoint.sh"]
+    APP_VERSION=$APP_VERSION \
+    PORT=4000 \
+    WEB_DIST=/app/web \
+    UPLOADS_DIR=/app/uploads
+WORKDIR /app/api
+COPY --from=build /out/api ./
+COPY --from=build /repo/web/dist /app/web
+# Uploaded photos and videos: mount a volume here. Created owned by node so a new volume is writable.
+RUN mkdir -p /app/uploads && chown node:node /app/uploads
+USER node
+EXPOSE 4000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+  CMD node -e "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Admin helpers: node dist/scripts/<name>.js (e.g. sign-in-link.js)
+CMD ["node", "dist/main.js"]

@@ -38,6 +38,11 @@ Track the club's rigs, gear, events and people, with:
 
 | 2026-10-17 | Rigs and Gear inventory layouts: Table, List, Gallery and Cards (remembered per device and page), sort, group by, column picker, multi-select (assign, unassign, delete), CSV export, print sheet | `bf97d3f` |
 | 2026-10-17 | Step 2: 247 API end-to-end tests (the contract for step 4), Prettier, ESLint, `.nvmrc`, `.env.example`, docker compose Mongo, `pnpm check`, GitHub Actions CI; unused `packages/shared` removed | `152641b` |
+| 2026-10-17 | Step 3: one Node process (no nginx), `USER node`, `/api/health` + healthcheck, validated config, helmet CSP, versioned images with `build.sh` rolling deploys, `Deployment.md`, `Security.md`, `CHANGELOG.md`; `v1.0.0` tagged on the pre-review app | 2.0.0-alpha.2 |
+
+## Releases
+
+2.0.0 is a major release (breaking changes in sign-in, accounts, the API and the container). Each deploy until then is a pre-release: `2.0.0-alpha.N` through step 4, `-beta.N` for step 5 and the test plan, `-rc.N` for the final check. See [Deployment.md](Deployment.md#versions) and [CHANGELOG.md](../CHANGELOG.md).
 
 ## Next steps
 
@@ -65,7 +70,7 @@ Do this before the bigger changes:
 - API tests with vitest and supertest against a throwaway Mongo. Cover the guards (signed out, viewer, user, admin), CSRF, sign-in links and access, and CRUD for each resource. These tests are the contract for step 4.
 - Delete stale files: `tools/import_run.log`, the empty `api/src/packs/`, and the workspace path to `/srv/homelab-data`.
 
-### 3. Container and deploys (M)
+### 3. Container and deploys (M) — done 2026-10-17 (2.0.0-alpha.2)
 
 - One Node process serves the API and the built web app, like TeeMate, with no nginx in the container. Move the security headers and CSP into helmet.
 - `USER node`, `/api/health` and `HEALTHCHECK`; zod-validated config with `*_FILE` secrets.

@@ -36,51 +36,15 @@ pnpm format             # fix formatting (Prettier)
 - API tests (vitest + supertest, `api/test/*.e2e.test.ts`) boot the real app against a test database: `TEST_MONGO_URI`, default `mongodb://127.0.0.1:17017/rigtracker_test` (the `pnpm dev:services` Mongo). The test database is dropped at the start of each run. They are the behaviour contract for the Postgres move in step 4 of [Plan.md](Plan.md).
 - ESLint reports `any` in the API as warnings until step 4 replaces the Mongo services.
 
-## Build Commands
-
-API build:
+## Build and deploy
 
 ```bash
-pnpm --filter api build
+pnpm build              # API (api/dist) and web (web/dist)
+./build.sh              # the container image, tagged with the version in package.json
+./build.sh --deploy     # push it and roll the homelab stack onto it
 ```
 
-Web build:
-
-```bash
-pnpm --filter web build
-```
-
-Combined image build:
-
-```bash
-./build.sh
-```
-
-## Deploy Commands
-
-Helper script build + push + deploy:
-
-```bash
-./build.sh --deploy
-```
-
-Manual stack deploy (homelab repo):
-
-```bash
-docker stack deploy -c /home/brian/repos/homelab-docker-linux/rigtracker/rigtracker-stack.yml rigtracker
-```
-
-Force a rollout after image refresh:
-
-```bash
-docker service update --force rigtracker_rigtracker
-```
-
-## API Base and Ports
-
-- API listens on `127.0.0.1:4000` inside the container (`HOST`, `PORT`); only nginx reaches it
-- nginx serves frontend and proxies `/api` and `/uploads` on container port `80`
-- Traefik routes `rigtracker.bhbslp.org` to port `80`. The API port is not published: going around nginx would skip its security headers
+Deploying, versions, rollback, backups and secrets: [Deployment.md](Deployment.md).
 
 ## Environment Variables
 
@@ -90,7 +54,11 @@ Environment variable reference:
 | --- | --- | --- | --- | --- |
 | `MONGO_URI` / `MONGO_URI_FILE` | Yes | API | MongoDB connection string. `_FILE` reads it from a Docker secret. | `mongodb://mongo:27017/rigtracker` |
 | `RIGTRACKER_CORS_ORIGIN` | Rarely | API | Origins allowed to call the API from another site (exact, or patterns like `http://localhost:*`). Not needed for development (Vite proxies the API) or production (same origin); unset means no CORS at all. | `https://other.example.com` |
-| `HOST` / `PORT` | Optional | API | Listen address and port. The image sets `HOST=127.0.0.1`. | `0.0.0.0` / `4000` |
+| `HOST` / `PORT` | Optional | API | Listen address and port. | `0.0.0.0` / `4000` |
+| `WEB_DIST` | Container | API | The built web app to serve on the same origin (the image sets `/app/web`). | `/app/web` |
+| `UPLOADS_DIR` | Optional | API | Where uploaded photos and videos are stored (the image sets `/app/uploads`). | `./uploads` |
+| `APP_VERSION` | Build | API | The release and commit, set by `build.sh`; shown at `/api/health` and on Account. | `2.0.0-alpha.2+abc1234` |
+| `RATE_LIMIT_PER_MINUTE` | Optional | API | Requests per minute per visitor IP for most routes. | `300` |
 | `GITHUB_GHCR_TOKEN` | Yes for deploy script | Build/deploy script | Auth token used by `./build.sh --deploy` to push to GHCR. | `ghp_xxx` |
 
 Sign-in:

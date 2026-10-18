@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { LogOut, Monitor, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useMe, useSignOut } from '@/auth/session';
@@ -5,7 +6,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDate, isAdmin } from '@/lib/api';
+import { api, formatDate, isAdmin } from '@/lib/api';
 import { useTheme, type Theme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,11 @@ export function AccountPage() {
   const signOut = useSignOut();
   const navigate = useNavigate();
   const [theme, setTheme] = useTheme();
+  const health = useQuery({
+    queryKey: ['health'],
+    queryFn: () => api<{ ok: boolean; version: string }>('/health'),
+    staleTime: 5 * 60_000,
+  });
   if (!me) return null;
   const role = isAdmin(me.user) ? 'Admin' : me.user.roles.includes('user') ? 'User' : 'Viewer';
 
@@ -71,6 +77,9 @@ export function AccountPage() {
           </div>
         </CardContent>
       </Card>
+      {health.data && (
+        <p className="text-xs text-muted-foreground">RigTracker {health.data.version}</p>
+      )}
     </div>
   );
 }

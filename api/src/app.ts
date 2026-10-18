@@ -18,7 +18,34 @@ export function configureApp(app: INestApplication) {
   const server = app.getHttpAdapter().getInstance() as express.Express;
   server.disable('x-powered-by');
   app.useGlobalFilters(new MongoErrorsFilter(app.getHttpAdapter()));
-  server.use(helmet());
+  // Security headers for every response. The web app's CSP: everything from this site;
+  // antd-era inline styles are gone, but Radix sets style attributes, hence 'unsafe-inline' for styles.
+  server.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+          mediaSrc: ["'self'", 'blob:'],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'", 'data:'],
+          workerSrc: ["'self'"],
+          manifestSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    }),
+  );
+  server.use((_req, res, next) => {
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=()');
+    next();
+  });
 
   // Changes must come from this site. Browsers always send Origin on cross-site POST/PUT/PATCH/DELETE,
   // so a page on another (sub)domain can't make changes with the visitor's session cookie.
@@ -62,8 +89,6 @@ export function configureApp(app: INestApplication) {
     console.log('CORS disabled (same-origin only)');
   }
 
-  // Serve built frontend from ./public inside the compiled api folder (if present)
-  const staticPath = path.join(__dirname, 'public');
   const uploadsPath = uploadsDir();
   if (!fs.existsSync(uploadsPath)) {
     fs.mkdirSync(uploadsPath, { recursive: true });
@@ -98,21 +123,41 @@ export function configureApp(app: INestApplication) {
     express.static(uploadsPath, { dotfiles: 'deny', index: false }),
   );
 
-  if (fs.existsSync(staticPath)) {
-    server.use(express.static(staticPath));
+  app.setGlobalPrefix('api');
+  const webDist = process.env.WEB_DIST;
+  if (webDist) serveWebApp(server, webDist);
+  app.enableShutdownHooks();
+}
 
-    // Ensure API routes are namespaced so SPA fallback doesn't intercept them
-    app.setGlobalPrefix('api');
-
-    // SPA fallback: serve index.html for unmatched GET requests
-    server.get('*', (req: any, res: any) => {
-      const indexHtml = path.join(staticPath, 'index.html');
-      res.sendFile(indexHtml);
-    });
-  } else {
-    // No static assets to serve; still namespace API routes
-    app.setGlobalPrefix('api');
-  }
+/**
+ * Serves the built web app from the same origin as the API (as TeeMate does). Hashed assets
+ * are cached for a year; index.html, the service worker and the manifest are always
+ * revalidated so updates reach phones promptly. Other GETs outside /api and /uploads get
+ * index.html so client-side routes work on reload.
+ */
+function serveWebApp(server: express.Express, dir: string) {
+  const index = path.join(dir, 'index.html');
+  server.use(
+    express.static(dir, {
+      index: false,
+      setHeaders(res, file) {
+        res.setHeader(
+          'Cache-Control',
+          file.includes(`${path.sep}assets${path.sep}`)
+            ? 'public, max-age=31536000, immutable'
+            : 'no-cache',
+        );
+      },
+    }),
+  );
+  server.use((req, res, next) => {
+    const ours =
+      req.path.startsWith('/api/') || req.path === '/api' || req.path.startsWith('/uploads/');
+    if ((req.method === 'GET' || req.method === 'HEAD') && !ours) {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(index);
+    } else next();
+  });
 }
 
 // RIGTRACKER_CORS_ORIGIN: comma-separated exact origins (https://host) or patterns like *.example.com.
