@@ -40,6 +40,10 @@ RigTracker follows [semantic versioning](https://semver.org). Deploys before 2.0
 - Duplicate serials, bad ids and invalid values answered with 500 errors.
 - Imported spreadsheet blanks (dates in 1900) showed as long-overdue repacks.
 
+### 2.0.0-rc.1
+
+- The release candidate: the same as beta.5. Only fixes from here until 2.0.0, after the [test plan](doc/TestPlan.md) is worked through.
+
 ### 2.0.0-beta.5
 
 - **Installing on Android and computers:** Home now offers **Install RigTracker** with an **Install** button whenever the browser can install it (Chrome, Edge or Samsung Internet), opening the browser's own dialog, instead of waiting for Chrome to show its prompt by itself (it often doesn't). On Android without that offer, it gives the menu steps (⋮ → Add to Home screen or Install app). iPhone keeps its Share → Add to Home Screen steps. Hidden once installed, opened from the icon, or dismissed.

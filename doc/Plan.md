@@ -122,7 +122,7 @@ Split in two on 2026-10-17:
 
 ### 6. Finish (S)
 
-- **`TestPlan.md`:** a phone and desktop checklist for each page. Written 2026-10-18 ([TestPlan.md](TestPlan.md)); to be worked through before 2.0.0-rc.1.
+- **`TestPlan.md`:** a phone and desktop checklist for each page. Written 2026-10-18 ([TestPlan.md](TestPlan.md)). **2.0.0-rc.1 is deployed (2026-10-18), feature-frozen**; the checklist is worked through on it, fixes go in as rc.N, then 2.0.0.
 - **Docs:** `Architecture.md`, `README.md` and `Enhancements.md` brought up to date (2026-10-18).
 - **Retire** Mongo and `users_merged`: done 2026-10-18 (final dump in the backups volume, service and secret removed). Still to do by hand: delete the Google OAuth client in Google Cloud Console.
 - **Go public:** done 2026-10-18. The GitHub repo was deleted and recreated as public from the cleaned history, so the old commits are gone (checked). Still to do: delete `~/backups/RigTracker-*`, which still hold the old history.
